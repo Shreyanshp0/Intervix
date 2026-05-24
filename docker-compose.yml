@@ -1,0 +1,40 @@
+version: '3.9'
+
+services:
+  mongodb:
+    image: mongo:6
+    container_name: intervix_mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./Backend
+    container_name: intervix_backend
+    ports:
+      - "5000:5000"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/intervix
+      # You can add other backend env variables here, or uncomment the next line to load your .env file
+    env_file:
+      - ./Backend/.env
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./Frontend
+    container_name: intervix_frontend
+    ports:
+      - "5173:5173" # Vite default port
+      - "3000:80" # CRA default port
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:

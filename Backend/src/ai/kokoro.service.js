@@ -1,6 +1,15 @@
 const fs = require('fs');
 const path = require('path');
+const dns = require('dns');
+const crypto = require('crypto');
 const logger = require('../config/logger');
+const { retryWithBackoff, withTimeout } = require('../utils/async-timeout');
+const env = require('../config/env');
+
+// Prefer IPv4 resolution where possible
+if (typeof dns.setDefaultResultOrder === 'function') {
+  try { dns.setDefaultResultOrder('ipv4first'); } catch (e) { /* best-effort */ }
+}
 
 class KokoroService {
   constructor() {
@@ -44,6 +53,14 @@ class KokoroService {
     return 'wav';
   }
 
+  resolveMimeTypeFromFileName(fileName = '') {
+    const extension = path.extname(fileName).replace('.', '').toLowerCase();
+    if (extension === 'mp3') return 'audio/mpeg';
+    if (extension === 'ogg') return 'audio/ogg';
+    if (extension === 'flac') return 'audio/flac';
+    return 'audio/wav';
+  }
+
   createTtsError(message, details = {}, statusCode = 500) {
     const error = new Error(message);
     error.statusCode = statusCode;
@@ -69,16 +86,20 @@ class KokoroService {
   }
 
   async generateSpeech(text, fileNamePrefix = `response_${Date.now()}`) {
-    // TODO: Add TTS caching system.
     // TODO: Add streaming audio generation.
     // TODO: Add voice selection support.
-    // TODO: Add retry mechanism for Kokoro failures.
     console.log('TTS Input Text:', text);
 
     if (!text || typeof text !== 'string' || !text.trim()) {
       throw this.createTtsError('Text is required for speech generation', {
         reason: 'empty_text',
       }, 400);
+    }
+
+    // Feature flag: allow deployments to disable TTS to avoid billing/credit issues
+    if (!env.ENABLE_TTS) {
+      logger.info('TTS disabled via ENABLE_TTS=false; skipping Kokoro generation');
+      return null;
     }
 
     if (!this.hfToken) {
@@ -89,18 +110,55 @@ class KokoroService {
     }
 
     this.ensureAudioDirectory();
+    const maxRetries = Number(process.env.KOKORO_MAX_RETRIES || 1);
+    const timeoutMs = Number(process.env.KOKORO_TIMEOUT_MS || 20000);
     try {
+      const cacheKey = crypto.createHash('sha1').update(text.trim()).digest('hex');
+      const existingAudio = fs.readdirSync(this.uploadsDir).find((file) => file.startsWith(cacheKey));
+      if (existingAudio) {
+        return {
+          audioUrl: `/uploads/audio/${existingAudio}`,
+          mimeType: this.resolveMimeTypeFromFileName(existingAudio),
+          fallback: false,
+          provider: this.provider,
+          cached: true,
+        };
+      }
+
       logger.info(`Attempting Kokoro TTS via Hugging Face InferenceClient using provider ${this.provider}`);
       const client = await this.getInferenceClient();
-      const audio = await client.textToSpeech({
-        provider: this.provider,
-        model: this.modelId,
-        inputs: text.trim(),
-      });
+      let audio;
+
+      await retryWithBackoff(
+        async (attempt) => {
+          audio = await withTimeout(
+            client.textToSpeech({
+              provider: this.provider,
+              model: this.modelId,
+              inputs: text.trim(),
+            }),
+            {
+              timeoutMs,
+              timeoutMessage: 'Kokoro TTS timed out',
+            }
+          );
+          return audio;
+        },
+        {
+          retries: maxRetries,
+          minDelayMs: 1000,
+          maxDelayMs: 5000,
+          factor: 2,
+          onRetry: (error, attempt) => {
+            logger.warn(`Kokoro TTS retrying after attempt ${attempt}: ${error.message}`);
+          },
+        }
+      );
 
       const contentType = audio?.type || 'audio/wav';
       const fileExtension = this.resolveFileExtension(contentType);
-      const fileName = `${fileNamePrefix}.${fileExtension}`;
+      const safePrefix = fileNamePrefix.startsWith('aud_') ? fileNamePrefix : cacheKey;
+      const fileName = `${safePrefix}.${fileExtension}`;
       const filePath = path.join(this.uploadsDir, fileName);
       const audioBuffer = Buffer.from(await audio.arrayBuffer());
 
@@ -128,6 +186,7 @@ class KokoroService {
         provider: this.provider,
       };
     } catch (error) {
+      const normalized = this.normalizeProviderError(error);
       const details = {
         provider: this.provider,
         modelId: this.modelId,
@@ -135,6 +194,8 @@ class KokoroService {
         message: error.message,
         stack: error.stack,
         originalDetails: error.details,
+        statusCode: error.statusCode || error.status,
+        category: normalized.category,
       };
 
       logger.error(`Kokoro TTS Error: ${JSON.stringify(details)}`);
@@ -142,6 +203,27 @@ class KokoroService {
 
       throw this.createTtsError('Text-to-speech processing failed', details, error.statusCode || 500);
     }
+  }
+
+  normalizeProviderError(error) {
+    const message = String(error?.message || 'TTS request failed');
+    const statusCode = error?.statusCode || error?.status || 500;
+    const lower = message.toLowerCase();
+    let category = 'provider_failure';
+
+    if (lower.includes('unauthorized') || lower.includes('forbidden') || statusCode === 401 || statusCode === 403) {
+      category = 'auth_failure';
+    } else if (lower.includes('rate') || statusCode === 429) {
+      category = 'rate_limited';
+    } else if (lower.includes('timeout') || error?.code === 'TIMEOUT') {
+      category = 'timeout';
+    }
+
+    return {
+      category,
+      message,
+      statusCode,
+    };
   }
 }
 

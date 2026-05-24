@@ -77,7 +77,7 @@ const InterviewReportPage = () => {
           <p className="text-gray-400">{location.state?.automatic ? 'The interview ended automatically when the timer expired.' : 'Assessment completed and scored successfully.'}</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="ghost" onClick={() => navigate('/dashboard')}>
+          <Button variant="ghost" onClick={() => navigate('/candidate/dashboard')}>
             <ArrowLeft size={16} className="mr-2" /> Dashboard
           </Button>
           <Button variant="outline" onClick={() => window.print()}>

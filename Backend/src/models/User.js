@@ -23,6 +23,25 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['candidate', 'recruiter', 'admin'],
     default: 'candidate'
+  },
+  candidateProfile: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CandidateProfile',
+    default: null
+  },
+  recruiterProfile: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'RecruiterProfile',
+    default: null
+  },
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    default: null
+  },
+  onboardingCompleted: {
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true });
 

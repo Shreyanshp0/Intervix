@@ -49,7 +49,7 @@ const InterviewSetup = () => {
     setSessionId(null);
     setLatestReportId(null);
     setSessionSnapshot(null);
-    navigate(`/interview/${config.mode}`);
+    navigate(`/candidate/interview/${config.mode}`);
   };
 
   const resolvedTopic =

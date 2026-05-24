@@ -81,7 +81,7 @@ const LiveVideoInterview = () => {
             <MonitorUp size={20} />
           </button>
 
-          <Link to="/interview/coding">
+          <Link to="/candidate/interview/coding">
             <button className="w-12 h-12 rounded-xl bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 flex items-center justify-center transition-colors group relative">
               <Code size={20} />
               <span className="absolute -top-10 scale-0 group-hover:scale-100 transition-transform bg-black text-white text-xs py-1 px-2 rounded">Code</span>

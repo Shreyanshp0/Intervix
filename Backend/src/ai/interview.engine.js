@@ -6,6 +6,7 @@ const InterviewMessage = require('../models/InterviewMessage');
 const logger = require('../config/logger');
 const timerService = require('../services/timer.service');
 const interviewSessionService = require('../services/interview-session.service');
+const { buildFallbackInterviewResponse } = require('../utils/ai-json.utils');
 
 class InterviewEngine {
   normalizeQuestion(question = '') {
@@ -165,7 +166,14 @@ class InterviewEngine {
         aiResponse = await aiService.generateInterviewAction(systemInstruction, context);
       } catch (error) {
         logger.error(`Interview Engine AI failure for session ${sessionId}: ${error.message}`);
-        aiResponse = this.buildManualFollowUp(session, memory, candidateInput, context.previousQuestions);
+        if (error?.details?.parseError) {
+          aiResponse = buildFallbackInterviewResponse({
+            topic: session?.topic,
+            difficulty: session?.difficulty || adaptiveDifficulty,
+          });
+        } else {
+          aiResponse = this.buildManualFollowUp(session, memory, candidateInput, context.previousQuestions);
+        }
       }
 
       if (this.isRepeatedQuestion(aiResponse.followUpQuestion, context.previousQuestions)) {

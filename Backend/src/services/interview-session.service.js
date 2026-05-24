@@ -3,6 +3,7 @@ const InterviewMessage = require('../models/InterviewMessage');
 const timerService = require('./timer.service');
 const assessmentService = require('./assessment.service');
 const progressTrackingService = require('./progress-tracking.service');
+const realtimeService = require('./realtime.service');
 const { OwnershipError, DuplicateSubmissionError, SessionLockedError } = require('../utils/interview-errors');
 
 class InterviewSessionService {
@@ -27,11 +28,17 @@ class InterviewSessionService {
       startedAt,
       expiresAt: timerService.computeExpiry(startedAt, duration),
       targetQuestionRange,
+      activePhase: 'pending',
+      aiState: payload.mode === 'voice' ? 'thinking' : 'idle',
       meta: {
         interviewerStyle: payload.style || 'Friendly',
         questionStrategy: 'adaptive',
       },
     });
+  }
+
+  async getSessionById(sessionId) {
+    return InterviewSession.findById(sessionId);
   }
 
   async getOwnedSession(sessionId, userId) {
@@ -48,12 +55,19 @@ class InterviewSessionService {
   }
 
   addQuestionToTranscript(session, question, difficulty) {
+    const sanitizedQuestion = this.sanitizeText(question);
     session.transcript.push({
-      question: this.sanitizeText(question),
+      question: sanitizedQuestion,
       difficultyAtTime: difficulty || session.difficulty || 'medium',
       askedAt: new Date(),
     });
     session.totalQuestions = session.transcript.length;
+    session.currentQuestion = sanitizedQuestion;
+    session.currentQuestionAskedAt = new Date();
+    session.currentAnswerDraft = '';
+    session.activePhase = 'question_ready';
+    session.aiState = 'idle';
+    session.transcriptVersion = (session.transcriptVersion || 0) + 1;
   }
 
   addAnswerToTranscript(session, answer, evaluation = {}) {
@@ -76,6 +90,10 @@ class InterviewSessionService {
 
     session.answeredQuestions = session.transcript.filter((entry) => entry.answer).length;
     session.progress.recentAverageScore = this.computeRecentAverage(session.transcript);
+    session.currentAnswerDraft = '';
+    session.activePhase = 'thinking';
+    session.aiState = 'thinking';
+    session.transcriptVersion = (session.transcriptVersion || 0) + 1;
   }
 
   computeRecentAverage(transcript = []) {
@@ -100,10 +118,119 @@ class InterviewSessionService {
       endedAt: session.endedAt,
       totalQuestions: session.totalQuestions,
       answeredQuestions: session.answeredQuestions,
+      currentQuestion: session.currentQuestion,
+      currentQuestionAskedAt: session.currentQuestionAskedAt,
+      currentAnswerDraft: session.currentAnswerDraft,
       remainingSeconds,
+      activePhase: session.activePhase,
+      aiState: session.aiState,
+      transcriptVersion: session.transcriptVersion || 0,
+      transcript: session.transcript || [],
       progress: session.progress,
       meta: session.meta,
+      recovery: session.recovery,
     };
+  }
+
+  buildRecoveryPayload(session) {
+    return {
+      session: this.buildSessionSnapshot(session),
+      recoverable: session.status === 'active',
+      serverTime: new Date().toISOString(),
+    };
+  }
+
+  async updateRuntimeState(sessionId, updates = {}) {
+    const updateDoc = {
+      lastActivityAt: new Date(),
+    };
+
+    if (typeof updates.aiState === 'string') {
+      updateDoc.aiState = updates.aiState;
+    }
+
+    if (typeof updates.activePhase === 'string') {
+      updateDoc.activePhase = updates.activePhase;
+    }
+
+    if (typeof updates.currentQuestion === 'string') {
+      updateDoc.currentQuestion = this.sanitizeText(updates.currentQuestion);
+      updateDoc.currentQuestionAskedAt = new Date();
+    }
+
+    if (typeof updates.currentAnswerDraft === 'string') {
+      updateDoc.currentAnswerDraft = updates.currentAnswerDraft.slice(0, 6000);
+    }
+
+    if (updates.recovery && typeof updates.recovery === 'object') {
+      Object.entries(updates.recovery).forEach(([key, value]) => {
+        updateDoc[`recovery.${key}`] = value;
+      });
+    }
+
+    if (updates.meta && typeof updates.meta === 'object') {
+      Object.entries(updates.meta).forEach(([key, value]) => {
+        updateDoc[`meta.${key}`] = value;
+      });
+    }
+
+    await InterviewSession.findByIdAndUpdate(sessionId, { $set: updateDoc });
+  }
+
+  async persistDraft(sessionId, userId, payload = {}) {
+    const session = await this.getOwnedSession(sessionId, userId);
+
+    const draft = typeof payload.currentAnswerDraft === 'string' ? payload.currentAnswerDraft : session.currentAnswerDraft;
+    const updateDoc = {
+      currentAnswerDraft: draft.slice(0, 6000),
+      aiState: payload.aiState || session.aiState || 'idle',
+      activePhase: payload.activePhase || session.activePhase || 'candidate_answering',
+      lastActivityAt: new Date(),
+      lastRecoveredAt: payload.recovered ? new Date() : session.lastRecoveredAt,
+      'meta.autosaveVersion': (session.meta?.autosaveVersion || 0) + 1,
+      'recovery.lastClientSyncAt': new Date(),
+      'recovery.lastKnownConnectionState': payload.connectionState || 'connected',
+    };
+
+    if (payload.tabId) {
+      updateDoc['recovery.lastKnownTabId'] = payload.tabId;
+    }
+
+    await InterviewSession.findByIdAndUpdate(sessionId, { $set: updateDoc });
+    const refreshed = await this.getOwnedSession(sessionId, userId);
+    realtimeService.emitToSession(sessionId, 'interview:autosaved', {
+      sessionId: String(sessionId),
+      autosaveVersion: refreshed.meta?.autosaveVersion || 0,
+      savedAt: new Date().toISOString(),
+    });
+    return refreshed;
+  }
+
+  async getActiveSessionForUser(userId) {
+    return InterviewSession.findOne({
+      userId,
+      status: 'active',
+    }).sort({ updatedAt: -1 });
+  }
+
+  async markRecovered(sessionId, { socketId, userId, tabId }) {
+    const session = await this.getOwnedSession(sessionId, userId);
+    session.lastRecoveredAt = new Date();
+    session.recovery = {
+      ...session.recovery,
+      lastSocketId: socketId || session.recovery?.lastSocketId || '',
+      lastClientSyncAt: new Date(),
+      lastKnownConnectionState: 'recovering',
+      lastKnownTabId: tabId || session.recovery?.lastKnownTabId || '',
+      lastRecoveredBy: String(userId),
+    };
+    session.meta = {
+      ...session.meta,
+      reconnectionCount: (session.meta?.reconnectionCount || 0) + 1,
+    };
+    session.aiState = session.aiState === 'speaking' ? 'speaking' : 'recovering';
+    await session.save();
+    return session;
   }
 
   async endInterview(session, { autoEnded = false } = {}) {
@@ -113,6 +240,8 @@ class InterviewSessionService {
 
     session.status = timerService.hasExpired(session) ? 'expired' : 'completed';
     session.endedAt = session.endedAt || new Date();
+    session.activePhase = 'finalizing';
+    session.aiState = 'finalizing';
     session.meta = {
       ...session.meta,
       autoEnded,
@@ -136,6 +265,8 @@ class InterviewSessionService {
     session.hiringReadiness = assessment.hiringReadiness;
     session.finalSummary = assessment.finalSummary;
     session.reportGeneratedAt = new Date();
+    session.activePhase = 'completed';
+    session.aiState = 'idle';
     session.meta = {
       ...session.meta,
       finalizationInProgress: false,
@@ -151,6 +282,7 @@ class InterviewSessionService {
 
     await session.save();
     await progressTrackingService.updateAfterInterview(session);
+    realtimeService.emitToSession(session._id, 'interview:completed', this.buildRecoveryPayload(session));
     return session;
   }
 

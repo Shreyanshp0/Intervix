@@ -121,6 +121,21 @@ const interviewSessionSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    currentQuestion: {
+      type: String,
+      trim: true,
+      default: '',
+      maxlength: 2000,
+    },
+    currentQuestionAskedAt: {
+      type: Date,
+    },
+    currentAnswerDraft: {
+      type: String,
+      trim: true,
+      default: '',
+      maxlength: 6000,
+    },
     status: {
       type: String,
       enum: ['active', 'completed', 'expired', 'cancelled'],
@@ -143,6 +158,25 @@ const interviewSessionSchema = new mongoose.Schema(
     lastActivityAt: {
       type: Date,
       default: Date.now,
+    },
+    lastRecoveredAt: {
+      type: Date,
+    },
+    transcriptVersion: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    activePhase: {
+      type: String,
+      enum: ['pending', 'question_ready', 'candidate_answering', 'transcribing', 'thinking', 'speaking', 'finalizing', 'completed'],
+      default: 'pending',
+      index: true,
+    },
+    aiState: {
+      type: String,
+      enum: ['idle', 'listening', 'transcribing', 'thinking', 'streaming_text', 'generating_audio', 'speaking', 'recovering', 'finalizing'],
+      default: 'idle',
     },
     progress: {
       currentTopic: {
@@ -263,6 +297,44 @@ const interviewSessionSchema = new mongoose.Schema(
       interviewerStyle: {
         type: String,
         default: 'Friendly',
+      },
+      lastAudioRequestId: {
+        type: String,
+        default: '',
+      },
+      activeAudioUrl: {
+        type: String,
+        default: '',
+      },
+      reconnectionCount: {
+        type: Number,
+        default: 0,
+      },
+      autosaveVersion: {
+        type: Number,
+        default: 0,
+      },
+    },
+    recovery: {
+      lastSocketId: {
+        type: String,
+        default: '',
+      },
+      lastClientSyncAt: {
+        type: Date,
+      },
+      lastKnownConnectionState: {
+        type: String,
+        enum: ['connected', 'disconnected', 'recovering', 'unknown'],
+        default: 'unknown',
+      },
+      lastKnownTabId: {
+        type: String,
+        default: '',
+      },
+      lastRecoveredBy: {
+        type: String,
+        default: '',
       },
     },
   },

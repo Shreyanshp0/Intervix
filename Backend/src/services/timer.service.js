@@ -40,6 +40,11 @@ class TimerService {
       throw new SessionLockedError({ reason: 'missing-session' });
     }
 
+    if (!session.expiresAt) {
+      session.expiresAt = this.computeExpiry(session.startedAt || new Date(), session.duration || 15);
+      await session.save();
+    }
+
     if (session.status !== 'active') {
       throw new SessionLockedError({ status: session.status });
     }

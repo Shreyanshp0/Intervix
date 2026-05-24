@@ -1,6 +1,8 @@
 const Groq = require('groq-sdk');
 const logger = require('../config/logger');
 const aiConfig = require('../config/ai.config');
+const { safeJsonParse, extractJsonPayload } = require('../utils/ai-json.utils');
+const { withTimeout } = require('../utils/async-timeout');
 const {
   compactHistory,
   compactList,
@@ -23,6 +25,7 @@ class GroqService {
     this.fallbackModels = aiConfig.groq.fallbackModels;
     this.generationConfig = aiConfig.groq.generationConfig;
     this.runtimeConfig = aiConfig.groq.runtime;
+    this.requestTimeoutMs = Number(process.env.GROQ_TIMEOUT_MS || 20000);
     this.groq = null;
   }
 
@@ -34,13 +37,21 @@ class GroqService {
         messages,
       });
 
+      this.logInfo('Interview raw response', {
+        preview: responseText.slice(0, 800),
+      });
+
       if (!responseText || !responseText.trim()) {
         throw new GroqOperationalError('Groq returned empty interview response', {
           context,
         });
       }
 
-      return this.parseInterviewResponse(responseText, context);
+      const parsed = this.parseInterviewResponse(responseText, context);
+      this.logInfo('Interview parsed response', {
+        preview: JSON.stringify(parsed).slice(0, 800),
+      });
+      return parsed;
     } catch (error) {
       this.logGroqError('Groq interview generation failed', error, {
         topic: context?.topic,
@@ -353,14 +364,21 @@ class GroqService {
       allowReasoningEffort,
     });
 
-    const stream = await client.chat.completions.create(requestConfig);
-    let responseText = '';
+    const responsePromise = (async () => {
+      const stream = await client.chat.completions.create(requestConfig);
+      let responseText = '';
 
-    for await (const chunk of stream) {
-      responseText += chunk.choices?.[0]?.delta?.content || '';
-    }
+      for await (const chunk of stream) {
+        responseText += chunk.choices?.[0]?.delta?.content || '';
+      }
 
-    return responseText.trim();
+      return responseText.trim();
+    })();
+
+    return withTimeout(responsePromise, {
+      timeoutMs: this.requestTimeoutMs,
+      timeoutMessage: 'Groq request timed out',
+    });
   }
 
   buildRequestConfig({ model, messages, options, allowReasoningEffort }) {
@@ -429,33 +447,21 @@ class GroqService {
   }
 
   parseJsonResponse(rawText, label) {
-    const cleanedText = this.extractJson(rawText);
+    const parseResult = safeJsonParse(rawText);
 
-    try {
-      return JSON.parse(cleanedText);
-    } catch (error) {
+    if (!parseResult.ok) {
       throw new GroqOperationalError(`Failed to parse Groq ${label} JSON`, {
-        rawText: rawText.slice(0, 1200),
-        cleanedText: cleanedText.slice(0, 1200),
-        parseError: error.message,
+        rawText: String(rawText || '').slice(0, 1200),
+        cleanedText: String(parseResult.cleanedText || '').slice(0, 1200),
+        parseError: parseResult.error?.message,
       });
     }
+
+    return parseResult.value;
   }
 
   extractJson(rawText = '') {
-    const trimmedText = rawText.trim();
-    const withoutFence = trimmedText
-      .replace(/^```json\s*/i, '')
-      .replace(/^```\s*/i, '')
-      .replace(/\s*```$/i, '');
-    const firstBrace = withoutFence.indexOf('{');
-    const lastBrace = withoutFence.lastIndexOf('}');
-
-    if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) {
-      return withoutFence;
-    }
-
-    return withoutFence.slice(firstBrace, lastBrace + 1);
+    return extractJsonPayload(rawText);
   }
 
   normalizeGroqError(error, metadata = {}) {
