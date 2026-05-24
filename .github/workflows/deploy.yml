@@ -1,4 +1,4 @@
-name: Docker CI/CD
+name: Full CI/CD Pipeline
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
 
-  docker:
+  deploy:
 
     runs-on: ubuntu-latest
 
@@ -34,18 +34,34 @@ jobs:
         run: |
           echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" >> Frontend/.env
 
-      - name: Build Backend Docker Image
+      - name: Build Backend Image
         run: |
-          docker build -t shreyanshp0/intervix-backend ./Backend
+          docker build -t shreyanshp0/intervix-backend:latest ./Backend
 
-      - name: Build Frontend Docker Image
+      - name: Build Frontend Image
         run: |
-          docker build -t shreyanshp0/intervix-frontend ./Frontend
+          docker build -t shreyanshp0/intervix-frontend:latest ./Frontend
 
-      - name: Push Backend Docker Image
+      - name: Push Backend Image
         run: |
-          docker push shreyanshp0/intervix-backend
+          docker push shreyanshp0/intervix-backend:latest
 
-      - name: Push Frontend Docker Image
+      - name: Push Frontend Image
         run: |
-          docker push shreyanshp0/intervix-frontend
+          docker push shreyanshp0/intervix-frontend:latest
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/intervix
+
+            docker compose down
+
+            docker pull shreyanshp0/intervix-backend:latest
+            docker pull shreyanshp0/intervix-frontend:latest
+
+            docker compose up -d
