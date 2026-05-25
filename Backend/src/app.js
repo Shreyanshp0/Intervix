@@ -32,6 +32,15 @@ app.use(apiLimiter);
 // Serve generated audio assets
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+// Global root-level health check (for load balancers & container orchestration)
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 // API Routes
 app.use('/api', routes);
 
