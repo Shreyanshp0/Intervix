@@ -27,7 +27,16 @@ const getDashboard = async (req, res, next) => {
       interviewSessionService.getDashboard(req.user._id)
     ]);
 
+    const onboardingRequired = !profile?.resume || !profile?.skills?.raw?.length;
+
     res.status(200).json({
+      success: true,
+      onboardingRequired,
+      hasResume: !!profile?.resume,
+      data: {
+        profile,
+        interview: interviewDashboard
+      },
       profile,
       interview: interviewDashboard
     });

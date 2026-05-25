@@ -1,7 +1,7 @@
 const CandidateProfile = require('../models/CandidateProfile');
 const JobPosting = require('../models/JobPosting');
 const InterviewSession = require('../models/InterviewSession');
-const ApiError = require('../utils/api-error');
+const logger = require('../config/logger');
 
 class InterviewPlannerService {
   async generateTailoredPlan(userId, jobId) {
@@ -10,10 +10,8 @@ class InterviewPlannerService {
       JobPosting.findById(jobId).lean()
     ]);
 
-    if (!profile) {
-      throw new ApiError(404, 'Candidate profile not found');
-    }
     if (!job) {
+      const ApiError = require('../utils/api-error');
       throw new ApiError(404, 'Job posting not found');
     }
 
@@ -32,7 +30,7 @@ class InterviewPlannerService {
 
     // Find candidate projects matching job skills
     const jobSkillsList = [...new Set([...requiredSkills, ...(job.preferredSkills?.normalized || [])])];
-    const targetProjects = (profile.projects || [])
+    const targetProjects = (profile?.projects || [])
       .map(proj => {
         const tech = (proj.technologies || []).map(t => t.toLowerCase());
         const overlap = tech.filter(t => jobSkillsList.includes(t));
@@ -66,10 +64,19 @@ class InterviewPlannerService {
       plannerDirective += ` STRENGTHEN GAPS: Check for improvements in previously noted development areas: ${historicalWeaknesses.slice(0, 3).join(', ')}.`;
     }
 
+    if (!profile) {
+      logger.warn({
+        tag: 'ONBOARDING',
+        message: `Interview planner fallback generated for missing candidate profile`,
+        userId
+      });
+      plannerDirective = plannerDirective || ' ONBOARDING MODE: Candidate profile is incomplete. Focus on role fundamentals, skills discovery, and general experience.';
+    }
+
     return {
-      unverifiedSkills,
-      matchingProjects: targetProjects.map(p => p.name),
-      historicalWeaknesses,
+      unverifiedSkills: unverifiedSkills || [],
+      matchingProjects: targetProjects.map((p) => p.name),
+      historicalWeaknesses: historicalWeaknesses || [],
       plannerDirective
     };
   }

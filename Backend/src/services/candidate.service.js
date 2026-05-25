@@ -47,6 +47,42 @@ class CandidateService {
       });
       profile = await CandidateProfile.findOne({ user: userId }).populate(candidatePopulate);
     }
+
+    let needsNormalization = false;
+    if (!profile.skills) {
+      profile.skills = { raw: [], normalized: [], verified: [] };
+      needsNormalization = true;
+    }
+    if (!Array.isArray(profile.skills.raw)) {
+      profile.skills.raw = [];
+      needsNormalization = true;
+    }
+    if (!Array.isArray(profile.skills.normalized)) {
+      profile.skills.normalized = [];
+      needsNormalization = true;
+    }
+    if (!Array.isArray(profile.skills.verified)) {
+      profile.skills.verified = [];
+      needsNormalization = true;
+    }
+    if (!Array.isArray(profile.education)) {
+      profile.education = [];
+      needsNormalization = true;
+    }
+    if (!Array.isArray(profile.experience)) {
+      profile.experience = [];
+      needsNormalization = true;
+    }
+    if (!Array.isArray(profile.projects)) {
+      profile.projects = [];
+      needsNormalization = true;
+    }
+
+    if (needsNormalization) {
+      await profile.save();
+      profile = await CandidateProfile.findOne({ user: userId }).populate(candidatePopulate);
+    }
+
     return profile;
   }
 

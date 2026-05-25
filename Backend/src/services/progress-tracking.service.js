@@ -1,6 +1,7 @@
 const UserProgress = require('../models/UserProgress');
 const InterviewSession = require('../models/InterviewSession');
 const analyticsService = require('./analytics.service');
+const logger = require('../config/logger');
 
 class ProgressTrackingService {
   async getOrCreate(userId) {
@@ -91,11 +92,22 @@ class ProgressTrackingService {
       }
 
       const normalizedTopic = topic.trim().toLowerCase();
+      if (!Array.isArray(profile.skills?.verified)) {
+        profile.skills = profile.skills || {};
+        profile.skills.verified = [];
+      }
+
       if (!profile.skills.verified.includes(normalizedTopic)) {
         profile.skills.verified.push(normalizedTopic);
       }
+      if (!Array.isArray(profile.skills.raw)) {
+        profile.skills.raw = [];
+      }
       if (!profile.skills.raw.includes(topic)) {
         profile.skills.raw.push(topic);
+      }
+      if (!Array.isArray(profile.skills.normalized)) {
+        profile.skills.normalized = [];
       }
       if (!profile.skills.normalized.includes(normalizedTopic)) {
         profile.skills.normalized.push(normalizedTopic);
@@ -109,25 +121,35 @@ class ProgressTrackingService {
   }
 
   async getDashboardData(userId) {
-    const progress = await this.getOrCreate(userId);
-    const sessions = await InterviewSession.find({
-      userId,
-      status: { $in: ['completed', 'expired'] },
-      reportGeneratedAt: { $exists: true },
-    })
-      .sort({ createdAt: 1 })
-      .limit(20)
-      .lean();
+    try {
+      const progress = await this.getOrCreate(userId);
+      const sessions = await InterviewSession.find({
+        userId,
+        status: { $in: ['completed', 'expired'] },
+        reportGeneratedAt: { $exists: true },
+      })
+        .sort({ createdAt: 1 })
+        .limit(20)
+        .lean();
 
-    const CandidateProfile = require('../models/CandidateProfile');
-    const profile = await CandidateProfile.findOne({ user: userId }).populate('resume').lean();
+      const CandidateProfile = require('../models/CandidateProfile');
+      const profile = await CandidateProfile.findOne({ user: userId }).populate('resume').lean();
+      const progressDoc = progress.toObject ? progress.toObject() : progress;
 
-    return analyticsService.buildDashboardSummary(
-      progress.toObject(),
-      sessions,
-      profile,
-      profile?.resume
-    );
+      return analyticsService.buildDashboardSummary(
+        progressDoc,
+        sessions || [],
+        profile || null,
+        profile?.resume || null
+      );
+    } catch (error) {
+      logger.warn({
+        tag: 'DASHBOARD',
+        message: `Dashboard fallback generated for user ${userId}: ${error.message}`
+      });
+
+      return analyticsService.buildDashboardSummary(null, [], null, null);
+    }
   }
 }
 

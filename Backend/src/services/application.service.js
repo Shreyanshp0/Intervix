@@ -43,13 +43,9 @@ class ApplicationService {
   async applyToJob(user, jobId, payload) {
     const candidateService = require('./candidate.service');
     const [profile, job] = await Promise.all([
-      candidateService.getOrCreateProfile(user._id),
+      candidateService.getOrCreateCandidateProfile(user._id),
       JobPosting.findOne({ _id: jobId, archivedAt: null }).populate('company recruiter')
     ]);
-
-    if (!profile) {
-      throw new ApiError(404, 'Candidate profile not found');
-    }
 
     if (!job || job.hiringStatus !== 'open') {
       throw new ApiError(400, 'This job is not accepting applications');
@@ -64,8 +60,10 @@ class ApplicationService {
       throw new ApiError(409, 'You have already applied to this job');
     }
 
-    const match = await matchingService.calculateMatchScore(profile.toObject(), job.toObject());
-    const summary = matchingService.generateCandidateSummary(profile.toObject(), job.toObject(), match);
+    const profileDoc = profile.toObject ? profile.toObject() : profile;
+    const jobDoc = job.toObject ? job.toObject() : job;
+    const match = await matchingService.calculateMatchScore(profileDoc, jobDoc);
+    const summary = matchingService.generateCandidateSummary(profileDoc, jobDoc, match);
 
     const application = await Application.create({
       job: job._id,
@@ -100,7 +98,7 @@ class ApplicationService {
     return applications
       .filter((application) => application.job)
       .map((application) => {
-        application.recruiterFeedback = application.recruiterFeedback.filter((item) => item.visibility === 'candidate');
+        application.recruiterFeedback = (application.recruiterFeedback || []).filter((item) => item.visibility === 'candidate');
         return application;
       });
   }
@@ -115,7 +113,7 @@ class ApplicationService {
       throw new ApiError(404, 'Application not found');
     }
 
-    application.recruiterFeedback = application.recruiterFeedback.filter((item) => item.visibility === 'candidate');
+    application.recruiterFeedback = (application.recruiterFeedback || []).filter((item) => item.visibility === 'candidate');
     return application;
   }
 

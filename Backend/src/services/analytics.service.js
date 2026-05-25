@@ -93,12 +93,22 @@ class AnalyticsService {
 
   buildDashboardSummary(progress, sessions = [], profile = null, resume = null) {
     const topicPerformance = progress?.topicPerformance || [];
+    const verifiedSkillsScores = Array.isArray(profile?.verifiedSkills)
+      ? profile.verifiedSkills
+      : profile?.verifiedSkills instanceof Map
+        ? [...profile.verifiedSkills.values()]
+        : profile?.verifiedSkills
+          ? Object.values(profile.verifiedSkills)
+          : [];
+    const verifiedSkills = verifiedSkillsScores.length ? this.average(verifiedSkillsScores) : 50;
+    const resumeQuality = resume?.aiAnalysis?.resumeQualityScore || 50;
+    const projectDepth = Math.min(100, (profile?.projects?.length || 0) * 33.3);
     const strongestTopic = this.detectStrongTopics(topicPerformance)[0]?.topic || 'N/A';
     const weakestTopic = this.detectWeakTopics(topicPerformance)[0]?.topic || 'N/A';
 
     const employability = this.calculateEmployabilityScore(profile, progress, resume);
 
-    // Compute mock rolling employability scores over sessions to show trends
+    // Compute rolling employability scores over sessions to show trends
     const trends = sessions.map((session, idx) => {
       const rollingAverageSession = this.average(sessions.slice(0, idx + 1).map((s) => s.score));
       const rollingComm = this.average(sessions.slice(0, idx + 1).map((s) => s.communicationScore || s.score));
@@ -115,6 +125,35 @@ class AnalyticsService {
         employability: Math.min(100, Math.max(20, rollingScore))
       };
     });
+
+    const emptyState = {
+      totalInterviews: 0,
+      averageScore: 0,
+      bestScore: 0,
+      latestScore: 0,
+      strongestTopic: 'N/A',
+      weakestTopic: 'N/A',
+      employability: {
+        overallScore: 0,
+        breakdown: {
+          interviewPerformance: 0,
+          verifiedSkills: 50,
+          resumeQuality: 50,
+          communication: 50,
+          projectDepth: 0
+        }
+      },
+      employabilityTrends: [{ label: 'Onboarding', employability: 0 }],
+      scoreProgression: [],
+      topicPerformance: [],
+      confidenceTrend: [],
+      improvementGraph: [],
+      learningRecommendations: ['Complete onboarding to generate personalized analytics.']
+    };
+
+    if (!progress && !sessions.length && !profile) {
+      return emptyState;
+    }
 
     return {
       totalInterviews: progress?.interviewsTaken || 0,

@@ -3,7 +3,13 @@ const recruiterService = require('../services/recruiter.service');
 const getRecruiterProfile = async (req, res, next) => {
   try {
     const profile = await recruiterService.getProfileByUserId(req.user._id);
-    res.status(200).json({ profile, company: profile.company });
+    res.status(200).json({
+      success: true,
+      onboardingRequired: false,
+      data: { profile, company: profile.company },
+      profile,
+      company: profile.company
+    });
   } catch (error) {
     next(error);
   }
@@ -12,7 +18,13 @@ const getRecruiterProfile = async (req, res, next) => {
 const updateRecruiterProfile = async (req, res, next) => {
   try {
     const profile = await recruiterService.updateRecruiterProfile(req.user, req.body);
-    res.status(200).json({ profile, company: profile.company });
+    res.status(200).json({
+      success: true,
+      onboardingRequired: false,
+      data: { profile, company: profile.company },
+      profile,
+      company: profile.company
+    });
   } catch (error) {
     next(error);
   }
@@ -30,7 +42,12 @@ const updateCompanyProfile = async (req, res, next) => {
 const getRecruiterDashboard = async (req, res, next) => {
   try {
     const dashboard = await recruiterService.getDashboard(req.user._id);
-    res.status(200).json(dashboard);
+    res.status(200).json({
+      success: true,
+      onboardingRequired: Boolean(dashboard.onboardingRequired),
+      data: dashboard,
+      ...dashboard
+    });
   } catch (error) {
     next(error);
   }
@@ -39,7 +56,12 @@ const getRecruiterDashboard = async (req, res, next) => {
 const getCandidateProfileForRecruiter = async (req, res, next) => {
   try {
     const data = await recruiterService.getCandidateProfileForRecruiter(req.params.candidateId);
-    res.status(200).json(data);
+    res.status(200).json({
+      success: true,
+      onboardingRequired: !data.profile,
+      data,
+      ...data
+    });
   } catch (error) {
     next(error);
   }

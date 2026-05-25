@@ -81,9 +81,29 @@ const resumeController = {
         }
       }
 
-      const rawText = await resumeParserService.extractResumeText(req.file.path, req.file.mimetype);
-      const parsed = await resumeParserService.parseResumeContent(rawText);
       const fileUrl = `/uploads/resumes/${req.file.filename}`;
+      let rawText = '';
+      let parsed = {};
+
+      try {
+        rawText = await resumeParserService.extractResumeText(req.file.path, req.file.mimetype);
+      } catch (extractError) {
+        logger.warn({
+          tag: 'ResumeFallback',
+          message: `Resume text extraction failed for user ${req.user._id}: ${extractError.message}`
+        });
+      }
+
+      if (rawText && rawText.trim()) {
+        try {
+          parsed = await resumeParserService.parseResumeContent(rawText);
+        } catch (parseError) {
+          logger.warn({
+            tag: 'ResumeFallback',
+            message: `Resume AI parsing failed for user ${req.user._id}: ${parseError.message}`
+          });
+        }
+      }
 
       const resumeData = {
         user: req.user._id,
@@ -166,7 +186,8 @@ const resumeController = {
       logger.info({
         tag: 'ResumeAPI',
         message: `Resume uploaded for user ${req.user._id}`,
-        resumeId: resume._id
+        resumeId: resume._id,
+        parsed: Boolean(rawText && rawText.trim())
       });
 
       res.status(201).json({
