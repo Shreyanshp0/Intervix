@@ -2,12 +2,13 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const resumeController = require('../controllers/resume.controller');
 const { protect, authorize, ensureOwnProfile } = require('../middleware/auth.middleware');
 
 const router = express.Router();
 
-const uploadDirectory = path.join(__dirname, '../../uploads/resumes');
+const uploadDirectory = path.join(os.tmpdir(), 'intervix_resumes');
 if (!fs.existsSync(uploadDirectory)) {
   fs.mkdirSync(uploadDirectory, { recursive: true });
 }

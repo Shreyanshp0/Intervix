@@ -16,10 +16,16 @@ const resumeSchema = new mongoose.Schema({
   },
   fileName: { type: String, required: true, trim: true },
   storageKey: { type: String, trim: true, default: '' },
+  publicId: { type: String, trim: true, default: null },
   fileUrl: { type: String, trim: true, default: '' },
   mimeType: { type: String, trim: true, default: '' },
   fileSize: { type: Number, default: 0 },
   uploadedAt: { type: Date, default: Date.now },
+  parsingStatus: {
+    type: String,
+    enum: ['uploaded', 'parsing', 'parsed', 'failed'],
+    default: 'uploaded'
+  },
   rawText: { type: String, default: '' },
   aiAnalysis: {
     recruiterSummary: { type: String, default: '' },
