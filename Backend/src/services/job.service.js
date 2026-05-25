@@ -180,13 +180,9 @@ class JobService {
   }
 
   async listCandidateJobs(userId, query = {}) {
-    const profile = await CandidateProfile.findOne({ user: userId })
-      .populate('resume')
-      .lean();
-
-    if (!profile) {
-      throw new ApiError(404, 'Candidate profile not found');
-    }
+    const candidateService = require('./candidate.service');
+    const profileDoc = await candidateService.getOrCreateProfile(userId);
+    const profile = profileDoc.toObject ? profileDoc.toObject() : profileDoc;
 
     const filter = {
       archivedAt: null,
@@ -242,13 +238,9 @@ class JobService {
   }
 
   async getCandidateJobsFeed(userId, query = {}) {
-    const profile = await CandidateProfile.findOne({ user: userId })
-      .populate('resume')
-      .lean();
-
-    if (!profile) {
-      throw new ApiError(404, 'Candidate profile not found');
-    }
+    const candidateService = require('./candidate.service');
+    const profileDoc = await candidateService.getOrCreateProfile(userId);
+    const profile = profileDoc.toObject ? profileDoc.toObject() : profileDoc;
 
     const completeness = calculateProfileCompleteness(profile);
 
@@ -360,13 +352,9 @@ class JobService {
   }
 
   async getCandidateJobDetails(userId, jobId) {
-    const profile = await CandidateProfile.findOne({ user: userId })
-      .populate('resume')
-      .lean();
-
-    if (!profile) {
-      throw new ApiError(404, 'Candidate profile not found');
-    }
+    const candidateService = require('./candidate.service');
+    const profileDoc = await candidateService.getOrCreateProfile(userId);
+    const profile = profileDoc.toObject ? profileDoc.toObject() : profileDoc;
 
     const job = await JobPosting.findOne({
       _id: jobId,

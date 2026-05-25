@@ -8,10 +8,8 @@ const { calculateCandidateCompletion, buildSkillPayload } = require('../utils/pr
 
 class ResumeController {
   async getCandidateProfile(req) {
-    const profile = await CandidateProfile.findOne({ user: req.user._id });
-    if (!profile) {
-      throw new ApiError(404, 'Candidate profile not found');
-    }
+    const candidateService = require('../services/candidate.service');
+    const profile = await candidateService.getOrCreateProfile(req.user._id);
     return profile;
   }
 
@@ -46,14 +44,7 @@ class ResumeController {
         throw new ApiError(400, 'No resume file uploaded');
       }
 
-      const profile = await CandidateProfile.findOne({ user: req.user._id });
-      if (!profile) {
-        // Clean up file if profile not found
-        if (fs.existsSync(req.file.path)) {
-          fs.unlinkSync(req.file.path);
-        }
-        throw new ApiError(404, 'Candidate profile not found');
-      }
+      const profile = await this.getCandidateProfile(req);
 
       // Check if candidate already has a resume
       let resume = await Resume.findOne({ candidateProfile: profile._id });

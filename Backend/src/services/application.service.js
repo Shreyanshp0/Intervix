@@ -41,8 +41,9 @@ class ApplicationService {
   }
 
   async applyToJob(user, jobId, payload) {
+    const candidateService = require('./candidate.service');
     const [profile, job] = await Promise.all([
-      CandidateProfile.findOne({ user: user._id }).populate('resume'),
+      candidateService.getOrCreateProfile(user._id),
       JobPosting.findOne({ _id: jobId, archivedAt: null }).populate('company recruiter')
     ]);
 

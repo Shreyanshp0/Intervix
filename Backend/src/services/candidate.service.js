@@ -8,19 +8,44 @@ const candidatePopulate = [
 ];
 
 class CandidateService {
-  async getProfileByUserId(userId) {
-    const profile = await CandidateProfile.findOne({ user: userId }).populate(candidatePopulate);
+  async getOrCreateProfile(userId, userData = {}) {
+    let profile = await CandidateProfile.findOne({ user: userId }).populate(candidatePopulate);
     if (!profile) {
-      throw new ApiError(404, 'Candidate profile not found');
+      const User = require('../models/User');
+      const user = await User.findById(userId);
+      const name = user?.name || userData.name || 'Candidate';
+      const email = user?.email || userData.email || 'candidate@intervix.com';
+
+      console.warn(`[CandidateProfile] Missing CandidateProfile detected for user ID: ${userId}. Performing auto-healing...`);
+      
+      profile = await CandidateProfile.create({
+        user: userId,
+        name: name,
+        email: email,
+        skills: { raw: [], normalized: [], verified: [] },
+        education: [],
+        experience: [],
+        projects: [],
+        preferredRoles: []
+      });
+
+      if (user) {
+        user.candidateProfile = profile._id;
+        await user.save();
+      }
+
+      console.log(`[CandidateProfile] Auto-created profile document successfully for candidate user ID: ${userId}`);
+      profile = await CandidateProfile.findOne({ user: userId }).populate(candidatePopulate);
     }
     return profile;
   }
 
+  async getProfileByUserId(userId) {
+    return this.getOrCreateProfile(userId);
+  }
+
   async upsertProfile(user, payload) {
-    const profile = await CandidateProfile.findOne({ user: user._id });
-    if (!profile) {
-      throw new ApiError(404, 'Candidate profile not found');
-    }
+    const profile = await this.getOrCreateProfile(user._id, { name: user.name, email: user.email });
 
     profile.name = payload.name ?? profile.name;
     profile.email = payload.email ?? profile.email;

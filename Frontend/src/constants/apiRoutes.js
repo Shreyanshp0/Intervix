@@ -1,4 +1,4 @@
-const API_PREFIX = '/api';
+const API_PREFIX = '/api/v1';
 
 export const API_ROUTES = {
   auth: {

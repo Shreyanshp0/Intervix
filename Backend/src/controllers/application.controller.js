@@ -1,13 +1,10 @@
 const applicationService = require('../services/application.service');
-const CandidateProfile = require('../models/CandidateProfile');
 const { calculateProfileCompleteness } = require('../utils/profile.utils');
 
 const applyToJob = async (req, res, next) => {
   try {
-    const profile = await CandidateProfile.findOne({ user: req.user._id }).populate('resume');
-    if (!profile) {
-      return res.status(404).json({ success: false, message: 'Candidate profile not found' });
-    }
+    const candidateService = require('../services/candidate.service');
+    const profile = await candidateService.getOrCreateProfile(req.user._id);
 
     const completeness = calculateProfileCompleteness(profile);
     if (!completeness.canApply) {

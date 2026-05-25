@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, Bot, FileText, MapPin, SearchCheck, Sparkles, Target, TrendingUp, Trophy, UserRound, Workflow } from 'lucide-react';
+import { AlertCircle, ArrowRight, Bot, CheckCircle2, FileText, MapPin, SearchCheck, Sparkles, Target, TrendingUp, Trophy, UserRound, Workflow } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import Button from '../../components/common/Button';
@@ -46,8 +46,85 @@ const CandidateDashboard = () => {
     { label: 'Weakest Topic', value: interview?.weakestTopic || 'N/A', icon: Target }
   ];
 
+  const hasResume = !!profile?.resume;
+  const hasSkills = !!profile?.skills?.raw?.length;
+  const hasAboutMe = !!profile?.aboutMe && !!profile?.aboutMe.trim();
+  const showOnboardingBanner = !hasResume || !hasSkills || !hasAboutMe || (profile?.completionScore || 0) < 50;
+
   return (
     <div className="space-y-8 pb-12">
+      {showOnboardingBanner && (
+        <div className="relative overflow-hidden rounded-[28px] border border-amber-500/20 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-6 lg:p-8 backdrop-blur-xl shadow-xl">
+          <div className="absolute -right-16 -top-16 h-36 w-36 rounded-full bg-amber-500/10 blur-3xl"></div>
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-4 max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs uppercase tracking-[0.2em] font-medium text-amber-400">
+                <AlertCircle size={14} />
+                Action Required: Complete Profile
+              </div>
+              <h3 className="text-2xl font-bold text-white tracking-tight animate-pulse">
+                Unlock Candidate Applications!
+              </h3>
+              <p className="text-sm text-gray-400 leading-relaxed">
+                You are currently restricted from applying to job postings. Complete your profile by meeting all core setup steps below to activate AI resume intelligence and unlock active applications.
+              </p>
+              
+              {/* Progress bar */}
+              <div className="space-y-2 max-w-md">
+                <div className="flex justify-between text-xs font-semibold text-gray-400">
+                  <span>Profile Strength</span>
+                  <span className="text-amber-400">{profile?.completionScore || 0}% Completed</span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-white/5 overflow-hidden">
+                  <div 
+                    className="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-300 transition-all duration-500" 
+                    style={{ width: `${profile?.completionScore || 0}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Checklist items */}
+              <div className="flex flex-wrap gap-4 pt-2">
+                <div className="flex items-center gap-2 text-sm bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
+                  {hasResume ? (
+                    <CheckCircle2 size={16} className="text-emerald-400" />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full border border-gray-600 flex items-center justify-center text-[10px] text-gray-400 font-bold bg-gray-800">!</div>
+                  )}
+                  <span className={hasResume ? 'text-gray-300 font-medium' : 'text-gray-500'}>Resume Uploaded</span>
+                </div>
+
+                <div className="flex items-center gap-2 text-sm bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
+                  {hasSkills ? (
+                    <CheckCircle2 size={16} className="text-emerald-400" />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full border border-gray-600 flex items-center justify-center text-[10px] text-gray-400 font-bold bg-gray-800">!</div>
+                  )}
+                  <span className={hasSkills ? 'text-gray-300 font-medium' : 'text-gray-500'}>Skills Added</span>
+                </div>
+
+                <div className="flex items-center gap-2 text-sm bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
+                  {hasAboutMe ? (
+                    <CheckCircle2 size={16} className="text-emerald-400" />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full border border-gray-600 flex items-center justify-center text-[10px] text-gray-400 font-bold bg-gray-800">!</div>
+                  )}
+                  <span className={hasAboutMe ? 'text-gray-300 font-medium' : 'text-gray-500'}>About Me Bio</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center">
+              <Link to="/candidate/profile">
+                <Button className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold gap-2 border-0 shadow-lg shadow-amber-500/20">
+                  Setup Profile
+                  <ArrowRight size={16} />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <div className="glass-card rounded-[28px] p-6 lg:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
