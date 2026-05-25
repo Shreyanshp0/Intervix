@@ -1,8 +1,5 @@
-const API_VERSION = 'v1';
-
 const API_PREFIXES = Object.freeze({
-  unversioned: '/api',
-  versioned: `/api/${API_VERSION}`
+  unversioned: '/api'
 });
 
 const ROUTE_DEFINITIONS = Object.freeze([

@@ -12,9 +12,19 @@ const api = axios.create({
   },
 });
 
-// Request interceptor to attach JWT token
+const maxRetries = 3;
+const retryCounts = new Map();
+
+// Request interceptor to attach JWT token and prevent request loops
 api.interceptors.request.use(
   (config) => {
+    const key = `${config.method}:${config.url}`;
+    const count = retryCounts.get(key) || 0;
+    if (count >= maxRetries) {
+      console.error(`[API_SAFEGUARD] Request blocked by circuit-breaker due to consecutive failures: ${key}`);
+      return Promise.reject(new Error('MAX_RETRIES_EXCEEDED'));
+    }
+
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -26,10 +36,22 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle 401s
+// Response interceptor to handle 401s and track request failures for circuit-breaker
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.config) {
+      const key = `${response.config.method}:${response.config.url}`;
+      retryCounts.delete(key); // Reset counter on success
+    }
+    return response;
+  },
   (error) => {
+    if (error.config) {
+      const key = `${error.config.method}:${error.config.url}`;
+      const count = retryCounts.get(key) || 0;
+      retryCounts.set(key, count + 1);
+    }
+
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('token');
       window.location.href = '/login';

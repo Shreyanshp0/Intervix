@@ -5,7 +5,7 @@ const morgan = require('morgan');
 const path = require('path');
 const { errorConverter, errorHandler } = require('./middleware/error.middleware');
 const apiLimiter = require('./middleware/rate-limiter');
-const { routeNotFoundHandler } = require('./middleware/route-logger.middleware');
+const { routeNotFoundHandler, requestTimingMiddleware } = require('./middleware/route-logger.middleware');
 const { API_PREFIXES } = require('./constants/api-routes');
 
 const routes = require('./routes');
@@ -31,6 +31,9 @@ app.use(express.urlencoded({ extended: true }));
 // Apply rate limiting to all requests
 app.use(apiLimiter);
 
+// Request timing middleware for diagnostics
+app.use(requestTimingMiddleware);
+
 // Serve generated audio assets
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
@@ -44,7 +47,6 @@ app.get('/health', (req, res) => {
 });
 
 app.use(API_PREFIXES.unversioned, routes);
-app.use(API_PREFIXES.versioned, routes);
 
 // 404 handler
 app.use(routeNotFoundHandler);

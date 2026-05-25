@@ -15,22 +15,22 @@ const legacyPatterns = [
   '/jobs/applications'
 ];
 
-test('route health report exposes canonical versioned routes without collisions', () => {
+test('route health report exposes canonical unversioned routes without collisions', () => {
   const report = buildRouteHealthReport();
   const routePaths = report.routes.map((route) => `${route.method} ${route.fullPath}`);
 
   assert.equal(report.collisions.length, 0);
-  assert.ok(routePaths.includes('GET /api/v1/candidate/me'));
-  assert.ok(routePaths.includes('GET /api/v1/candidate/jobs/feed'));
-  assert.ok(routePaths.includes('GET /api/v1/recruiter/jobs'));
-  assert.ok(routePaths.includes('GET /api/v1/resume/me'));
-  assert.ok(routePaths.includes('GET /api/v1/health/routes'));
+  assert.ok(routePaths.includes('GET /api/candidate/me'));
+  assert.ok(routePaths.includes('GET /api/candidate/jobs/feed'));
+  assert.ok(routePaths.includes('GET /api/recruiter/jobs'));
+  assert.ok(routePaths.includes('GET /api/resume/me'));
+  assert.ok(routePaths.includes('GET /api/health/routes'));
 });
 
-test('frontend route constants target the canonical versioned API', () => {
+test('frontend route constants target the canonical unversioned API', () => {
   const contents = fs.readFileSync(frontendApiRoutesFile, 'utf8');
 
-  assert.match(contents, /const API_PREFIX = '\/api\/v1'/);
+  assert.match(contents, /const API_PREFIX = '\/api'/);
   assert.match(contents, /candidate:\s*{[\s\S]*me:\s*`\$\{API_PREFIX\}\/candidate\/me`/);
   assert.match(contents, /recruiter:\s*{[\s\S]*jobs:\s*`\$\{API_PREFIX\}\/recruiter\/jobs`/);
   assert.match(contents, /resume:\s*{[\s\S]*me:\s*`\$\{API_PREFIX\}\/resume\/me`/);

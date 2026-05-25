@@ -11,7 +11,12 @@ const printRegisteredRoutes = (expressApp) => {
     stack.forEach((layer) => {
       if (layer.route) {
         const methods = Object.keys(layer.route.methods).join(',').toUpperCase();
-        routes.push(`${methods.padEnd(6)} | ${prefix}${layer.route.path}`);
+        const middlewares = (layer.route.stack || [])
+          .map((h) => h.name || 'anonymous')
+          .filter((name) => name !== '<anonymous>' && name !== 'bound dispatch')
+          .join(', ');
+        const middlewareString = middlewares ? ` [Middleware: ${middlewares}]` : '';
+        routes.push(`${methods.padEnd(6)} | ${prefix}${layer.route.path}${middlewareString}`);
       } else if (layer.name === 'router' && layer.handle.stack) {
         let newPrefix = prefix;
         if (layer.regexp) {

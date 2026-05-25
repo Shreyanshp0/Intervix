@@ -9,34 +9,70 @@ services:
     volumes:
       - mongodb_data:/data/db
     restart: unless-stopped
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     image: shreyanshp0/intervix-backend:latest
     build:
       context: ./Backend
+      # Force rebuild by invalidating cache with build argument
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+        - BUILD_VERSION=${BUILD_VERSION:-$(date +%s)}
     container_name: intervix_backend
     ports:
       - "5000:5000"
     environment:
       - MONGODB_URI=mongodb://mongodb:27017/intervix
-      # You can add other backend env variables here, or uncomment the next line to load your .env file
+      - NODE_ENV=${NODE_ENV:-production}
+      - DOCKER_CONTAINER=true
+      # Build version for tracking deployments
+      - BUILD_VERSION=${BUILD_VERSION:-$(date +%s)}
     env_file:
       - ./Backend/.env
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   frontend:
     image: shreyanshp0/intervix-frontend:latest
     build:
       context: ./Frontend
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+        - BUILD_VERSION=${BUILD_VERSION:-$(date +%s)}
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:5000/api}
     container_name: intervix_frontend
     ports:
       - "5173:5173" # Vite default port
-      - "3000:80" # CRA default port
+      - "3000:80"   # Production port
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:5000/api}
+      - NODE_ENV=${NODE_ENV:-production}
+      - DOCKER_CONTAINER=true
+      # Build version for tracking deployments
+      - BUILD_VERSION=${BUILD_VERSION:-$(date +%s)}
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
   mongodb_data:

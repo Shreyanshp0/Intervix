@@ -40,13 +40,48 @@ const gracefulShutdown = async (signal) => {
 };
 
 const { printRegisteredRoutes } = require('./src/utils/routes-printer');
+const { buildValidationReport } = require('./src/utils/route-validator');
+const { generateDeploymentHealthReport } = require('./src/utils/deployment-health');
 
 // Connect to Database and start server
 connectDB().then(() => {
   server.listen(PORT, () => {
     logger.info(`Server running on port ${PORT}`);
+    
+    // Log route information on startup
     try {
       printRegisteredRoutes(app);
+      
+      // Log route validation report
+      const validationReport = buildValidationReport();
+      logger.info({
+        tag: 'ROUTE_VALIDATION_STARTUP',
+        status: validationReport.status,
+        totalRoutes: ROUTE_DEFINITIONS.length,
+        conflicts: validationReport.validation.conflicts.count,
+        protectionIssues: validationReport.validation.protectionIssues.count,
+        consistencyIssues: validationReport.validation.consistencyIssues.count
+      });
+
+      // Log deployment health
+      const deploymentReport = generateDeploymentHealthReport();
+      logger.info({
+        tag: 'DEPLOYMENT_HEALTH_STARTUP',
+        status: deploymentReport.status,
+        buildVersion: deploymentReport.buildVersion,
+        environment: deploymentReport.deployment.environment,
+        containerized: deploymentReport.deployment.containerized,
+        consistency: deploymentReport.consistency.aligned ? 'ALIGNED' : 'DIVERGED'
+      });
+
+      if (validationReport.status !== 'VALID') {
+        logger.warn('STARTUP_WARNING: Route validation issues detected. See /health/routes/validation for details.');
+      }
+
+      if (!deploymentReport.consistency.aligned) {
+        logger.warn('STARTUP_WARNING: Frontend/backend versions may not be synchronized. See /health/deployment for details.');
+      }
+
     } catch (e) {
       logger.error(`Failed to log endpoints: ${e.message}`);
     }
@@ -55,6 +90,9 @@ connectDB().then(() => {
   logger.error(`Database connection failed: ${err.message}`);
   process.exit(1);
 });
+
+// Import for startup logging
+const { ROUTE_DEFINITIONS } = require('./src/constants/api-routes');
 
 // Handle unhandled promise rejections and uncaught exceptions
 process.on('unhandledRejection', (err) => {
