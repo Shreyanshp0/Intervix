@@ -1,24 +1,35 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, BriefcaseBusiness, CalendarClock, MapPin, Sparkles } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
+import { ArrowLeft, BriefcaseBusiness, CalendarClock, MapPin, Sparkles, AlertTriangle, AlertCircle, CheckCircle2, Bot, ArrowRight, X } from 'lucide-react';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button';
 import { MatchBadge, Panel, StageBadge, TextareaField } from '../../components/jobs/JobUi';
 import api from '../../services/api';
 
 const JobDetails = () => {
   const { jobId } = useParams();
+  const navigate = useNavigate();
   const [job, setJob] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [coverLetter, setCoverLetter] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
+  
+  // Modal & Eligibility States
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [missingFieldsList, setMissingFieldsList] = useState([]);
 
   useEffect(() => {
-    const loadJob = async () => {
+    const loadJobAndProfile = async () => {
       setLoading(true);
       try {
-        const response = await api.get(`/jobs/candidate/${jobId}`);
-        setJob(response.data.job);
+        const [jobRes, profileRes] = await Promise.all([
+          api.get(`/jobs/candidate/${jobId}`),
+          api.get('/candidate/profile/me')
+        ]);
+
+        setJob(jobRes.data.job);
+        setProfile(profileRes.data.profile);
         setMessage('');
       } catch (error) {
         setMessage(error.response?.data?.message || 'Unable to load job details.');
@@ -27,17 +38,37 @@ const JobDetails = () => {
       }
     };
 
-    void loadJob();
+    void loadJobAndProfile();
   }, [jobId]);
 
+  // Compute profile completeness for the UI
+  const completeness = useEffect(() => {
+    if (!profile) return;
+    const missing = [];
+    if (!profile.skills?.raw?.length) missing.push('Skills');
+    if (!profile.aboutMe || !profile.aboutMe.trim()) missing.push('About Me');
+    if (!profile.resume) missing.push('Resume');
+    setMissingFieldsList(missing);
+  }, [profile]);
+
   const handleApply = async () => {
+    if (missingFieldsList.length > 0) {
+      setIsModalOpen(true);
+      return;
+    }
+
     setSubmitting(true);
     try {
       const response = await api.post(`/jobs/candidate/${jobId}/apply`, { coverLetter });
       setJob((current) => ({ ...current, application: response.data.application }));
       setMessage('Application submitted successfully.');
     } catch (error) {
-      setMessage(error.response?.data?.message || 'Unable to submit application.');
+      if (error.response?.data?.code === 'PROFILE_INCOMPLETE') {
+        setMissingFieldsList(error.response.data.missingFields || ['Resume', 'Skills', 'About Me']);
+        setIsModalOpen(true);
+      } else {
+        setMessage(error.response?.data?.message || 'Unable to submit application.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -51,8 +82,10 @@ const JobDetails = () => {
     return <Panel><div className="text-sm text-rose-300">{message || 'Job not found.'}</div></Panel>;
   }
 
+  const isProfileIncomplete = missingFieldsList.length > 0;
+
   return (
-    <div className="space-y-6 pb-10">
+    <div className="space-y-6 pb-10 text-left relative">
       <Link to="/candidate/jobs" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white">
         <ArrowLeft size={16} />
         Back to recommendations
@@ -83,7 +116,13 @@ const JobDetails = () => {
           <div className="w-full xl:max-w-sm">
             <div className="rounded-[24px] border border-white/10 bg-slate-950/45 p-5">
               <div className="text-xs uppercase tracking-[0.22em] text-gray-500">Application panel</div>
-              {message ? <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-200">{message}</div> : null}
+              
+              {message ? (
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-200">
+                  {message}
+                </div>
+              ) : null}
+
               {job.application ? (
                 <div className="mt-4 space-y-4">
                   <StageBadge stage={job.application.stage} />
@@ -99,14 +138,36 @@ const JobDetails = () => {
                 </div>
               ) : (
                 <div className="mt-4 space-y-4">
-                  <TextareaField
-                    label="Optional cover letter"
-                    value={coverLetter}
-                    onChange={(event) => setCoverLetter(event.target.value)}
-                    placeholder="Add a concise recruiter-facing note about fit, motivation, or availability."
-                  />
-                  <Button className="w-full" onClick={handleApply} isLoading={submitting}>
-                    Apply now
+                  {isProfileIncomplete ? (
+                    <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3.5 space-y-2">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-amber-400 uppercase tracking-wider">
+                        <AlertTriangle size={14} /> Profile Setup Incomplete
+                      </div>
+                      <p className="text-[11px] text-gray-300 leading-normal">
+                        To submit applications, you must first upload your resume, add your skills, and write a bio.
+                      </p>
+                      <button 
+                        onClick={() => setIsModalOpen(true)}
+                        className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 transition-colors underline flex items-center gap-1.5"
+                      >
+                        Check what is missing <ArrowRight size={11} />
+                      </button>
+                    </div>
+                  ) : (
+                    <TextareaField
+                      label="Optional cover letter"
+                      value={coverLetter}
+                      onChange={(event) => setCoverLetter(event.target.value)}
+                      placeholder="Add a concise recruiter-facing note about fit, motivation, or availability."
+                    />
+                  )}
+                  
+                  <Button 
+                    className={`w-full ${isProfileIncomplete ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold shadow-lg' : ''}`} 
+                    onClick={handleApply} 
+                    isLoading={submitting}
+                  >
+                    {isProfileIncomplete ? 'Complete Profile to Apply' : 'Apply now'}
                   </Button>
                 </div>
               )}
@@ -171,6 +232,85 @@ const JobDetails = () => {
           <p className="mt-5 text-sm leading-6 text-gray-400">{job.candidateSummary}</p>
         </Panel>
       </div>
+
+      {/* Structured Glassmorphic Block Validation Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Blur Backdrop */}
+          <div 
+            className="absolute inset-0 bg-slate-950/85 backdrop-blur-md"
+            onClick={() => setIsModalOpen(false)}
+          />
+
+          {/* Modal Container */}
+          <div className="relative w-full max-w-md rounded-[28px] border border-white/10 bg-slate-900 p-6 shadow-2xl space-y-5 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="absolute top-0 right-0 p-4">
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="h-8 w-8 rounded-full bg-white/5 text-gray-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="flex items-start gap-4">
+              <div className="h-12 w-12 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center shrink-0">
+                <AlertCircle size={24} />
+              </div>
+              <div className="space-y-1 text-left">
+                <h3 className="text-lg font-bold text-white leading-tight">Profile Setup Required</h3>
+                <p className="text-xs text-gray-400">Complete missing milestones to unlock candidate applications.</p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-slate-950/60 border border-white/5 p-4 space-y-3.5">
+              <p className="text-xs text-gray-300 leading-normal">
+                To submit an application for **{job.roleTitle}**, the following mandatory sections must be completed first:
+              </p>
+
+              <div className="space-y-2.5">
+                {['Resume', 'Skills', 'About Me'].map((field) => {
+                  const isMissing = missingFieldsList.includes(field);
+                  return (
+                    <div key={field} className="flex items-center justify-between text-xs py-1">
+                      <span className="text-gray-300 font-medium capitalize">{field} section</span>
+                      <span className={`inline-flex items-center gap-1 font-semibold ${isMissing ? 'text-rose-400' : 'text-emerald-400'}`}>
+                        {isMissing ? (
+                          <>
+                            <AlertTriangle size={12} /> Missing
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 size={12} /> Completed
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="flex-1 rounded-2xl border border-white/10 px-4 py-3.5 text-xs text-gray-300 hover:bg-white/5 transition-colors cursor-pointer"
+              >
+                Continue browsing
+              </button>
+              <button
+                onClick={() => {
+                  setIsModalOpen(false);
+                  navigate('/candidate/profile');
+                }}
+                className="flex-1 rounded-2xl bg-amber-500 text-slate-950 hover:bg-amber-400 font-semibold px-4 py-3.5 text-xs transition-colors flex items-center justify-center gap-1.5 glow-effect cursor-pointer"
+              >
+                Go to Profile Setup <ArrowRight size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

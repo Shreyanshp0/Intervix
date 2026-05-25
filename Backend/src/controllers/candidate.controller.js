@@ -1,5 +1,6 @@
 const candidateService = require('../services/candidate.service');
 const interviewSessionService = require('../services/interview-session.service');
+const jobService = require('../services/job.service');
 
 const getProfile = async (req, res, next) => {
   try {
@@ -35,8 +36,18 @@ const getDashboard = async (req, res, next) => {
   }
 };
 
+const getJobsFeed = async (req, res, next) => {
+  try {
+    const feed = await jobService.getCandidateJobsFeed(req.user._id, req.query);
+    res.status(200).json(feed);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
-  getDashboard
+  getDashboard,
+  getJobsFeed
 };

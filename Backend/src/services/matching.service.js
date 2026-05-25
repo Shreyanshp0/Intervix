@@ -158,6 +158,34 @@ class MatchingService {
     const preferredSkills = this.normalizeSkills(job?.preferredSkills?.normalized || job?.preferredSkills?.raw || []);
     const combinedSkills = [...new Set([...requiredSkills, ...preferredSkills])];
 
+    const hasResume = !!profile?.resume;
+    const hasSkills = candidateSkills.length > 0;
+
+    // Detect if candidate profile is incomplete (Mode 1 - Generic)
+    const isIncomplete = !hasResume && !hasSkills;
+
+    if (isIncomplete) {
+      const defaultScore = 50;
+      const defaultBreakdown = {
+        skillOverlap: 50,
+        verifiedSkills: 50,
+        interviewPerformance: 50,
+        resumeAnalysis: 50,
+        experienceLevel: 50,
+        projectRelevance: 50
+      };
+
+      console.log(`[MatchEngine] Incomplete profile for candidate user ID: ${profile?.user}. Assigned default generic match score of ${defaultScore}% for job ID: ${job?._id} (${job?.roleTitle})`);
+
+      return {
+        score: defaultScore,
+        band: this.createBand(defaultScore),
+        breakdown: defaultBreakdown,
+        matchedSkills: [],
+        missingSkills: requiredSkills
+      };
+    }
+
     const breakdown = {
       skillOverlap: this.scoreSkillOverlap(candidateSkills, requiredSkills, preferredSkills),
       verifiedSkills: this.scoreVerifiedSkills(verifiedSkills, requiredSkills, preferredSkills),
@@ -170,6 +198,8 @@ class MatchingService {
     const score = Math.round(
       Object.entries(WEIGHTS).reduce((sum, [key, weight]) => sum + ((breakdown[key] || 0) * weight), 0)
     );
+
+    console.log(`[MatchEngine] Calculated match score for candidate user ID: ${profile?.user || 'Unknown'} and job ID: ${job?._id} (${job?.roleTitle}): ${score}%`);
 
     return {
       score,

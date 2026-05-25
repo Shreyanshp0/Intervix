@@ -9,6 +9,7 @@ const router = express.Router();
 router.use(protect, authorize('candidate', 'admin'));
 
 router.get('/dashboard', candidateController.getDashboard);
+router.get('/jobs/feed', ensureOwnProfile('candidate'), candidateController.getJobsFeed);
 router.get('/profile/me', ensureOwnProfile('candidate'), candidateController.getProfile);
 router.put('/profile/me', ensureOwnProfile('candidate'), validateCandidateProfile, candidateController.updateProfile);
 router.get('/applications', ensureOwnProfile('candidate'), applicationController.listCandidateApplications);

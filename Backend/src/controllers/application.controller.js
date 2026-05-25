@@ -1,7 +1,25 @@
 const applicationService = require('../services/application.service');
+const CandidateProfile = require('../models/CandidateProfile');
+const { calculateProfileCompleteness } = require('../utils/profile.utils');
 
 const applyToJob = async (req, res, next) => {
   try {
+    const profile = await CandidateProfile.findOne({ user: req.user._id }).populate('resume');
+    if (!profile) {
+      return res.status(404).json({ success: false, message: 'Candidate profile not found' });
+    }
+
+    const completeness = calculateProfileCompleteness(profile);
+    if (!completeness.canApply) {
+      console.log(`[ApplyValidation] Application blocked. Candidate user ID: ${req.user._id} tried to apply but profile was incomplete. Missing fields: [${completeness.missingFields.join(', ')}]. Percentage completed: ${completeness.percentage}%`);
+      return res.status(400).json({
+        success: false,
+        code: "PROFILE_INCOMPLETE",
+        message: "Complete your profile before applying.",
+        missingFields: completeness.missingFields
+      });
+    }
+
     const application = await applicationService.applyToJob(req.user, req.params.jobId, req.body);
     res.status(201).json({ application });
   } catch (error) {

@@ -4,6 +4,7 @@ const RecruiterProfile = require('../models/RecruiterProfile');
 const CandidateProfile = require('../models/CandidateProfile');
 const matchingService = require('./matching.service');
 const ApiError = require('../utils/api-error');
+const { calculateProfileCompleteness } = require('../utils/profile.utils');
 
 const baseJobPopulate = [
   { path: 'company', select: 'name logo industry website description' },
@@ -238,6 +239,124 @@ class JobService {
     );
 
     return ranked.sort((left, right) => right.matchScore - left.matchScore);
+  }
+
+  async getCandidateJobsFeed(userId, query = {}) {
+    const profile = await CandidateProfile.findOne({ user: userId })
+      .populate('resume')
+      .lean();
+
+    if (!profile) {
+      throw new ApiError(404, 'Candidate profile not found');
+    }
+
+    const completeness = calculateProfileCompleteness(profile);
+
+    // Determine Feed Mode
+    // Mode 3 - AI-Personalized: If Candidate has uploaded a Resume
+    // Mode 2 - Skill-based: If Candidate has no resume but has added skills
+    // Mode 1 - Generic: If Candidate has no resume and no skills
+    const hasResume = !!profile.resume;
+    const hasSkills = !!profile.skills?.raw?.length;
+
+    let feedMode = 'generic';
+    let onboardingBanner = false;
+
+    if (hasResume) {
+      feedMode = 'ai-personalized';
+    } else if (hasSkills) {
+      feedMode = 'skill-based';
+      onboardingBanner = true;
+    } else {
+      feedMode = 'generic';
+      onboardingBanner = true;
+    }
+
+    // Build filters
+    const filter = {
+      archivedAt: null,
+      hiringStatus: { $in: ['open', 'on-hold'] }
+    };
+
+    if (query.experienceLevel) {
+      filter.experienceLevel = query.experienceLevel;
+    }
+
+    if (query.location) {
+      filter.location = { $regex: query.location, $options: 'i' };
+    }
+
+    if (query.search) {
+      filter.$or = [
+        { roleTitle: { $regex: query.search, $options: 'i' } },
+        { description: { $regex: query.search, $options: 'i' } },
+        { searchText: { $regex: query.search, $options: 'i' } }
+      ];
+    }
+
+    // Fetch all active jobs satisfying filter
+    const jobs = await JobPosting.find(filter)
+      .populate(baseJobPopulate)
+      .lean();
+
+    // Fetch candidate's applications for these jobs
+    const applications = await Application.find({
+      candidateUser: userId,
+      job: { $in: jobs.map((job) => job._id) }
+    }).select('job stage');
+
+    const applicationMap = applications.reduce((acc, item) => {
+      acc[String(item.job)] = item;
+      return acc;
+    }, {});
+
+    // Rank jobs and calculate match scores dynamically
+    const ranked = await Promise.all(
+      jobs.map(async (job) => {
+        const match = await matchingService.calculateMatchScore(profile, job);
+        return {
+          ...job,
+          matchScore: match.score,
+          matchBand: match.band,
+          matchBreakdown: match.breakdown,
+          candidateSummary: matchingService.generateCandidateSummary(profile, job, match),
+          application: applicationMap[String(job._id)] || null
+        };
+      })
+    );
+
+    // Sorting strategy
+    if (feedMode === 'generic') {
+      // Sort by newest first
+      ranked.sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
+    } else {
+      // Sort by match score descending
+      ranked.sort((left, right) => right.matchScore - left.matchScore);
+    }
+
+    // Pagination
+    const page = parseInt(query.page, 10) || 1;
+    const limit = parseInt(query.limit, 10) || 10;
+    const totalJobs = ranked.length;
+    const totalPages = Math.ceil(totalJobs / limit);
+    const startIdx = (page - 1) * limit;
+    const paginatedJobs = ranked.slice(startIdx, startIdx + limit);
+
+    console.log(`[JobFeed] Candidate ID: ${userId} requested feed. Mode: ${feedMode}, page: ${page}, limit: ${limit}, total jobs: ${totalJobs}`);
+
+    return {
+      success: true,
+      feedMode,
+      onboardingBanner,
+      profileCompleteness: completeness,
+      jobs: paginatedJobs,
+      pagination: {
+        page,
+        limit,
+        totalJobs,
+        totalPages
+      }
+    };
   }
 
   async getCandidateJobDetails(userId, jobId) {
