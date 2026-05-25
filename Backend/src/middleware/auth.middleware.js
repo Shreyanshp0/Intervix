@@ -36,7 +36,7 @@ const authorize = (...roles) => {
   };
 };
 
-const ensureOwnProfile = (role) => (req, res, next) => {
+const ensureOwnProfile = (role) => async (req, res, next) => {
   if (req.user.role === 'admin') {
     return next();
   }
@@ -46,7 +46,13 @@ const ensureOwnProfile = (role) => (req, res, next) => {
   }
 
   if (role === 'candidate' && !req.user.candidateProfile) {
-    return next(new ApiError(404, 'Candidate profile not found'));
+    try {
+      const candidateService = require('../services/candidate.service');
+      const profile = await candidateService.getOrCreateProfile(req.user._id);
+      req.user.candidateProfile = profile._id;
+    } catch (err) {
+      return next(new ApiError(404, 'Candidate profile not found'));
+    }
   }
 
   if (role === 'recruiter' && (!req.user.recruiterProfile || !req.user.company)) {
