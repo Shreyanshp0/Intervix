@@ -6,6 +6,7 @@ const recruiterRoutes = require('./recruiter.routes');
 const voiceRoutes = require('./voice.routes');
 const resumeRoutes = require('./resume.routes');
 const recruiterAdvancedRoutes = require('./recruiter-advanced.routes');
+const codeRoutes = require('./code.routes');
 const { buildRouteHealthReport } = require('../utils/route-diagnostics');
 const { buildValidationReport } = require('../utils/route-validator');
 const { generateDeploymentHealthReport } = require('../utils/deployment-health');
@@ -144,5 +145,6 @@ router.use('/recruiter', recruiterRoutes);
 router.use('/voice', voiceRoutes);
 router.use('/resume', resumeRoutes);
 router.use('/recruiter/advanced', recruiterAdvancedRoutes);
+router.use('/code', codeRoutes);
 
 module.exports = router;

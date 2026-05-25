@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle, ArrowRight, Bot, CheckCircle2, FileText, MapPin, SearchCheck, Sparkles, Target, TrendingUp, Trophy, UserRound, Workflow } from 'lucide-react';
+import { AlertCircle, ArrowRight, Bot, CheckCircle2, FileText, MapPin, SearchCheck, Sparkles, Target, TrendingUp, Trophy, UserRound, Workflow, Video } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import Button from '../../components/common/Button';
@@ -12,6 +12,7 @@ const CandidateDashboard = () => {
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [randomRoomId] = useState(() => Math.random().toString(36).substring(2, 10));
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -207,7 +208,7 @@ const CandidateDashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="glass-card p-6 flex flex-col justify-between group cursor-pointer hover:border-primary/50 transition-colors">
           <div className="flex justify-between items-start mb-4">
             <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
@@ -253,6 +254,22 @@ const CandidateDashboard = () => {
           </div>
           <Link to="/candidate/applications" className="mt-4">
             <Button variant="outline" className="w-full">View Applications</Button>
+          </Link>
+        </div>
+
+        <div className="glass-card p-6 flex flex-col justify-between group cursor-pointer hover:border-blue-500/50 transition-colors">
+          <div className="flex justify-between items-start mb-4">
+            <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400">
+              <Video size={24} />
+            </div>
+            <ArrowRight size={20} className="text-gray-500 group-hover:text-blue-400 transition-colors transform group-hover:translate-x-1" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-1">Collaborative Room</h3>
+            <p className="text-sm text-gray-400">Launch a live collaborative room with editor sync and WebRTC video call.</p>
+          </div>
+          <Link to={`/room/${randomRoomId}`} className="mt-4">
+            <Button variant="outline" className="w-full">Join Live Room</Button>
           </Link>
         </div>
       </div>

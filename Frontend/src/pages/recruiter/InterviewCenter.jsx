@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sparkles, Star, Clock, User, Briefcase, Code, Video, PhoneOff, Award, Save } from 'lucide-react';
 import api from '../../services/api';
 import { API_ROUTES } from '../../constants/apiRoutes';
@@ -10,6 +11,7 @@ import EmptyState from '../../components/common/EmptyState';
 import { safeArray } from '../../utils/safety';
 
 const InterviewCenter = () => {
+  const navigate = useNavigate();
   const [interviews, setInterviews] = useState([]);
   const [activeRoom, setActiveRoom] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,6 +23,7 @@ const InterviewCenter = () => {
   const [userJoined, setUserJoined] = useState(false);
   const [evalScores, setEvalScores] = useState({ technicalScore: 80, communicationScore: 80, feedback: '' });
   const [evalSaving, setEvalSaving] = useState(false);
+  const [creatingRoom, setCreatingRoom] = useState(false);
   const socketRef = useRef(null);
 
   useEffect(() => {
@@ -107,10 +110,24 @@ const InterviewCenter = () => {
   }, [activeRoom, notepadContent, recruiterNotes]);
 
   const handleLaunchRoom = (interview) => {
-    setActiveRoom(interview);
-    setNotepadContent(interview?.notepadContent || '');
-    setRecruiterNotes(interview?.recruiterNotes || '');
-    setUserJoined(false);
+    navigate(`/room/${interview._id}`);
+  };
+
+  const handleCreateInstantRoom = async () => {
+    setCreatingRoom(true);
+    try {
+      const response = await api.post('/api/code/room');
+      if (response.data?.success && response.data?.roomId) {
+        navigate(`/room/${response.data.roomId}`);
+      } else {
+        alert('Failed to generate room ID');
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || 'Failed to create instant room');
+    } finally {
+      setCreatingRoom(false);
+    }
   };
 
   const submitEvaluation = async () => {
@@ -229,14 +246,25 @@ const InterviewCenter = () => {
   return (
     <div className="space-y-6 pb-10 text-left">
       <Panel className="bg-[linear-gradient(135deg,rgba(15,23,42,0.95),rgba(99,102,241,0.15),rgba(2,6,23,0.95))] border-white/10">
-        <div className="flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-primary w-fit">
-          <Clock size={14} />
-          Technical Coordinator
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <div className="flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-primary w-fit">
+              <Clock size={14} />
+              Technical Coordinator
+            </div>
+            <h1 className="mt-4 text-3xl font-semibold text-white">Live technical interview coordinator center</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+              Coordinate, schedule, and launch live synchronized technical round notepad assessments with real-time feedback logging and dynamic verified skills populating.
+            </p>
+          </div>
+          <Button 
+            className="gap-1.5 font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg border-0 shadow-indigo-500/20 py-2.5"
+            onClick={handleCreateInstantRoom}
+            isLoading={creatingRoom}
+          >
+            <Video size={16} /> Create Instant Personal Interview Room
+          </Button>
         </div>
-        <h1 className="mt-4 text-3xl font-semibold text-white">Live technical interview coordinator center</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-          Coordinate, schedule, and launch live synchronized technical round notepad assessments with real-time feedback logging and dynamic verified skills populating.
-        </p>
       </Panel>
 
       {error ? (

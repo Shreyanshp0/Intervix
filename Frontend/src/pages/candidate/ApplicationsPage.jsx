@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarClock, MessageSquareText, Sparkles } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { CalendarClock, MessageSquareText, Sparkles, Video } from 'lucide-react';
 import { Panel, StageBadge, StatPill } from '../../components/jobs/JobUi';
 import api from '../../services/api';
 import { API_ROUTES } from '../../constants/apiRoutes';
 import { safeArray } from '../../utils/safety';
 
 const STAGES = ['', 'Applied', 'Shortlisted', 'Interview Scheduled', 'Passed', 'Rejected', 'Hired'];
+
+const getRoomIdFromMeetingLink = (link) => {
+  if (!link) return '';
+  const parts = link.split('/');
+  return parts[parts.length - 1] || '';
+};
 
 const ApplicationsPage = () => {
   const [applications, setApplications] = useState([]);
@@ -100,9 +107,19 @@ const ApplicationsPage = () => {
                 <div className="rounded-[24px] border border-white/10 bg-slate-950/50 p-5">
                   <div className="inline-flex items-center gap-2 text-sm font-medium text-white"><CalendarClock size={16} /> Interview schedule</div>
                   {application.interviewSchedule?.scheduledFor ? (
-                    <div className="mt-3 text-sm text-gray-300">
-                      {new Date(application.interviewSchedule.scheduledFor).toLocaleString()} ({application.interviewSchedule.timezone})<br />
-                      {application.interviewSchedule.mode} {application.interviewSchedule.meetingLink ? `• ${application.interviewSchedule.meetingLink}` : ''}
+                    <div className="mt-3 space-y-3">
+                      <div className="text-sm text-gray-300">
+                        {new Date(application.interviewSchedule.scheduledFor).toLocaleString()} ({application.interviewSchedule.timezone})<br />
+                        <span className="capitalize font-semibold text-primary">{application.interviewSchedule.mode} Interview</span>
+                      </div>
+                      {application.interviewSchedule.meetingLink && (
+                        <Link 
+                          to={`/room/${getRoomIdFromMeetingLink(application.interviewSchedule.meetingLink)}`}
+                          className="mt-2 w-full flex items-center justify-center gap-1.5 rounded-xl bg-primary hover:bg-primary/80 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-primary/25 transition-all text-center"
+                        >
+                          <Video size={14} /> Join Live Coding Room
+                        </Link>
+                      )}
                     </div>
                   ) : (
                     <div className="mt-3 text-sm text-gray-400">No interview scheduled yet.</div>
