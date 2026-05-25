@@ -3,9 +3,9 @@ import { useFieldArray, useForm } from 'react-hook-form';
 import { BriefcaseBusiness, GraduationCap, Link2, MapPin, Save, Sparkles, UserRound } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
+import ResumeUpload from '../../components/candidate/ResumeUpload';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
-import { ResumeUpload } from '../../components/candidate/ResumeUpload';
 import { API_ROUTES } from '../../constants/apiRoutes';
 import { safeObject } from '../../utils/safety';
 
