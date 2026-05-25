@@ -1,4 +1,4 @@
-const { buildQualifiedRoutes, ROUTE_DEFINITIONS } = require('../constants/api-routes');
+const { buildQualifiedRoutes, ROUTE_DEFINITIONS, API_BASE } = require('../constants/api-routes');
 
 const normalizePath = (value = '') => {
   if (!value) return '/';
@@ -42,15 +42,15 @@ const getClosestRoute = (requestedPath) => {
   return routes
     .map((route) => ({
       ...route,
-      score: scoreRouteMatch(normalizedRequestedPath, route.fullPath)
+      score: scoreRouteMatch(normalizedRequestedPath, route.path)
     }))
     .sort((left, right) => right.score - left.score)[0] || null;
 };
 
 const buildRouteHealthReport = () => {
-  const qualifiedRoutes = buildQualifiedRoutes();
-  const collisionMap = qualifiedRoutes.reduce((acc, route) => {
-    const key = `${route.method} ${route.fullPath}`;
+  const routes = buildQualifiedRoutes();
+  const collisionMap = routes.reduce((acc, route) => {
+    const key = `${route.method} ${route.path}`;
     acc[key] = acc[key] || [];
     acc[key].push(route);
     return acc;
@@ -66,18 +66,20 @@ const buildRouteHealthReport = () => {
 
   return {
     summary: {
+      apiBase: API_BASE,
       canonicalRouteCount: ROUTE_DEFINITIONS.length,
-      registeredRouteCount: qualifiedRoutes.length,
-      protectedRouteCount: qualifiedRoutes.filter((route) => route.protected).length,
+      registeredRouteCount: routes.length,
+      protectedRouteCount: routes.filter((route) => route.protected).length,
       collisionCount: collisions.length
     },
     collisions,
-    routes: qualifiedRoutes
+    routes
   };
 };
 
 module.exports = {
   buildRouteHealthReport,
   getClosestRoute,
-  normalizePath
+  normalizePath,
+  API_BASE
 };

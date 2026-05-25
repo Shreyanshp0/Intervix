@@ -6,7 +6,10 @@ const path = require('path');
 const { errorConverter, errorHandler } = require('./middleware/error.middleware');
 const apiLimiter = require('./middleware/rate-limiter');
 const { routeNotFoundHandler, requestTimingMiddleware } = require('./middleware/route-logger.middleware');
-const { API_PREFIXES } = require('./constants/api-routes');
+const { API_BASE } = require('./constants/api-routes');
+const { buildRouteHealthReport } = require('./utils/route-diagnostics');
+const { generateDeploymentHealthReport } = require('./utils/deployment-health');
+const { buildValidationReport } = require('./utils/route-validator');
 
 const routes = require('./routes');
 const logger = require('./config/logger');
@@ -46,7 +49,36 @@ app.get('/health', (req, res) => {
   });
 });
 
-app.use(API_PREFIXES.unversioned, routes);
+app.get('/health/routes', (req, res) => {
+  try {
+    const routeReport = buildRouteHealthReport();
+    const deploymentReport = generateDeploymentHealthReport();
+    const validationReport = buildValidationReport();
+
+    res.status(200).json({
+      status: 'ok',
+      apiBase: API_BASE,
+      deploymentVersion: deploymentReport.buildVersion,
+      diagnosticsStatus: validationReport.status,
+      routes: routeReport.routes.map((route) => ({
+        method: route.method,
+        path: route.path,
+        protected: route.protected,
+        roles: route.roles
+      }))
+    });
+  } catch (error) {
+    res.status(200).json({
+      status: 'degraded',
+      apiBase: API_BASE,
+      deploymentVersion: 'unknown',
+      diagnosticsStatus: 'error',
+      error: error.message
+    });
+  }
+});
+
+app.use(API_BASE, routes);
 
 // 404 handler
 app.use(routeNotFoundHandler);

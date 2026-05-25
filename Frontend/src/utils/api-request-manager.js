@@ -151,19 +151,10 @@ const getErrorSuggestion = (error) => {
   const path = error?.config?.url;
 
   if (status === 404) {
-    // Check for /api/v1 pattern
-    if (path?.includes('/api/v1')) {
-      return {
-        issue: 'Route using deprecated /api/v1 prefix',
-        correction: path.replace('/api/v1', '/api'),
-        message: 'The /api/v1 prefix has been deprecated. Update to /api/*'
-      };
-    }
-
     return {
       issue: 'Endpoint not found',
-      message: 'Check /api/health/routes for available endpoints',
-      url: '/api/health/routes'
+      message: 'Check /health/routes for available endpoints',
+      url: '/health/routes'
     };
   }
 

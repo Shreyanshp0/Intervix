@@ -1,85 +1,114 @@
-const API_PREFIXES = Object.freeze({
-  unversioned: '/api'
+const API_BASE = '/api';
+
+const API_ROUTES = Object.freeze({
+  auth: Object.freeze({
+    login: `${API_BASE}/auth/login`,
+    register: `${API_BASE}/auth/register`,
+    me: `${API_BASE}/auth/me`,
+    logout: `${API_BASE}/auth/logout`
+  }),
+  candidate: Object.freeze({
+    me: `${API_BASE}/candidate/me`,
+    dashboard: `${API_BASE}/candidate/dashboard`,
+    jobsFeed: `${API_BASE}/candidate/jobs/feed`,
+    applications: `${API_BASE}/candidate/applications`,
+    jobDetails: (jobId) => `${API_BASE}/candidate/jobs/${jobId}`,
+    applyToJob: (jobId) => `${API_BASE}/candidate/jobs/${jobId}/apply`,
+    applicationDetails: (applicationId) => `${API_BASE}/candidate/applications/${applicationId}`
+  }),
+  recruiter: Object.freeze({
+    me: `${API_BASE}/recruiter/me`,
+    dashboard: `${API_BASE}/recruiter/dashboard`,
+    jobs: `${API_BASE}/recruiter/jobs`,
+    candidates: `${API_BASE}/recruiter/candidates`,
+    jobDetails: (jobId) => `${API_BASE}/recruiter/jobs/${jobId}`,
+    jobApplicants: (jobId) => `${API_BASE}/recruiter/jobs/${jobId}/applicants`,
+    jobPipeline: (jobId) => `${API_BASE}/recruiter/jobs/${jobId}/pipeline`,
+    applicationStage: (applicationId) => `${API_BASE}/recruiter/applications/${applicationId}/stage`,
+    applicationFeedback: (applicationId) => `${API_BASE}/recruiter/applications/${applicationId}/feedback`,
+    applicationSchedule: (applicationId) => `${API_BASE}/recruiter/applications/${applicationId}/schedule`,
+    candidateDetails: (candidateId) => `${API_BASE}/recruiter/candidates/${candidateId}`,
+    copilot: `${API_BASE}/recruiter/advanced/copilot`,
+    analytics: `${API_BASE}/recruiter/advanced/analytics`,
+    liveInterviews: `${API_BASE}/recruiter/advanced/live`,
+    liveInterviewNotepad: (roomId) => `${API_BASE}/recruiter/advanced/live/${roomId}/notepad`,
+    liveInterviewEvaluate: (roomId) => `${API_BASE}/recruiter/advanced/live/${roomId}/evaluate`
+  }),
+  jobs: Object.freeze({
+    candidateFeed: `${API_BASE}/jobs/candidate`,
+    candidateJobDetails: (jobId) => `${API_BASE}/jobs/candidate/${jobId}`,
+    candidateApply: (jobId) => `${API_BASE}/jobs/candidate/${jobId}/apply`,
+    recruiterJobs: `${API_BASE}/jobs/recruiter`,
+    recruiterJobDetails: (jobId) => `${API_BASE}/jobs/recruiter/${jobId}`,
+    recruiterPipeline: (jobId) => `${API_BASE}/jobs/recruiter/${jobId}/pipeline`,
+    recruiterApplicants: (jobId) => `${API_BASE}/jobs/recruiter/${jobId}/applicants`
+  }),
+  resume: Object.freeze({
+    upload: `${API_BASE}/resume/upload`,
+    me: `${API_BASE}/resume/me`,
+    analysis: `${API_BASE}/resume/me/analysis`,
+    download: `${API_BASE}/resume/me/download`,
+    byId: (resumeId) => `${API_BASE}/resume/${resumeId}`,
+    analysisById: (resumeId) => `${API_BASE}/resume/${resumeId}/analysis`,
+    downloadById: (resumeId) => `${API_BASE}/resume/${resumeId}/download`
+  }),
+  interviews: Object.freeze({
+    dashboard: `${API_BASE}/interviews/dashboard`,
+    active: `${API_BASE}/interviews/active`,
+    start: `${API_BASE}/interviews/start`,
+    report: (sessionId) => `${API_BASE}/interviews/${sessionId}/report`,
+    autosave: (sessionId) => `${API_BASE}/interviews/${sessionId}/autosave`,
+    end: (sessionId) => `${API_BASE}/interviews/${sessionId}/end`,
+    respond: (sessionId) => `${API_BASE}/interviews/${sessionId}/respond`
+  }),
+  voice: Object.freeze({
+    speak: `${API_BASE}/voice/speak`,
+    respond: `${API_BASE}/voice/respond`,
+    transcribe: `${API_BASE}/voice/transcribe`
+  }),
+  health: Object.freeze({
+    api: `${API_BASE}/health/routes`,
+    routes: '/health/routes',
+    root: '/health'
+  })
 });
 
 const ROUTE_DEFINITIONS = Object.freeze([
-  { method: 'GET', path: '/auth/me', protected: true, roles: ['candidate', 'recruiter', 'admin'], middleware: ['protect'] },
-  { method: 'POST', path: '/auth/login', protected: false, roles: [], middleware: ['validateLogin'] },
-  { method: 'POST', path: '/auth/register', protected: false, roles: [], middleware: ['validateRegister'] },
+  { method: 'GET', path: API_ROUTES.auth.me, protected: true, roles: ['candidate', 'recruiter', 'admin'], middleware: ['protect'] },
+  { method: 'POST', path: API_ROUTES.auth.logout, protected: true, roles: ['candidate', 'recruiter', 'admin'], middleware: ['protect'] },
+  { method: 'POST', path: API_ROUTES.auth.login, protected: false, roles: [], middleware: ['validateLogin'] },
+  { method: 'POST', path: API_ROUTES.auth.register, protected: false, roles: [], middleware: ['validateRegister'] },
 
-  { method: 'GET', path: '/candidate/dashboard', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'GET', path: '/candidate/me', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'PUT', path: '/candidate/me', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile', 'validateCandidateProfile'] },
-  { method: 'GET', path: '/candidate/jobs/feed', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'GET', path: '/candidate/jobs/:jobId', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'POST', path: '/candidate/jobs/:jobId/apply', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile', 'validateApplication'] },
-  { method: 'GET', path: '/candidate/applications', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'GET', path: '/candidate/applications/:applicationId', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
+  { method: 'GET', path: API_ROUTES.candidate.dashboard, protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
+  { method: 'GET', path: API_ROUTES.candidate.me, protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
+  { method: 'PUT', path: API_ROUTES.candidate.me, protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile', 'validateCandidateProfile'] },
+  { method: 'GET', path: API_ROUTES.candidate.jobsFeed, protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
+  { method: 'GET', path: API_ROUTES.candidate.applications, protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
 
-  { method: 'GET', path: '/recruiter/dashboard', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize'] },
-  { method: 'GET', path: '/recruiter/me', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'PUT', path: '/recruiter/me', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile', 'validateRecruiterProfile'] },
-  { method: 'PUT', path: '/recruiter/company/me', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile', 'validateCompanyProfile'] },
-  { method: 'GET', path: '/recruiter/jobs', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'POST', path: '/recruiter/jobs', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile', 'validateJobPosting'] },
-  { method: 'GET', path: '/recruiter/jobs/:jobId', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'PUT', path: '/recruiter/jobs/:jobId', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile', 'validateJobPosting'] },
-  { method: 'DELETE', path: '/recruiter/jobs/:jobId', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'GET', path: '/recruiter/jobs/:jobId/applicants', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'GET', path: '/recruiter/jobs/:jobId/pipeline', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'PATCH', path: '/recruiter/applications/:applicationId/stage', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile', 'validateApplicationStageUpdate'] },
-  { method: 'PATCH', path: '/recruiter/applications/:applicationId/schedule', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile', 'validateInterviewSchedule'] },
-  { method: 'PATCH', path: '/recruiter/applications/:applicationId/feedback', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile', 'validateRecruiterFeedback'] },
-  { method: 'GET', path: '/recruiter/candidates/:candidateId', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'POST', path: '/recruiter/advanced/copilot', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'GET', path: '/recruiter/advanced/analytics', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'POST', path: '/recruiter/advanced/live/schedule', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'GET', path: '/recruiter/advanced/live', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'GET', path: '/recruiter/advanced/live/:roomId', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'PUT', path: '/recruiter/advanced/live/:roomId/notepad', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'POST', path: '/recruiter/advanced/live/:roomId/evaluate', protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
+  { method: 'GET', path: API_ROUTES.recruiter.dashboard, protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize'] },
+  { method: 'GET', path: API_ROUTES.recruiter.me, protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
+  { method: 'PUT', path: API_ROUTES.recruiter.me, protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile', 'validateRecruiterProfile'] },
+  { method: 'GET', path: API_ROUTES.recruiter.candidates, protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
+  { method: 'GET', path: API_ROUTES.recruiter.jobs, protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
+  { method: 'POST', path: API_ROUTES.recruiter.jobs, protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile', 'validateJobPosting'] },
 
-  { method: 'POST', path: '/resume/upload', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile', 'upload.single'] },
-  { method: 'GET', path: '/resume/me', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'GET', path: '/resume/me/analysis', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'GET', path: '/resume/me/download', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'DELETE', path: '/resume/me', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
-  { method: 'GET', path: '/resume/:resumeId', protected: true, roles: ['candidate', 'recruiter', 'admin'], middleware: ['protect'] },
-  { method: 'GET', path: '/resume/:resumeId/analysis', protected: true, roles: ['candidate', 'recruiter', 'admin'], middleware: ['protect'] },
-  { method: 'GET', path: '/resume/:resumeId/download', protected: true, roles: ['candidate', 'recruiter', 'admin'], middleware: ['protect'] },
-
-  { method: 'GET', path: '/interviews/dashboard', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize'] },
-  { method: 'GET', path: '/interviews/active', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize'] },
-  { method: 'POST', path: '/interviews/start', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'validateStartSession'] },
-  { method: 'GET', path: '/interviews/:sessionId', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize'] },
-  { method: 'GET', path: '/interviews/:sessionId/report', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize'] },
-  { method: 'POST', path: '/interviews/:sessionId/autosave', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize'] },
-  { method: 'POST', path: '/interviews/:sessionId/recover', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize'] },
-  { method: 'POST', path: '/interviews/:sessionId/respond', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'validateInterviewResponse'] },
-  { method: 'POST', path: '/interviews/:sessionId/end', protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize'] },
-
-  { method: 'POST', path: '/voice/transcribe', protected: true, roles: ['candidate', 'recruiter', 'admin'], middleware: ['protect', 'upload.single'] },
-  { method: 'POST', path: '/voice/speak', protected: true, roles: ['candidate', 'recruiter', 'admin'], middleware: ['protect'] },
-  { method: 'POST', path: '/voice/respond', protected: true, roles: ['candidate', 'recruiter', 'admin'], middleware: ['protect', 'upload.single'] },
-
-  { method: 'GET', path: '/health', protected: false, roles: [], middleware: [] },
-  { method: 'GET', path: '/health/db', protected: false, roles: [], middleware: [] },
-  { method: 'GET', path: '/health/ai', protected: false, roles: [], middleware: [] },
-  { method: 'GET', path: '/health/routes', protected: false, roles: [], middleware: [] }
+  { method: 'POST', path: API_ROUTES.resume.upload, protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
+  { method: 'GET', path: API_ROUTES.resume.me, protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
+  { method: 'GET', path: API_ROUTES.health.api, protected: false, roles: [], middleware: [] },
+  { method: 'GET', path: API_ROUTES.health.root, protected: false, roles: [], middleware: [] }
 ]);
 
-const buildQualifiedRoutes = () => (
-  ROUTE_DEFINITIONS.flatMap((route) => (
-    Object.values(API_PREFIXES).map((prefix) => ({
-      ...route,
-      fullPath: `${prefix}${route.path}`
-    }))
-  ))
-);
+const buildQualifiedRoutes = () => ROUTE_DEFINITIONS.map((route) => ({
+  ...route,
+  fullPath: route.path
+}));
+
+const getAllApiRoutes = () => ROUTE_DEFINITIONS.map((route) => route.path);
 
 module.exports = {
-  API_VERSION,
-  API_PREFIXES,
+  API_BASE,
+  API_ROUTES,
   ROUTE_DEFINITIONS,
-  buildQualifiedRoutes
+  buildQualifiedRoutes,
+  getAllApiRoutes
 };

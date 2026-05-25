@@ -1,12 +1,12 @@
 /**
  * API Request Diagnostics Logger
- * 
+ *
  * Tracks:
  * - 404 errors with closest route matches
  * - Duplicate/repeated requests
  * - Slow endpoints
  * - Failed API calls with recovery suggestions
- * - Route mismatches (e.g., /api/v1 vs /api)
+ * - Route mismatches and path normalization hints
  */
 
 const logger = require('../config/logger');
@@ -19,7 +19,7 @@ class APIRequestDiagnosticsLogger {
     this.slowEndpoints = [];
     this.failurePatterns = new Map();
     this.maxTrackedRequests = 1000;
-    this.slowThreshold = 5000; // 5 seconds
+    this.slowThreshold = 5000;
   }
 
   trackRequest(req, startTime) {
@@ -43,14 +43,12 @@ class APIRequestDiagnosticsLogger {
     entry.avgDuration = entry.totalDuration / entry.count;
     entry.lastCalled = new Date().toISOString();
 
-    // Cleanup if map gets too large
     if (this.requestMap.size > this.maxTrackedRequests) {
       const oldestKey = Array.from(this.requestMap.entries())
         .sort(([, a], [, b]) => new Date(a.lastCalled) - new Date(b.lastCalled))[0][0];
       this.requestMap.delete(oldestKey);
     }
 
-    // Track slow endpoints
     if (duration > this.slowThreshold) {
       this.slowEndpoints.push({
         path: req.path,
@@ -83,7 +81,7 @@ class APIRequestDiagnosticsLogger {
       origin: req.get('origin') || req.get('referer') || 'unknown',
       authenticatedRole: req.user?.role || 'anonymous',
       userAgent: req.get('user-agent'),
-      closestMatch: closestRoute?.fullPath || null,
+      closestMatch: closestRoute?.path || null,
       suggestion: this.generateSuggestion(req.path, closestRoute)
     };
 
@@ -94,16 +92,6 @@ class APIRequestDiagnosticsLogger {
   }
 
   generateSuggestion(requestedPath, closestRoute) {
-    // Check for common /api/v1 mismatch
-    if (requestedPath.includes('/api/v1')) {
-      return {
-        issue: 'Request uses deprecated /api/v1 prefix',
-        correction: requestedPath.replace('/api/v1', '/api'),
-        documentation: 'API versioning has been removed. Use /api/* instead.'
-      };
-    }
-
-    // Check for missing /api prefix
     if (!requestedPath.startsWith('/api/')) {
       return {
         issue: 'Request missing /api prefix',
@@ -112,24 +100,23 @@ class APIRequestDiagnosticsLogger {
       };
     }
 
-    // Suggest closest route
     if (closestRoute) {
       return {
         issue: 'Route not found',
-        closestMatch: closestRoute.fullPath,
-        documentation: `Did you mean ${closestRoute.method} ${closestRoute.fullPath}?`
+        closestMatch: closestRoute.path,
+        documentation: `Did you mean ${closestRoute.method} ${closestRoute.path}?`
       };
     }
 
     return {
       issue: 'Route not found and no suggestions available',
-      documentation: 'Check /api/health/routes for available endpoints'
+      documentation: 'Check /health/routes for available endpoints'
     };
   }
 
   trackFailure(req, error, statusCode) {
     const key = `${req.method}:${req.path}`;
-    
+
     if (!this.failurePatterns.has(key)) {
       this.failurePatterns.set(key, {
         path: req.path,
@@ -150,12 +137,10 @@ class APIRequestDiagnosticsLogger {
       timestamp: new Date().toISOString()
     });
 
-    // Keep only last 10 errors
     if (pattern.errors.length > 10) {
       pattern.errors.shift();
     }
 
-    // Log critical patterns (5+ failures in short time)
     if (pattern.failureCount >= 5) {
       logger.error({
         tag: 'REPEATED_ROUTE_FAILURES',
@@ -193,12 +178,11 @@ class APIRequestDiagnosticsLogger {
       summary: {
         totalTrackedRoutes: this.requestMap.size,
         totalNotFoundErrors: this.notFoundLog.length,
-        totalFailures: Array.from(this.failurePatterns.values())
-          .reduce((sum, p) => sum + p.failureCount, 0),
+        totalFailures: Array.from(this.failurePatterns.values()).reduce((sum, p) => sum + p.failureCount, 0),
         slowEndpointsCount: this.slowEndpoints.length,
-        criticalFailures: Array.from(this.failurePatterns.values())
-          .filter(p => p.failureCount >= 5).length
+        criticalFailures: Array.from(this.failurePatterns.values()).filter((p) => p.failureCount >= 5).length
       },
+      topRequests,
       topSlowEndpoints,
       topFailingEndpoints,
       recentNotFoundErrors: recentNotFound.slice(0, 5),
@@ -209,21 +193,8 @@ class APIRequestDiagnosticsLogger {
   generateRecommendations() {
     const recommendations = [];
 
-    // Check for /api/v1 pattern
-    const v1Errors = this.notFoundLog.filter(e => e.requestedPath?.includes('/api/v1'));
-    if (v1Errors.length > 0) {
-      recommendations.push({
-        severity: 'critical',
-        issue: `Found ${v1Errors.length} requests using deprecated /api/v1 prefix`,
-        action: 'Update frontend/backend to use /api/* instead of /api/v1/*',
-        affectedRoutes: [...new Set(v1Errors.map(e => e.closestMatch))].slice(0, 5)
-      });
-    }
-
-    // Check for slow endpoints
     if (this.slowEndpoints.length > 5) {
-      const slowestEndpoint = this.slowEndpoints
-        .sort((a, b) => b.duration - a.duration)[0];
+      const slowestEndpoint = this.slowEndpoints.sort((a, b) => b.duration - a.duration)[0];
       recommendations.push({
         severity: 'warning',
         issue: `Slow endpoint detected: ${slowestEndpoint.method} ${slowestEndpoint.path} (${slowestEndpoint.duration}ms)`,
@@ -232,15 +203,13 @@ class APIRequestDiagnosticsLogger {
       });
     }
 
-    // Check for repeated failures
-    const repeatedFailures = Array.from(this.failurePatterns.values())
-      .filter(p => p.failureCount >= 5);
+    const repeatedFailures = Array.from(this.failurePatterns.values()).filter((p) => p.failureCount >= 5);
     if (repeatedFailures.length > 0) {
       recommendations.push({
         severity: 'critical',
         issue: `${repeatedFailures.length} endpoints have repeated failures (5+ errors)`,
         action: 'Check endpoint implementation, database connectivity, or external service availability',
-        affectedEndpoints: repeatedFailures.slice(0, 3).map(p => `${p.method} ${p.path}`)
+        affectedEndpoints: repeatedFailures.slice(0, 3).map((p) => `${p.method} ${p.path}`)
       });
     }
 
@@ -255,7 +224,6 @@ class APIRequestDiagnosticsLogger {
   }
 }
 
-// Singleton instance
 let instance;
 
 const getDiagnosticsLogger = () => {

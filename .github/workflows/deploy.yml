@@ -60,14 +60,16 @@ jobs:
             cd ~/Intervix
             docker compose down
             docker system prune -a -f
+            docker builder prune -a -f
             docker volume prune -f
-            docker pull shreyanshp0/intervix-backend:latest
-            docker pull shreyanshp0/intervix-frontend:latest
-            docker compose up -d
+            docker compose pull
+            docker compose up -d --force-recreate --no-build
             echo "Waiting for backend services to bootstrap..."
             sleep 8
             docker compose ps
             echo "Running deployment API health check assertion..."
             curl -f http://localhost:5000/health || (docker compose logs backend && exit 1)
+            echo "Running deployment route health check assertion..."
+            curl -f http://localhost:5000/health/routes || (docker compose logs backend && exit 1)
             echo "Deployment verified successfully!"
     

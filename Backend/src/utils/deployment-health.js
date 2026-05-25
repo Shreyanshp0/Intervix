@@ -154,11 +154,11 @@ const validateDockerIntegrity = () => {
     const content = fs.readFileSync(dockerComposeFile, 'utf8');
 
     // Check for potential stale references
-    if (content.includes('/api/v1')) {
+    if (/\/api\/v\d+/.test(content)) {
       issues.push({
         severity: 'critical',
-        issue: 'docker-compose.yml contains /api/v1 references',
-        recommendation: 'Remove all /api/v1 references from Docker configuration'
+        issue: 'docker-compose.yml contains versioned API references',
+        recommendation: 'Remove all versioned API references from Docker configuration'
       });
     }
 
