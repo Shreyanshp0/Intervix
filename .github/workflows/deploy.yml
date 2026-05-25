@@ -59,6 +59,8 @@ jobs:
           script: |
             cd ~/Intervix
             docker compose down
+            docker system prune -a -f
+            docker volume prune -f
             docker pull shreyanshp0/intervix-backend:latest
             docker pull shreyanshp0/intervix-frontend:latest
             docker compose up -d
