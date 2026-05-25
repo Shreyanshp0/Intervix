@@ -32,6 +32,7 @@ import ProgressReports from '../pages/candidate/ProgressReports';
 import HiringAnalytics from '../pages/recruiter/HiringAnalytics';
 import InterviewCenter from '../pages/recruiter/InterviewCenter';
 import RecruiterCopilot from '../pages/recruiter/RecruiterCopilot';
+import RoomPage from '../pages/room/RoomPage';
 
 const FullPageLoader = () => (
   <div className="min-h-screen bg-background flex items-center justify-center">
@@ -101,6 +102,8 @@ const AppRoutes = () => (
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
     </Route>
+
+    <Route path="/room/:roomId" element={<RoomPage />} />
 
     <Route element={<RoleProtectedRoute allowedRoles={['candidate', 'admin']} />}>
       <Route path="/candidate" element={<CandidatePortalLayout />}>

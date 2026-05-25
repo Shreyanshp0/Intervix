@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useResumeStore } from '../../store/resumeStore';
-import { FiUploadCloud, FiFileText, FiTrash2, FiAlertCircle } from 'react-icons/fi';
+import { UploadCloud, FileText, Trash2, AlertCircle } from 'lucide-react';
 
 const ResumeUpload = () => {
   const { 
@@ -33,7 +33,7 @@ const ResumeUpload = () => {
       
       {error && (
         <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg flex items-center gap-2">
-          <FiAlertCircle className="w-5 h-5" />
+          <AlertCircle className="w-5 h-5" />
           <span className="text-sm">{error}</span>
         </div>
       )}
@@ -42,7 +42,7 @@ const ResumeUpload = () => {
         <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-100 rounded-full text-blue-600">
-              <FiFileText className="w-6 h-6" />
+              <FileText className="w-6 h-6" />
             </div>
             <div>
               <p className="font-medium text-gray-800">{resume.fileName}</p>
@@ -65,7 +65,7 @@ const ResumeUpload = () => {
               className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
               title="Delete Resume"
             >
-              <FiTrash2 className="w-5 h-5" />
+              <Trash2 className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -77,7 +77,7 @@ const ResumeUpload = () => {
             ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
         >
           <input {...getInputProps()} />
-          <FiUploadCloud className="w-10 h-10 mx-auto text-gray-400 mb-3" />
+          <UploadCloud className="w-10 h-10 mx-auto text-gray-400 mb-3" />
           
           {isUploading ? (
             <div className="space-y-3">

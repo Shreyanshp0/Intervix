@@ -81,6 +81,27 @@ const JobApplicantsPage = () => {
     }
   };
 
+  const handleGenerateRoomLink = async (applicationId) => {
+    try {
+      const response = await api.post('/api/code/room');
+      if (response.data?.success && response.data?.roomId) {
+        const generatedLink = `${window.location.origin}/room/${response.data.roomId}`;
+        setScheduleDrafts((current) => ({
+          ...current,
+          [applicationId]: {
+            ...(current[applicationId] || { mode: 'video', notes: '', timezone: 'Asia/Kolkata' }),
+            meetingLink: generatedLink
+          }
+        }));
+      } else {
+        alert('Failed to generate room link');
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || 'Failed to generate room link');
+    }
+  };
+
   return (
     <div className="space-y-6 pb-10">
       <Panel className="bg-[linear-gradient(135deg,rgba(15,23,42,0.95),rgba(56,189,248,0.18),rgba(59,130,246,0.18))]">
@@ -177,17 +198,27 @@ const JobApplicantsPage = () => {
                         }
                       }))}
                     />
-                    <Input
-                      placeholder="Meeting link"
-                      value={scheduleDrafts[application._id]?.meetingLink || ''}
-                      onChange={(event) => setScheduleDrafts((current) => ({
-                        ...current,
-                        [application._id]: {
-                          ...(current[application._id] || { mode: 'video', notes: '', timezone: 'Asia/Kolkata' }),
-                          meetingLink: event.target.value
-                        }
-                      }))}
-                    />
+                    <div className="relative flex items-center">
+                      <Input
+                        placeholder="Meeting link"
+                        value={scheduleDrafts[application._id]?.meetingLink || ''}
+                        onChange={(event) => setScheduleDrafts((current) => ({
+                          ...current,
+                          [application._id]: {
+                            ...(current[application._id] || { mode: 'video', notes: '', timezone: 'Asia/Kolkata' }),
+                            meetingLink: event.target.value
+                          }
+                        }))}
+                        className="pr-24 w-full"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleGenerateRoomLink(application._id)}
+                        className="absolute right-2 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold rounded-lg border border-blue-500 transition-colors shadow-sm"
+                      >
+                        Generate Room
+                      </button>
+                    </div>
                     <Button onClick={() => void submitSchedule(application._id)}>Schedule interview</Button>
                   </div>
                 </div>

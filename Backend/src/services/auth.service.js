@@ -54,10 +54,17 @@ class AuthService {
     return this.getUserById(user._id);
   }
 
-  async loginUserWithEmailAndPassword(email, password) {
-    const user = await User.findOne({ email });
+  async loginUserWithEmailAndPassword(emailOrUserId, password) {
+    const mongoose = require('mongoose');
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(emailOrUserId)) {
+      query = { $or: [{ email: emailOrUserId }, { _id: emailOrUserId }] };
+    } else {
+      query = { email: emailOrUserId };
+    }
+    const user = await User.findOne(query);
     if (!user || !(await user.isPasswordMatch(password))) {
-      throw new ApiError(401, 'Incorrect email or password');
+      throw new ApiError(401, 'Unauthorized user');
     }
     return this.getUserById(user._id);
   }

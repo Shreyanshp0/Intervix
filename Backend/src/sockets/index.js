@@ -6,6 +6,7 @@ const interviewSessionService = require('../services/interview-session.service')
 const timerService = require('../services/timer.service');
 const realtimeService = require('../services/realtime.service');
 const voiceOrchestratorService = require('../services/voice-orchestrator.service');
+const registerInterviewHandlers = require('./interview.socket');
 
 let io;
 const timerIntervals = new Map();
@@ -89,6 +90,7 @@ const initSocket = (server) => {
 
   io.on('connection', (socket) => {
     logger.info(`New client connected: ${socket.id}`);
+    registerInterviewHandlers(io, socket);
 
     socket.on('interview:join', async ({ sessionId, tabId }) => {
       try {

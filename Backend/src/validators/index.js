@@ -44,90 +44,90 @@ const interviewResponseSchema = z.object({
 const candidateProfileSchema = z.object({
   name: z.string().min(2).optional(),
   email: z.string().email().optional(),
-  phone: z.string().optional(),
-  profilePhoto: z.string().optional(),
-  location: z.string().optional(),
-  aboutMe: z.string().optional(),
+  phone: z.string().optional().nullable(),
+  profilePhoto: z.string().optional().nullable(),
+  location: z.string().optional().nullable(),
+  aboutMe: z.string().optional().nullable(),
   skills: z.object({
     raw: z.array(z.string()).optional(),
     normalized: z.array(z.string()).optional(),
     verified: z.array(z.string()).optional()
-  }).optional(),
+  }).optional().nullable(),
   education: z.array(z.object({
-    institution: z.string().optional(),
-    degree: z.string().optional(),
-    fieldOfStudy: z.string().optional(),
-    startDate: z.string().optional(),
-    endDate: z.string().optional(),
-    grade: z.string().optional(),
-    description: z.string().optional()
-  })).optional(),
+    institution: z.string().optional().nullable(),
+    degree: z.string().optional().nullable(),
+    fieldOfStudy: z.string().optional().nullable(),
+    startDate: z.string().optional().nullable(),
+    endDate: z.string().optional().nullable(),
+    grade: z.string().optional().nullable(),
+    description: z.string().optional().nullable()
+  })).optional().nullable(),
   experience: z.array(z.object({
-    company: z.string().optional(),
-    title: z.string().optional(),
-    employmentType: z.string().optional(),
-    location: z.string().optional(),
-    startDate: z.string().optional(),
-    endDate: z.string().optional(),
-    currentlyWorking: z.boolean().optional(),
-    description: z.string().optional(),
-    highlights: z.array(z.string()).optional()
-  })).optional(),
+    company: z.string().optional().nullable(),
+    title: z.string().optional().nullable(),
+    employmentType: z.string().optional().nullable(),
+    location: z.string().optional().nullable(),
+    startDate: z.string().optional().nullable(),
+    endDate: z.string().optional().nullable(),
+    currentlyWorking: z.boolean().optional().nullable(),
+    description: z.string().optional().nullable(),
+    highlights: z.array(z.string()).optional().nullable()
+  })).optional().nullable(),
   projects: z.array(z.object({
-    name: z.string().optional(),
-    role: z.string().optional(),
-    description: z.string().optional(),
-    technologies: z.array(z.string()).optional(),
-    projectUrl: z.string().optional(),
-    repositoryUrl: z.string().optional(),
-    startDate: z.string().optional(),
-    endDate: z.string().optional()
-  })).optional(),
-  github: z.string().optional(),
-  linkedin: z.string().optional(),
-  portfolio: z.string().optional(),
-  preferredRoles: z.array(z.string()).optional(),
+    name: z.string().optional().nullable(),
+    role: z.string().optional().nullable(),
+    description: z.string().optional().nullable(),
+    technologies: z.array(z.string()).optional().nullable(),
+    projectUrl: z.string().optional().nullable(),
+    repositoryUrl: z.string().optional().nullable(),
+    startDate: z.string().optional().nullable(),
+    endDate: z.string().optional().nullable()
+  })).optional().nullable(),
+  github: z.string().optional().nullable(),
+  linkedin: z.string().optional().nullable(),
+  portfolio: z.string().optional().nullable(),
+  preferredRoles: z.array(z.string()).optional().nullable(),
   resume: z.object({
-    fileName: z.string(),
-    storageKey: z.string().optional(),
-    fileUrl: z.string().optional(),
-    mimeType: z.string().optional(),
-    fileSize: z.number().optional()
-  }).optional()
+    fileName: z.string().optional().nullable(),
+    storageKey: z.string().optional().nullable(),
+    fileUrl: z.string().optional().nullable(),
+    mimeType: z.string().optional().nullable(),
+    fileSize: z.number().optional().nullable()
+  }).optional().nullable()
 });
 
 const recruiterProfileSchema = z.object({
   fullName: z.string().min(2).optional(),
   workEmail: z.string().email().optional(),
-  phone: z.string().optional(),
-  title: z.string().optional(),
-  profilePhoto: z.string().optional(),
-  bio: z.string().optional(),
+  phone: z.string().optional().nullable(),
+  title: z.string().optional().nullable(),
+  profilePhoto: z.string().optional().nullable(),
+  bio: z.string().optional().nullable(),
   socialLinks: z.object({
-    linkedin: z.string().optional(),
-    twitter: z.string().optional()
-  }).optional()
+    linkedin: z.string().optional().nullable(),
+    twitter: z.string().optional().nullable()
+  }).optional().nullable()
 });
 
 const companyProfileSchema = z.object({
   name: z.string().min(2).optional(),
-  logo: z.string().optional(),
-  industry: z.string().optional(),
-  companySize: z.string().optional(),
-  website: z.string().optional(),
-  description: z.string().optional(),
+  logo: z.string().optional().nullable(),
+  industry: z.string().optional().nullable(),
+  companySize: z.string().optional().nullable(),
+  website: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
   recruiterDetails: z.object({
-    recruiterName: z.string().optional(),
-    recruiterTitle: z.string().optional(),
-    recruiterEmail: z.string().email().optional(),
-    recruiterPhone: z.string().optional()
-  }).optional(),
+    recruiterName: z.string().optional().nullable(),
+    recruiterTitle: z.string().optional().nullable(),
+    recruiterEmail: z.string().email().optional().nullable(),
+    recruiterPhone: z.string().optional().nullable()
+  }).optional().nullable(),
   socialLinks: z.object({
-    linkedin: z.string().optional(),
-    twitter: z.string().optional(),
-    facebook: z.string().optional(),
-    instagram: z.string().optional()
-  }).optional()
+    linkedin: z.string().optional().nullable(),
+    twitter: z.string().optional().nullable(),
+    facebook: z.string().optional().nullable(),
+    instagram: z.string().optional().nullable()
+  }).optional().nullable()
 });
 
 const experienceLevelSchema = z.preprocess((value) => {
