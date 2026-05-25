@@ -22,6 +22,17 @@ const CandidateDashboard = () => {
     void loadDashboard();
   }, []);
 
+  if (!dashboard) {
+    return (
+      <div className="h-[60vh] flex items-center justify-center">
+        <div className="text-gray-400 text-sm animate-pulse flex items-center gap-2">
+          <Bot size={16} className="animate-spin text-primary" />
+          Loading candidate dashboard...
+        </div>
+      </div>
+    );
+  }
+
   const interview = dashboard?.interview;
   const profile = dashboard?.profile;
 

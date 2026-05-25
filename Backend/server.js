@@ -39,10 +39,17 @@ const gracefulShutdown = async (signal) => {
   }
 };
 
+const { printRegisteredRoutes } = require('./src/utils/routes-printer');
+
 // Connect to Database and start server
 connectDB().then(() => {
   server.listen(PORT, () => {
     logger.info(`Server running on port ${PORT}`);
+    try {
+      printRegisteredRoutes(app);
+    } catch (e) {
+      logger.error(`Failed to log endpoints: ${e.message}`);
+    }
   });
 }).catch((err) => {
   logger.error(`Database connection failed: ${err.message}`);

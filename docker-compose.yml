@@ -11,6 +11,7 @@ services:
     restart: unless-stopped
 
   backend:
+    image: shreyanshp0/intervix-backend:latest
     build:
       context: ./Backend
     container_name: intervix_backend
@@ -26,6 +27,7 @@ services:
     restart: unless-stopped
 
   frontend:
+    image: shreyanshp0/intervix-frontend:latest
     build:
       context: ./Frontend
     container_name: intervix_frontend

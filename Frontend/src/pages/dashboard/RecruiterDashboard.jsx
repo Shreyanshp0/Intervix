@@ -34,6 +34,17 @@ const RecruiterDashboard = () => {
     void loadDashboard();
   }, []);
 
+  if (!dashboard) {
+    return (
+      <div className="h-[70vh] flex items-center justify-center">
+        <div className="text-gray-400 text-sm animate-pulse flex items-center gap-2">
+          <Activity size={16} className="animate-spin text-accent" />
+          Loading recruiter dashboard...
+        </div>
+      </div>
+    );
+  }
+
   const pipelineStats = dashboard?.pipelineStats || {};
   const recentCandidates = dashboard?.recentCandidates || [];
   const hiringFunnel = [

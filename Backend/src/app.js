@@ -43,7 +43,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes
 app.use(API_PREFIXES.unversioned, routes);
 app.use(API_PREFIXES.versioned, routes);
 

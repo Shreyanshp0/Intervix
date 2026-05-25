@@ -8,7 +8,7 @@ function App() {
 
   useEffect(() => {
     void bootstrapAuth();
-  }, [bootstrapAuth]);
+  }, []);
 
   return (
     <BrowserRouter>
