@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { Activity, Award, Building2, BriefcaseBusiness, Sparkles, Users, UserCheck, Workflow } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Button from '../../components/common/Button';
+import EmptyState from '../../components/common/EmptyState';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import api from '../../services/api';
 import { API_ROUTES } from '../../constants/apiRoutes';
+import { safeArray, safeObject } from '../../utils/safety';
 
 const StatCard = ({ title, value, icon: Icon, colorClass }) => (
   <div className="glass-card p-6 flex items-center justify-between">
@@ -20,21 +22,29 @@ const StatCard = ({ title, value, icon: Icon, colorClass }) => (
 
 const RecruiterDashboard = () => {
   const [dashboard, setDashboard] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const loadDashboard = async () => {
+      setLoading(true);
       try {
         const response = await api.get(API_ROUTES.recruiter.dashboard);
-        setDashboard(response.data);
+        setDashboard(safeObject(response.data, 'recruiter dashboard'));
+        setError('');
       } catch (error) {
         console.error('Failed to load recruiter dashboard:', error);
+        setError(error.response?.data?.message || 'Failed to load recruiter dashboard.');
+        setDashboard(null);
+      } finally {
+        setLoading(false);
       }
     };
 
     void loadDashboard();
   }, []);
 
-  if (!dashboard) {
+  if (loading) {
     return (
       <div className="h-[70vh] flex items-center justify-center">
         <div className="text-gray-400 text-sm animate-pulse flex items-center gap-2">
@@ -45,8 +55,19 @@ const RecruiterDashboard = () => {
     );
   }
 
-  const pipelineStats = dashboard?.pipelineStats || {};
-  const recentCandidates = dashboard?.recentCandidates || [];
+  if (error || !dashboard) {
+    return (
+      <EmptyState
+        title="Recruiter dashboard not ready"
+        description={error || 'Recruiter insights will appear once your workspace is initialized.'}
+        actionLabel="Refresh"
+        onAction={() => window.location.reload()}
+      />
+    );
+  }
+
+  const pipelineStats = safeObject(dashboard.pipelineStats, 'recruiter pipeline stats');
+  const recentCandidates = safeArray(dashboard.recentCandidates, 'recent candidates');
   const hiringFunnel = [
     { name: 'Candidates', count: pipelineStats.totalCandidates || 0 },
     { name: 'Shortlisted', count: pipelineStats.shortlisted || 0 },

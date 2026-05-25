@@ -7,6 +7,7 @@ import api from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { ResumeUpload } from '../../components/candidate/ResumeUpload';
 import { API_ROUTES } from '../../constants/apiRoutes';
+import { safeObject } from '../../utils/safety';
 
 const emptyEducation = { institution: '', degree: '', fieldOfStudy: '', startDate: '', endDate: '', grade: '', description: '' };
 const emptyExperience = { company: '', title: '', employmentType: '', location: '', startDate: '', endDate: '', currentlyWorking: false, description: '', highlights: '' };
@@ -81,7 +82,7 @@ const CandidateProfilePage = () => {
     const loadProfile = async () => {
       try {
         const response = await api.get(API_ROUTES.candidate.me);
-        reset(normalizeFormValues(response.data.profile));
+        reset(normalizeFormValues(safeObject(response.data?.profile, 'candidate profile')));
       } catch (error) {
         setMessage(error.response?.data?.message || 'Failed to load candidate profile.');
       }

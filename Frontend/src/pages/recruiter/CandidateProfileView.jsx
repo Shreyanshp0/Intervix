@@ -5,6 +5,7 @@ import api from '../../services/api';
 import { Panel } from '../../components/jobs/JobUi';
 import Button from '../../components/common/Button';
 import { API_ROUTES, buildApiUrl } from '../../constants/apiRoutes';
+import { safeArray, safeObject } from '../../utils/safety';
 
 const CandidateProfileView = () => {
   const { candidateId } = useParams();
@@ -18,7 +19,7 @@ const CandidateProfileView = () => {
       setLoading(true);
       try {
         const response = await api.get(API_ROUTES.recruiter.candidateDetails(candidateId));
-        setData(response.data);
+        setData(safeObject(response.data, 'candidate profile view'));
         setError('');
       } catch (err) {
         setError(err.response?.data?.message || 'Unable to load candidate details.');
@@ -54,9 +55,10 @@ const CandidateProfileView = () => {
     );
   }
 
-  const { profile, sessions } = data;
-  const resume = profile.resume;
-  const verifiedSkillsMap = profile.verifiedSkills || {};
+  const profile = safeObject(data.profile, 'candidate profile');
+  const sessions = safeArray(data.sessions, 'candidate sessions');
+  const resume = safeObject(profile.resume, 'candidate resume');
+  const verifiedSkillsMap = safeObject(profile.verifiedSkills, 'verified skills map');
 
   const resumePreviewUrl = resume?._id ? buildApiUrl(API_ROUTES.resume.downloadById(resume._id)) : '';
 
@@ -72,10 +74,10 @@ const CandidateProfileView = () => {
           </Link>
           <div className="flex items-center gap-3">
             {profile.profilePhoto ? (
-              <img src={profile.profilePhoto} alt={profile.name} className="w-11 h-11 rounded-2xl object-cover border border-white/10" />
+              <img src={profile.profilePhoto} alt={profile.name || 'Candidate'} className="w-11 h-11 rounded-2xl object-cover border border-white/10" />
             ) : (
               <div className="w-11 h-11 rounded-2xl bg-primary/20 text-primary flex items-center justify-center font-bold">
-                {profile.name[0]}
+                {(profile.name || 'C')[0]}
               </div>
             )}
             <div className="text-left">
@@ -141,7 +143,7 @@ const CandidateProfileView = () => {
                   <CheckCircle size={14} /> Peak Strengths
                 </h5>
                 <ul className="space-y-2 text-xs text-gray-300">
-                  {resume.aiAnalysis.strengths?.map((str, idx) => (
+                  {safeArray(resume.aiAnalysis.strengths, 'resume strengths').map((str, idx) => (
                     <li key={idx} className="flex items-start gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
                       <span>{str}</span>
@@ -154,7 +156,7 @@ const CandidateProfileView = () => {
                   <AlertCircle size={14} /> Development Areas
                 </h5>
                 <ul className="space-y-2 text-xs text-gray-300">
-                  {resume.aiAnalysis.weakAreas?.map((weak, idx) => (
+                  {safeArray(resume.aiAnalysis.weakAreas, 'resume weak areas').map((weak, idx) => (
                     <li key={idx} className="flex items-start gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0" />
                       <span>{weak}</span>
@@ -237,7 +239,7 @@ const CandidateProfileView = () => {
               <Briefcase size={16} className="text-gray-400" /> Work History & Projects
             </h4>
             <div className="space-y-4">
-              {profile.experience?.map((exp, idx) => (
+                  {safeArray(profile.experience, 'candidate experience').map((exp, idx) => (
                 <div key={idx} className="rounded-2xl border border-white/5 bg-white/5 p-4 space-y-2">
                   <div className="flex justify-between items-start gap-3">
                     <h5 className="font-semibold text-white text-sm">{exp.title} • <span className="text-gray-400 font-normal">{exp.company}</span></h5>
@@ -259,7 +261,7 @@ const CandidateProfileView = () => {
               <Code size={16} className="text-gray-400" /> Projects Portfolio
             </h4>
             <div className="space-y-4">
-              {profile.projects?.map((proj, idx) => (
+              {safeArray(profile.projects, 'candidate projects').map((proj, idx) => (
                 <div key={idx} className="rounded-2xl border border-white/5 bg-white/5 p-4 space-y-2.5">
                   <div className="flex justify-between items-start gap-3">
                     <h5 className="font-semibold text-white text-sm">{proj.name} <span className="text-xs text-gray-400 font-normal">({proj.role})</span></h5>
@@ -271,7 +273,7 @@ const CandidateProfileView = () => {
                   </div>
                   <p className="text-xs text-gray-300 leading-relaxed">{proj.description}</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {proj.technologies?.map((tech) => (
+                    {safeArray(proj.technologies, 'project technologies').map((tech) => (
                       <span key={tech} className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-gray-300">
                         {tech}
                       </span>

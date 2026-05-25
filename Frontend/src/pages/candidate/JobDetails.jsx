@@ -5,6 +5,7 @@ import Button from '../../components/common/Button';
 import { MatchBadge, Panel, StageBadge, TextareaField } from '../../components/jobs/JobUi';
 import api from '../../services/api';
 import { API_ROUTES } from '../../constants/apiRoutes';
+import { safeArray, safeObject } from '../../utils/safety';
 
 const JobDetails = () => {
   const { jobId } = useParams();
@@ -29,8 +30,8 @@ const JobDetails = () => {
           api.get(API_ROUTES.candidate.me)
         ]);
 
-        setJob(jobRes.data.job);
-        setProfile(profileRes.data.profile);
+        setJob(safeObject(jobRes.data?.job, 'job details job'));
+        setProfile(safeObject(profileRes.data?.profile, 'candidate profile'));
         setMessage('');
       } catch (error) {
         setMessage(error.response?.data?.message || 'Unable to load job details.');
@@ -45,7 +46,7 @@ const JobDetails = () => {
   const completeness = useMemo(() => {
     if (!profile) return [];
     const missing = [];
-    if (!profile.skills?.raw?.length) missing.push('Skills');
+    if (!safeArray(profile.skills?.raw, 'profile skills').length) missing.push('Skills');
     if (!profile.aboutMe || !profile.aboutMe.trim()) missing.push('About Me');
     if (!profile.resume) missing.push('Resume');
     return missing;
@@ -111,8 +112,8 @@ const JobDetails = () => {
               <span className="inline-flex items-center gap-2"><BriefcaseBusiness size={16} /> {job.company?.name}</span>
               <span className="inline-flex items-center gap-2"><MapPin size={16} /> {job.location}</span>
               <span className="capitalize">{job.experienceLevel}</span>
-              <span className="capitalize">{job.interviewStyle.replace('-', ' ')}</span>
-              <span className="capitalize">{job.interviewDifficulty} interviews</span>
+              <span className="capitalize">{(job.interviewStyle || 'mixed').replace('-', ' ')}</span>
+              <span className="capitalize">{job.interviewDifficulty || 'mixed'} interviews</span>
             </div>
             <p className="mt-5 text-sm leading-7 text-slate-100/80">{job.description}</p>
           </div>

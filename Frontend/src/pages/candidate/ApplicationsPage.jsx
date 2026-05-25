@@ -3,6 +3,7 @@ import { CalendarClock, MessageSquareText, Sparkles } from 'lucide-react';
 import { Panel, StageBadge, StatPill } from '../../components/jobs/JobUi';
 import api from '../../services/api';
 import { API_ROUTES } from '../../constants/apiRoutes';
+import { safeArray } from '../../utils/safety';
 
 const STAGES = ['', 'Applied', 'Shortlisted', 'Interview Scheduled', 'Passed', 'Rejected', 'Hired'];
 
@@ -17,7 +18,7 @@ const ApplicationsPage = () => {
       setLoading(true);
       try {
         const response = await api.get(API_ROUTES.candidate.applications, { params: stage ? { stage } : {} });
-        setApplications(response.data.applications || []);
+        setApplications(safeArray(response.data?.applications, 'candidate applications'));
         setMessage('');
       } catch (error) {
         setMessage(error.response?.data?.message || 'Unable to load applications.');
@@ -30,9 +31,9 @@ const ApplicationsPage = () => {
   }, [stage]);
 
   const stats = useMemo(() => ({
-    active: applications.filter((item) => ['Applied', 'Shortlisted', 'Interview Scheduled'].includes(item.stage)).length,
-    passed: applications.filter((item) => item.stage === 'Passed').length,
-    hired: applications.filter((item) => item.stage === 'Hired').length
+    active: safeArray(applications, 'candidate applications stats').filter((item) => ['Applied', 'Shortlisted', 'Interview Scheduled'].includes(item.stage)).length,
+    passed: safeArray(applications, 'candidate applications stats').filter((item) => item.stage === 'Passed').length,
+    hired: safeArray(applications, 'candidate applications stats').filter((item) => item.stage === 'Hired').length
   }), [applications]);
 
   return (
@@ -80,7 +81,7 @@ const ApplicationsPage = () => {
       ) : null}
 
       <div className="grid gap-5">
-        {!loading && !message ? applications.map((application) => (
+        {!loading && !message ? safeArray(applications, 'candidate applications list').map((application) => (
           <Panel key={application._id} className="border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(2,6,23,0.45))]">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
               <div className="max-w-3xl">
@@ -111,12 +112,12 @@ const ApplicationsPage = () => {
                 <div className="rounded-[24px] border border-white/10 bg-slate-950/50 p-5">
                   <div className="inline-flex items-center gap-2 text-sm font-medium text-white"><MessageSquareText size={16} /> Recruiter feedback</div>
                   <div className="mt-3 space-y-3">
-                    {(application.recruiterFeedback || []).filter((item) => item.visibility === 'candidate').map((item) => (
+                    {safeArray(application.recruiterFeedback, 'application recruiter feedback').filter((item) => item.visibility === 'candidate').map((item) => (
                       <div key={item._id} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300">
                         {item.message}
                       </div>
                     ))}
-                    {!application.recruiterFeedback?.filter((item) => item.visibility === 'candidate').length ? (
+                    {!safeArray(application.recruiterFeedback, 'application recruiter feedback').filter((item) => item.visibility === 'candidate').length ? (
                       <div className="text-sm text-gray-400">No recruiter feedback shared yet.</div>
                     ) : null}
                   </div>

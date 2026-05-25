@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Award, AlertCircle, Clock, Calendar, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Award, Clock, Calendar, ShieldCheck, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { API_ROUTES } from '../../constants/apiRoutes';
 import { Panel } from '../../components/jobs/JobUi';
 import Button from '../../components/common/Button';
+import EmptyState from '../../components/common/EmptyState';
+import { safeArray, safeObject } from '../../utils/safety';
 
 const ProgressReports = () => {
   const [sessions, setSessions] = useState([]);
@@ -16,7 +18,8 @@ const ProgressReports = () => {
       setLoading(true);
       try {
         const response = await api.get(API_ROUTES.candidate.dashboard);
-        setSessions(response.data.scoreProgression || []);
+        const dashboard = safeObject(response.data?.interview, 'candidate interview timeline');
+        setSessions(safeArray(dashboard.scoreProgression, 'timeline score progression'));
         setError('');
       } catch (err) {
         setError('Failed to retrieve timeline progress.');
@@ -36,6 +39,17 @@ const ProgressReports = () => {
     );
   }
 
+  if (error) {
+    return (
+      <EmptyState
+        title="Progress timeline unavailable"
+        description={error}
+        actionLabel="Refresh"
+        onAction={() => window.location.reload()}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6 pb-10 text-left">
       <Panel className="bg-[linear-gradient(135deg,rgba(15,23,42,0.95),rgba(6,182,212,0.15),rgba(2,6,23,0.95))] border-white/10">
@@ -48,13 +62,6 @@ const ProgressReports = () => {
           Revisit past interview metrics, examine technical and communication ratings, and review detailed report logs.
         </p>
       </Panel>
-
-      {error ? (
-        <Panel className="border-rose-500/20 bg-rose-500/5 text-center p-8">
-          <AlertCircle className="text-rose-400 mx-auto mb-4" size={36} />
-          <p className="text-sm text-rose-300">{error}</p>
-        </Panel>
-      ) : null}
 
       <div className="space-y-5">
         {sessions.length > 0 ? (

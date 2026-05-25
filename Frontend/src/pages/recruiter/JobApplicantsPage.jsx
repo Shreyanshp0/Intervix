@@ -6,6 +6,7 @@ import Input from '../../components/common/Input';
 import { MatchBadge, Panel, StageBadge, TextareaField } from '../../components/jobs/JobUi';
 import api from '../../services/api';
 import { API_ROUTES } from '../../constants/apiRoutes';
+import { safeArray } from '../../utils/safety';
 
 const STAGES = ['Applied', 'Shortlisted', 'Interview Scheduled', 'Passed', 'Rejected', 'Hired'];
 
@@ -23,7 +24,7 @@ const JobApplicantsPage = () => {
       setLoading(true);
       try {
         const response = await api.get(API_ROUTES.recruiter.jobApplicants(jobId), { params: stageFilter ? { stage: stageFilter } : {} });
-        setApplications(response.data.applications || []);
+        setApplications(safeArray(response.data?.applications, 'job applicants'));
         setMessage('');
       } catch (error) {
         setMessage(error.response?.data?.message || 'Unable to load applicants.');
@@ -39,7 +40,7 @@ const JobApplicantsPage = () => {
     setLoading(true);
     try {
       const response = await api.get(API_ROUTES.recruiter.jobApplicants(jobId), { params: stageFilter ? { stage: stageFilter } : {} });
-      setApplications(response.data.applications || []);
+      setApplications(safeArray(response.data?.applications, 'job applicants'));
       setMessage('');
     } catch (error) {
       setMessage(error.response?.data?.message || 'Unable to load applicants.');
@@ -194,7 +195,7 @@ const JobApplicantsPage = () => {
                 <div className="rounded-[24px] border border-white/10 bg-slate-950/50 p-5">
                   <div className="inline-flex items-center gap-2 text-sm font-medium text-white"><MessageSquareText size={16} /> Recruiter feedback</div>
                   <div className="mt-3 space-y-3">
-                    {(application.recruiterFeedback || []).map((item) => (
+                    {safeArray(application.recruiterFeedback, 'applicant recruiter feedback').map((item) => (
                       <div key={item._id} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300">
                         <div className="mb-2 text-[11px] uppercase tracking-[0.18em] text-gray-500">{item.visibility}</div>
                         {item.message}

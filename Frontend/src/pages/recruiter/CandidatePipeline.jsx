@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { BriefcaseBusiness, MoveRight, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Button from '../../components/common/Button';
+import EmptyState from '../../components/common/EmptyState';
 import { MatchBadge, Panel, StageBadge } from '../../components/jobs/JobUi';
 import api from '../../services/api';
 import { API_ROUTES } from '../../constants/apiRoutes';
+import { safeArray } from '../../utils/safety';
 
 const CandidatePipeline = () => {
   const [jobs, setJobs] = useState([]);
@@ -16,7 +18,7 @@ const CandidatePipeline = () => {
     const loadJobs = async () => {
       try {
         const response = await api.get(API_ROUTES.recruiter.jobs);
-        const nextJobs = response.data.jobs || [];
+        const nextJobs = safeArray(response.data?.jobs, 'recruiter jobs');
         setJobs(nextJobs);
         setSelectedJobId((current) => current || nextJobs[0]?._id || '');
       } catch (error) {
@@ -33,7 +35,7 @@ const CandidatePipeline = () => {
     const loadPipeline = async () => {
       try {
         const response = await api.get(API_ROUTES.recruiter.jobPipeline(selectedJobId));
-        setPipeline(response.data.pipeline || []);
+        setPipeline(safeArray(response.data?.pipeline, 'candidate pipeline'));
         setMessage('');
       } catch (error) {
         setMessage(error.response?.data?.message || 'Unable to load ATS pipeline.');
@@ -64,13 +66,22 @@ const CandidatePipeline = () => {
               onChange={(event) => setSelectedJobId(event.target.value)}
               className="h-10 w-full rounded-xl border border-white/10 bg-surface/50 px-3 text-sm text-gray-100"
             >
-              {jobs.map((job) => <option key={job._id} value={job._id} className="bg-slate-950">{job.roleTitle}</option>)}
+            {jobs.map((job) => <option key={job._id} value={job._id} className="bg-slate-950">{job.roleTitle}</option>)}
             </select>
           </div>
         </div>
       </Panel>
 
       {message ? <Panel><div className="text-sm text-rose-300">{message}</div></Panel> : null}
+
+      {!selectedJobId ? (
+        <EmptyState
+          title="No jobs to review yet"
+          description="Create a recruiter job posting first, then the pipeline will appear here."
+          actionLabel="Open job management"
+          onAction={() => window.location.assign('/recruiter/jobs')}
+        />
+      ) : null}
 
       <div className="grid gap-5 xl:grid-cols-3">
         {pipeline.map((column) => (

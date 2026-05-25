@@ -1,11 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
-import { Sparkles, Star, Clock, User, Briefcase, Code, Video, PhoneOff, Award, AlertCircle, Save } from 'lucide-react';
+import { Sparkles, Star, Clock, User, Briefcase, Code, Video, PhoneOff, Award, Save } from 'lucide-react';
 import api from '../../services/api';
 import { API_ROUTES } from '../../constants/apiRoutes';
 import { connectSocket } from '../../services/socket';
 import { Panel } from '../../components/jobs/JobUi';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
+import EmptyState from '../../components/common/EmptyState';
+import { safeArray } from '../../utils/safety';
 
 const InterviewCenter = () => {
   const [interviews, setInterviews] = useState([]);
@@ -26,10 +28,11 @@ const InterviewCenter = () => {
       setLoading(true);
       try {
         const response = await api.get(API_ROUTES.recruiter.liveInterviews);
-        setInterviews(response.data.interviews || []);
+        setInterviews(safeArray(response.data?.interviews, 'live interviews'));
         setError('');
       } catch (err) {
         setError(err.response?.data?.message || 'Failed to fetch scheduled live assessments.');
+        setInterviews([]);
       } finally {
         setLoading(false);
       }
@@ -105,8 +108,8 @@ const InterviewCenter = () => {
 
   const handleLaunchRoom = (interview) => {
     setActiveRoom(interview);
-    setNotepadContent(interview.notepadContent || '');
-    setRecruiterNotes(interview.recruiterNotes || '');
+    setNotepadContent(interview?.notepadContent || '');
+    setRecruiterNotes(interview?.recruiterNotes || '');
     setUserJoined(false);
   };
 
@@ -237,10 +240,12 @@ const InterviewCenter = () => {
       </Panel>
 
       {error ? (
-        <Panel className="border-rose-500/20 bg-rose-500/5 text-center p-8">
-          <AlertCircle className="text-rose-400 mx-auto mb-4" size={36} />
-          <p className="text-sm text-rose-300">{error}</p>
-        </Panel>
+        <EmptyState
+          title="Live interview center unavailable"
+          description={error}
+          actionLabel="Refresh"
+          onAction={() => window.location.reload()}
+        />
       ) : null}
 
       <div className="space-y-5">

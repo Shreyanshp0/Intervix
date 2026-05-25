@@ -6,6 +6,7 @@ import Input from '../../components/common/Input';
 import { MatchBadge, Panel, StageBadge, StatPill } from '../../components/jobs/JobUi';
 import api from '../../services/api';
 import { API_ROUTES } from '../../constants/apiRoutes';
+import { safeArray, safeObject } from '../../utils/safety';
 
 const EXPERIENCE_LEVELS = ['', 'intern', 'junior', 'mid', 'senior', 'lead', 'executive'];
 
@@ -32,10 +33,11 @@ const JobFeed = () => {
           } 
         });
 
-        setJobs(response.data.jobs || []);
-        setFeedMode(response.data.feedMode || 'generic');
-        setShowBanner(response.data.onboardingBanner || false);
-        setCompleteness(response.data.profileCompleteness || null);
+        const payload = safeObject(response.data, 'job feed');
+        setJobs(safeArray(payload.jobs, 'candidate jobs feed'));
+        setFeedMode(payload.feedMode || 'generic');
+        setShowBanner(payload.onboardingBanner || false);
+        setCompleteness(safeObject(payload.profileCompleteness, 'job feed completeness'));
         
         if (response.data.pagination) {
           setPagination(response.data.pagination);
@@ -52,9 +54,10 @@ const JobFeed = () => {
   }, [filters, currentPage, pagination.limit]);
 
   const insights = useMemo(() => {
-    const high = jobs.filter((job) => job.matchScore >= 80).length;
-    const moderate = jobs.filter((job) => job.matchScore >= 55 && job.matchScore < 80).length;
-    const applied = jobs.filter((job) => job.application).length;
+    const safeJobs = safeArray(jobs, 'candidate jobs feed');
+    const high = safeJobs.filter((job) => job.matchScore >= 80).length;
+    const moderate = safeJobs.filter((job) => job.matchScore >= 55 && job.matchScore < 80).length;
+    const applied = safeJobs.filter((job) => job.application).length;
     return { high, moderate, applied };
   }, [jobs]);
 
@@ -95,7 +98,7 @@ const JobFeed = () => {
               {/* Checklist visualizer */}
               <div className="flex flex-wrap gap-x-4 gap-y-2 pt-2">
                 {['Resume', 'Skills', 'About Me'].map(field => {
-                  const isMissing = completeness.missingFields.includes(field);
+                  const isMissing = safeArray(completeness.missingFields, 'job feed completeness missing fields').includes(field);
                   return (
                     <span 
                       key={field} 
@@ -116,10 +119,10 @@ const JobFeed = () => {
               <div className="pt-2 max-w-sm">
                 <div className="flex justify-between items-center text-[10px] text-gray-400 mb-1">
                   <span>Profile Progress</span>
-                  <span>{completeness.percentage}%</span>
+                  <span>{completeness.percentage || 0}%</span>
                 </div>
                 <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-amber-400 h-full" style={{ width: `${completeness.percentage}%` }} />
+                  <div className="bg-amber-400 h-full" style={{ width: `${completeness.percentage || 0}%` }} />
                 </div>
               </div>
             </div>

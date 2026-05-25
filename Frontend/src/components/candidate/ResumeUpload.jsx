@@ -3,6 +3,8 @@ import { UploadCloud, FileText, CheckCircle, AlertCircle, Trash2, RefreshCw, Sta
 import api from '../../services/api';
 import Button from '../common/Button';
 import { API_ROUTES } from '../../constants/apiRoutes';
+import EmptyState from '../common/EmptyState';
+import { safeArray, safeObject } from '../../utils/safety';
 
 export const ResumeUpload = ({ onUploadSuccess }) => {
   const [dragActive, setDragActive] = useState(false);
@@ -18,10 +20,11 @@ export const ResumeUpload = ({ onUploadSuccess }) => {
     const fetchActiveResume = async () => {
       try {
         const response = await api.get(API_ROUTES.resume.me);
-        if (isMounted && response.data?.resume) {
+        const nextResponse = safeObject(response.data, 'resume lookup response');
+        if (isMounted && nextResponse.resume) {
           setErrorMessage('');
           setStatusMessage('');
-          setResumeData(response.data.resume);
+          setResumeData(safeObject(nextResponse.resume, 'resume payload'));
           setUploadState('success');
         } else if (isMounted) {
           setResumeData(null);
@@ -120,10 +123,10 @@ export const ResumeUpload = ({ onUploadSuccess }) => {
       // Let AI parsing screen breathe for 1.2s
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      setResumeData(response.data.resume);
+      setResumeData(safeObject(response.data?.resume, 'uploaded resume'));
       setUploadState('success');
       if (onUploadSuccess) {
-        onUploadSuccess(response.data.profile);
+        onUploadSuccess(safeObject(response.data?.profile, 'candidate profile after upload'));
       }
     } catch (error) {
       setUploadState('error');
@@ -164,30 +167,36 @@ export const ResumeUpload = ({ onUploadSuccess }) => {
       </div>
 
       {uploadState === 'idle' && (
-        <div
-          onDragEnter={handleDrag}
-          onDragOver={handleDrag}
-          onDragLeave={handleDrag}
-          onDrop={handleDrop}
-          className={`relative border-2 border-dashed rounded-3xl p-10 text-center flex flex-col items-center justify-center transition-all ${
-            dragActive ? 'border-primary bg-primary/10 scale-[1.01]' : 'border-white/10 hover:border-white/20 bg-white/5'
-          }`}
-        >
-          <input
-            type="file"
-            id="resume-file-input"
-            className="hidden"
-            accept=".pdf,.docx,.doc"
-            onChange={handleChange}
+        <div className="space-y-4">
+          <EmptyState
+            title="No resume uploaded yet"
+            description="Upload your resume to unlock personalized AI interviews, ATS scoring, and recruiter-ready matching."
           />
-          <UploadCloud size={48} className="text-gray-400 mb-4 animate-bounce" />
-          <p className="text-white font-medium text-lg">Drag & drop your resume file here</p>
-          <p className="text-sm text-gray-400 mt-2">Supported formats: PDF, DOCX (Max 10MB)</p>
-          <label htmlFor="resume-file-input" className="mt-6">
-            <Button type="button" variant="secondary" className="cursor-pointer">
-              Browse files
-            </Button>
-          </label>
+          <div
+            onDragEnter={handleDrag}
+            onDragOver={handleDrag}
+            onDragLeave={handleDrag}
+            onDrop={handleDrop}
+            className={`relative border-2 border-dashed rounded-3xl p-10 text-center flex flex-col items-center justify-center transition-all ${
+              dragActive ? 'border-primary bg-primary/10 scale-[1.01]' : 'border-white/10 hover:border-white/20 bg-white/5'
+            }`}
+          >
+            <input
+              type="file"
+              id="resume-file-input"
+              className="hidden"
+              accept=".pdf,.docx,.doc"
+              onChange={handleChange}
+            />
+            <UploadCloud size={48} className="text-gray-400 mb-4 animate-bounce" />
+            <p className="text-white font-medium text-lg">Drag & drop your resume file here</p>
+            <p className="text-sm text-gray-400 mt-2">Supported formats: PDF, DOCX (Max 10MB)</p>
+            <label htmlFor="resume-file-input" className="mt-6">
+              <Button type="button" variant="secondary" className="cursor-pointer">
+                Browse files
+              </Button>
+            </label>
+          </div>
         </div>
       )}
 
@@ -264,7 +273,7 @@ export const ResumeUpload = ({ onUploadSuccess }) => {
                   <div>
                     <h5 className="text-xs uppercase tracking-wider text-emerald-300">Strengths</h5>
                     <ul className="mt-2 space-y-1.5 text-xs text-gray-300">
-                      {resumeData.aiAnalysis.strengths?.slice(0, 4).map((str, idx) => (
+                      {safeArray(resumeData.aiAnalysis.strengths, 'resume strengths').slice(0, 4).map((str, idx) => (
                         <li key={idx} className="flex items-center gap-2">
                           <span className="w-1 h-1 rounded-full bg-emerald-400 shrink-0" />
                           <span>{str}</span>
@@ -275,7 +284,7 @@ export const ResumeUpload = ({ onUploadSuccess }) => {
                   <div>
                     <h5 className="text-xs uppercase tracking-wider text-amber-300 font-semibold">Suggested Gaps</h5>
                     <ul className="mt-2 space-y-1.5 text-xs text-gray-300">
-                      {resumeData.aiAnalysis.weakAreas?.slice(0, 4).map((weak, idx) => (
+                      {safeArray(resumeData.aiAnalysis.weakAreas, 'resume weak areas').slice(0, 4).map((weak, idx) => (
                         <li key={idx} className="flex items-center gap-2">
                           <span className="w-1 h-1 rounded-full bg-amber-400 shrink-0" />
                           <span>{weak}</span>
@@ -285,11 +294,11 @@ export const ResumeUpload = ({ onUploadSuccess }) => {
                   </div>
                 </div>
 
-                {resumeData.aiAnalysis.certifications?.length > 0 && (
+                {safeArray(resumeData.aiAnalysis.certifications, 'resume certifications').length > 0 && (
                   <div>
                     <h5 className="text-xs uppercase tracking-wider text-gray-500">Detected Certifications</h5>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {resumeData.aiAnalysis.certifications.map((cert) => (
+                      {safeArray(resumeData.aiAnalysis.certifications, 'resume certifications').map((cert) => (
                         <span key={cert} className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-gray-300">
                           {cert}
                         </span>

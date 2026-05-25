@@ -3,26 +3,36 @@ import { AlertCircle, ArrowRight, Bot, CheckCircle2, FileText, MapPin, SearchChe
 import { Link } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import Button from '../../components/common/Button';
+import EmptyState from '../../components/common/EmptyState';
 import api from '../../services/api';
 import { API_ROUTES } from '../../constants/apiRoutes';
+import { safeArray, safeObject } from '../../utils/safety';
 
 const CandidateDashboard = () => {
   const [dashboard, setDashboard] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const loadDashboard = async () => {
+      setLoading(true);
       try {
         const response = await api.get(API_ROUTES.candidate.dashboard);
-        setDashboard(response.data);
+        setDashboard(safeObject(response.data, 'candidate dashboard'));
+        setError('');
       } catch (error) {
         console.error('Failed to load candidate dashboard:', error);
+        setError(error.response?.data?.message || 'Failed to load candidate dashboard.');
+        setDashboard(null);
+      } finally {
+        setLoading(false);
       }
     };
 
     void loadDashboard();
   }, []);
 
-  if (!dashboard) {
+  if (loading) {
     return (
       <div className="h-[60vh] flex items-center justify-center">
         <div className="text-gray-400 text-sm animate-pulse flex items-center gap-2">
@@ -33,8 +43,21 @@ const CandidateDashboard = () => {
     );
   }
 
-  const interview = dashboard?.interview;
-  const profile = dashboard?.profile;
+  if (error || !dashboard) {
+    return (
+      <EmptyState
+        title="Candidate dashboard not ready"
+        description={error || 'Your dashboard is loading onboarding-safe data. Try refreshing if it stays blank.'}
+        actionLabel="Retry loading"
+        onAction={() => window.location.reload()}
+      />
+    );
+  }
+
+  const interview = safeObject(dashboard.interview, 'candidate interview dashboard');
+  const profile = safeObject(dashboard.profile, 'candidate profile');
+  const scoreProgression = safeArray(interview.scoreProgression, 'score progression');
+  const topicPerformance = safeArray(interview.topicPerformance, 'topic performance');
 
   const summaryCards = [
     { label: 'Profile Completeness', value: `${profile?.completionScore || 0}%`, icon: UserRound },
@@ -126,7 +149,7 @@ const CandidateDashboard = () => {
         </div>
       )}
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="glass-card rounded-[28px] p-6 lg:p-8">
+          <div className="glass-card rounded-[28px] p-6 lg:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs uppercase tracking-[0.28em] text-primary">
@@ -246,28 +269,36 @@ const CandidateDashboard = () => {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         <div className="glass-card p-6 h-[320px]">
           <h2 className="text-xl font-semibold mb-6">Score Progression</h2>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={interview?.scoreProgression || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-              <XAxis dataKey="label" stroke="#888" tick={{ fill: '#888' }} axisLine={false} />
-              <YAxis stroke="#888" tick={{ fill: '#888' }} axisLine={false} tickLine={false} domain={[0, 100]} />
-              <Tooltip contentStyle={{ backgroundColor: '#1A1F2C', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
-              <Line type="monotone" dataKey="score" stroke="#6366F1" strokeWidth={3} dot={{ r: 4, fill: '#6366F1' }} />
-            </LineChart>
-          </ResponsiveContainer>
+          {scoreProgression.length ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={scoreProgression}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                <XAxis dataKey="label" stroke="#888" tick={{ fill: '#888' }} axisLine={false} />
+                <YAxis stroke="#888" tick={{ fill: '#888' }} axisLine={false} tickLine={false} domain={[0, 100]} />
+                <Tooltip contentStyle={{ backgroundColor: '#1A1F2C', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
+                <Line type="monotone" dataKey="score" stroke="#6366F1" strokeWidth={3} dot={{ r: 4, fill: '#6366F1' }} />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyState title="No interview scores yet" description="Run a first mock interview to populate your progression chart." />
+          )}
         </div>
 
         <div className="glass-card p-6 h-[320px]">
           <h2 className="text-xl font-semibold mb-6">Topic-wise Performance</h2>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={interview?.topicPerformance || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-              <XAxis dataKey="topic" stroke="#888" tick={{ fill: '#888', fontSize: 12 }} axisLine={false} />
-              <YAxis stroke="#888" tick={{ fill: '#888' }} axisLine={false} tickLine={false} domain={[0, 100]} />
-              <Tooltip contentStyle={{ backgroundColor: '#1A1F2C', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
-              <Bar dataKey="averageScore" fill="#14B8A6" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {topicPerformance.length ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={topicPerformance}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                <XAxis dataKey="topic" stroke="#888" tick={{ fill: '#888', fontSize: 12 }} axisLine={false} />
+                <YAxis stroke="#888" tick={{ fill: '#888' }} axisLine={false} tickLine={false} domain={[0, 100]} />
+                <Tooltip contentStyle={{ backgroundColor: '#1A1F2C', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
+                <Bar dataKey="averageScore" fill="#14B8A6" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyState title="No topic data yet" description="Topic performance will appear after you complete a few assessments." />
+          )}
         </div>
       </div>
     </div>

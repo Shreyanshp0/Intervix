@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Sparkles, Star, Shield, ArrowUpRight, TrendingUp, CheckCircle, AlertCircle, Compass, PlayCircle } from 'lucide-react';
+import { Sparkles, Star, Shield, ArrowUpRight, TrendingUp, CheckCircle, Compass, PlayCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { Panel } from '../../components/jobs/JobUi';
 import { API_ROUTES } from '../../constants/apiRoutes';
 import Button from '../../components/common/Button';
+import EmptyState from '../../components/common/EmptyState';
+import { safeArray, safeObject } from '../../utils/safety';
 
 const AnalyticsDashboard = () => {
   const [data, setData] = useState(null);
@@ -16,7 +18,7 @@ const AnalyticsDashboard = () => {
       setLoading(true);
       try {
         const response = await api.get(API_ROUTES.candidate.dashboard);
-        setData(response.data);
+        setData(safeObject(response.data?.interview, 'candidate interview analytics'));
         setError('');
       } catch (err) {
         setError(err.response?.data?.message || 'Unable to compile analytics dashboard.');
@@ -37,13 +39,16 @@ const AnalyticsDashboard = () => {
 
   if (error || !data) {
     return (
-      <Panel className="border-rose-500/20 bg-rose-500/5 text-center p-8">
-        <AlertCircle className="text-rose-400 mx-auto mb-4" size={36} />
-        <p className="text-sm text-rose-300">{error || 'Failed to load report.'}</p>
-      </Panel>
+      <EmptyState
+        title="Analytics unavailable"
+        description={error || 'Your analytics are still onboarding-safe and will populate after interviews start.'}
+        actionLabel="Refresh"
+        onAction={() => window.location.reload()}
+      />
     );
   }
 
+  const dashboard = safeObject(data, 'analytics dashboard');
   const {
     totalInterviews,
     averageScore,
@@ -56,7 +61,10 @@ const AnalyticsDashboard = () => {
     scoreProgression,
     topicPerformance,
     learningRecommendations
-  } = data;
+  } = dashboard;
+  const safeScoreProgression = safeArray(scoreProgression, 'score progression');
+  const safeTopicPerformance = safeArray(topicPerformance, 'topic performance');
+  const safeRecommendations = safeArray(learningRecommendations, 'learning recommendations');
 
   const scoreColor = (score) => {
     if (score >= 80) return 'text-emerald-400';
@@ -141,7 +149,7 @@ const AnalyticsDashboard = () => {
               <TrendingUp size={18} className="text-cyan-300" /> Assessment Score Progression
             </h3>
             <div className="h-44 flex items-end justify-between gap-2 pt-6">
-              {scoreProgression.map((s, idx) => (
+              {safeScoreProgression.map((s, idx) => (
                 <div key={idx} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
                   <div className="w-full bg-slate-800 rounded-t-lg transition-all hover:bg-primary" style={{ height: `${s.score}%` }}>
                     <div className="text-[10px] text-white text-center -mt-6 font-mono">{s.score}%</div>
@@ -149,7 +157,7 @@ const AnalyticsDashboard = () => {
                   <div className="text-[9px] text-gray-500 truncate max-w-full font-mono">{s.label}</div>
                 </div>
               ))}
-              {!scoreProgression.length && (
+              {!safeScoreProgression.length && (
                 <div className="flex-1 text-center text-xs text-gray-500 self-center">No assessments completed.</div>
               )}
             </div>
@@ -164,7 +172,7 @@ const AnalyticsDashboard = () => {
               <Star size={16} className="text-cyan-300" /> Topic Performance Summary
             </h3>
             <div className="space-y-4 max-h-56 overflow-y-auto pr-2">
-              {topicPerformance.map((t) => (
+              {safeTopicPerformance.map((t) => (
                 <div key={t.topic} className="flex justify-between items-center text-xs border-b border-white/5 pb-2.5">
                   <div>
                     <span className="font-semibold text-white capitalize">{t.topic}</span>
@@ -176,7 +184,7 @@ const AnalyticsDashboard = () => {
                   </div>
                 </div>
               ))}
-              {!topicPerformance.length && (
+              {!safeTopicPerformance.length && (
                 <div className="text-center text-xs text-gray-500 py-4">No topic statistics compiled.</div>
               )}
             </div>
@@ -188,13 +196,13 @@ const AnalyticsDashboard = () => {
               <Compass size={16} className="text-cyan-300" /> AI Study Recommendations
             </h3>
             <div className="space-y-3">
-              {learningRecommendations.map((rec, idx) => (
+              {safeRecommendations.map((rec, idx) => (
                 <div key={idx} className="flex items-start gap-3 p-3 rounded-2xl bg-white/5 border border-white/5">
                   <ArrowUpRight size={16} className="text-cyan-300 shrink-0 mt-0.5" />
                   <p className="text-xs text-gray-300 leading-relaxed text-left">{rec}</p>
                 </div>
               ))}
-              {!learningRecommendations.length && (
+              {!safeRecommendations.length && (
                 <div className="text-xs text-gray-500 py-2">No learning recommendations generated yet. Try taking some assessments.</div>
               )}
             </div>

@@ -5,6 +5,7 @@ import api from '../../services/api';
 import { API_ROUTES } from '../../constants/apiRoutes';
 import { Panel } from '../../components/jobs/JobUi';
 import Button from '../../components/common/Button';
+import { safeArray, safeObject } from '../../utils/safety';
 
 const PreparationHub = () => {
   const [profile, setProfile] = useState(null);
@@ -16,7 +17,7 @@ const PreparationHub = () => {
       setLoading(true);
       try {
         const response = await api.get(API_ROUTES.candidate.me);
-        setProfile(response.data.profile);
+        setProfile(safeObject(response.data?.profile, 'candidate profile preparation hub'));
       } catch (err) {
         setError('Failed to load preparation metrics.');
       } finally {
@@ -34,8 +35,8 @@ const PreparationHub = () => {
     );
   }
 
-  const verifiedSkillsList = profile?.skills?.verified || [];
-  const normalizedSkillsList = profile?.skills?.normalized || [];
+  const verifiedSkillsList = safeArray(profile?.skills?.verified, 'verified skills');
+  const normalizedSkillsList = safeArray(profile?.skills?.normalized, 'normalized skills');
 
   // Determine unverified skills (skills listed in normalized but not in verified)
   const unverifiedSkills = normalizedSkillsList.filter(s => !verifiedSkillsList.includes(s));

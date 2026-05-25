@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Sparkles, Star, Shield, TrendingUp, BarChart3, Users, AlertCircle, ArrowUpRight } from 'lucide-react';
+import { Sparkles, Star, Shield, TrendingUp, BarChart3, Users, ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { API_ROUTES } from '../../constants/apiRoutes';
 import { Panel } from '../../components/jobs/JobUi';
+import EmptyState from '../../components/common/EmptyState';
+import { safeArray, safeObject } from '../../utils/safety';
 
 const HiringAnalytics = () => {
   const [data, setData] = useState(null);
@@ -15,7 +17,7 @@ const HiringAnalytics = () => {
       setLoading(true);
       try {
         const response = await api.get(API_ROUTES.recruiter.analytics);
-        setData(response.data);
+        setData(safeObject(response.data, 'hiring analytics'));
         setError('');
       } catch (err) {
         setError('Failed to fetch pipeline analytics.');
@@ -36,14 +38,19 @@ const HiringAnalytics = () => {
 
   if (error || !data) {
     return (
-      <Panel className="border-rose-500/20 bg-rose-500/5 text-center p-8">
-        <AlertCircle className="text-rose-400 mx-auto mb-4" size={36} />
-        <p className="text-sm text-rose-300">{error || 'Failed to load report.'}</p>
-      </Panel>
+      <EmptyState
+        title="Hiring analytics unavailable"
+        description={error || 'Analytics will appear once jobs and applicant data are available.'}
+        actionLabel="Refresh"
+        onAction={() => window.location.reload()}
+      />
     );
   }
 
-  const { funnel, activeJobsCount, averageQualityScore, averageAtsScore, topCandidates } = data;
+  const analytics = safeObject(data, 'hiring analytics payload');
+  const funnel = safeObject(analytics.funnel, 'funnel stats');
+  const topCandidates = safeArray(analytics.topCandidates, 'top candidates');
+  const { activeJobsCount, averageQualityScore, averageAtsScore } = analytics;
 
   const funnelMax = Math.max(...Object.values(funnel), 1);
 

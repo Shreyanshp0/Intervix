@@ -5,6 +5,7 @@ import Input from '../../components/common/Input';
 import { Panel, StageBadge, TextareaField, StatPill } from '../../components/jobs/JobUi';
 import api from '../../services/api';
 import { API_ROUTES } from '../../constants/apiRoutes';
+import { safeArray } from '../../utils/safety';
 
 const emptyForm = {
   roleTitle: '',
@@ -79,7 +80,7 @@ const JobManagement = () => {
       setLoading(true);
       try {
         const response = await api.get(API_ROUTES.recruiter.jobs);
-        const nextJobs = response.data.jobs || [];
+        const nextJobs = safeArray(response.data?.jobs, 'recruiter jobs');
         setJobs(nextJobs);
         setMessage('');
       } catch (error) {
@@ -96,7 +97,7 @@ const JobManagement = () => {
     setLoading(true);
     try {
       const response = await api.get(API_ROUTES.recruiter.jobs, { params: searchValue ? { search: searchValue } : {} });
-      const nextJobs = response.data.jobs || [];
+      const nextJobs = safeArray(response.data?.jobs, 'recruiter jobs');
       setJobs(nextJobs);
       if (selectedJobId) {
         const selected = nextJobs.find((job) => job._id === selectedJobId);
@@ -113,9 +114,9 @@ const JobManagement = () => {
   };
 
   const stats = useMemo(() => ({
-    active: jobs.filter((job) => ['open', 'on-hold'].includes(job.hiringStatus)).length,
-    draft: jobs.filter((job) => job.hiringStatus === 'draft').length,
-    applicants: jobs.reduce((sum, job) => sum + (job.applicantStats?.totalApplicants || 0), 0)
+    active: safeArray(jobs, 'recruiter jobs stats').filter((job) => ['open', 'on-hold'].includes(job.hiringStatus)).length,
+    draft: safeArray(jobs, 'recruiter jobs stats').filter((job) => job.hiringStatus === 'draft').length,
+    applicants: safeArray(jobs, 'recruiter jobs stats').reduce((sum, job) => sum + (job.applicantStats?.totalApplicants || 0), 0)
   }), [jobs]);
 
   const handleChange = (event) => {
