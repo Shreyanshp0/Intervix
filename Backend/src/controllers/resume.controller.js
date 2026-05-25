@@ -1,70 +1,77 @@
 const fs = require('fs');
 const path = require('path');
+const mongoose = require('mongoose');
 const Resume = require('../models/Resume');
+const candidateService = require('../services/candidate.service');
 const resumeParserService = require('../services/resume-parser.service');
 const ApiError = require('../utils/api-error');
 const logger = require('../config/logger');
 const { calculateCandidateCompletion, buildSkillPayload } = require('../utils/profile.utils');
 
-class ResumeController {
-  async getCandidateProfile(req) {
-    const candidateService = require('../services/candidate.service');
-    return candidateService.getOrCreateCandidateProfile(req.user._id);
+const isValidObjectId = (value) => mongoose.Types.ObjectId.isValid(value);
+
+const getCandidateProfile = async (req) => {
+  return candidateService.getOrCreateCandidateProfile(req.user._id);
+};
+
+const getResumeForProfile = async (profile) => {
+  if (!profile?._id) {
+    return null;
   }
 
-  async getResumeForProfile(profile) {
-    if (!profile?._id) {
+  return Resume.findOne({ candidateProfile: profile._id });
+};
+
+const getResumeForUser = async (req, resumeId = null) => {
+  const profile = await getCandidateProfile(req);
+
+  if (resumeId) {
+    if (!isValidObjectId(resumeId)) {
       return null;
     }
 
-    return Resume.findOne({ candidateProfile: profile._id });
-  }
-
-  async getResumeForUser(req, resumeId = null) {
-    const profile = await this.getCandidateProfile(req);
-
-    if (resumeId) {
-      const resume = await Resume.findById(resumeId);
-      if (!resume) {
-        return null;
-      }
-
-      if (req.user.role === 'candidate' && String(resume.candidateProfile) !== String(profile._id)) {
-        throw new ApiError(403, 'You cannot access this resume');
-      }
-
-      return resume;
-    }
-
-    return this.getResumeForProfile(profile);
-  }
-
-  buildResumePayload(resume = null) {
+    const resume = await Resume.findById(resumeId);
     if (!resume) {
-      return {
-        success: true,
-        hasResume: false,
-        onboardingRequired: true,
-        resume: null
-      };
+      return null;
     }
 
+    if (req.user.role === 'candidate' && String(resume.candidateProfile) !== String(profile._id)) {
+      throw new ApiError(403, 'You cannot access this resume');
+    }
+
+    return resume;
+  }
+
+  return getResumeForProfile(profile);
+};
+
+const buildResumePayload = (resume = null) => {
+  if (!resume) {
     return {
       success: true,
-      hasResume: true,
-      onboardingRequired: false,
-      resume
+      hasResume: false,
+      onboardingRequired: true,
+      resume: null
     };
   }
 
+  return {
+    success: true,
+    hasResume: true,
+    onboardingRequired: false,
+    resume
+  };
+};
+
+const resumeController = {
   async uploadResume(req, res, next) {
     try {
       if (!req.file) {
         throw new ApiError(400, 'No resume file uploaded');
       }
 
-      const profile = await this.getCandidateProfile(req);
-      let resume = await this.getResumeForProfile(profile);
+      const profile = await getCandidateProfile(req);
+      let resume = await getResumeForProfile(profile);
 
       if (resume?.storageKey && fs.existsSync(resume.storageKey)) {
         try {
@@ -181,12 +188,12 @@ class ResumeController {
 
       next(error);
     }
-  }
+  },
 
   async deleteResume(req, res, next) {
     try {
-      const profile = await this.getCandidateProfile(req);
-      const resume = await this.getResumeForProfile(profile);
+      const profile = await getCandidateProfile(req);
+      const resume = await getResumeForProfile(profile);
 
       if (!resume) {
         logger.info({
@@ -227,29 +234,29 @@ class ResumeController {
     } catch (error) {
       next(error);
     }
-  }
+  },
 
   async getMyResume(req, res, next) {
     try {
-      const resume = await this.getResumeForUser(req);
+      const resume = await getResumeForUser(req);
 
       if (!resume) {
         logger.info({
           tag: 'ResumeAPI',
           message: `No resume found for user ${req.user._id} -> returning onboarding state`
         });
-        return res.status(200).json(this.buildResumePayload(null));
+        return res.status(200).json(buildResumePayload(null));
       }
 
-      res.status(200).json(this.buildResumePayload(resume));
+      res.status(200).json(buildResumePayload(resume));
     } catch (error) {
       next(error);
     }
-  }
+  },
 
   async getMyResumeAnalysis(req, res, next) {
     try {
-      const resume = await this.getResumeForUser(req);
+      const resume = await getResumeForUser(req);
 
       if (!resume) {
         return res.status(200).json({
@@ -273,28 +280,28 @@ class ResumeController {
     } catch (error) {
       next(error);
     }
-  }
+  },
 
   async downloadMyResume(req, res, next) {
-    return this.previewResume(req, res, next);
-  }
+    return previewResume(req, res, next);
+  },
 
   async getResumeById(req, res, next) {
     try {
-      const resume = await this.getResumeForUser(req, req.params.resumeId);
+      const resume = await getResumeForUser(req, req.params.resumeId);
       if (!resume) {
         return res.status(404).json({ success: false, message: 'Resume not found' });
       }
 
-      res.status(200).json(this.buildResumePayload(resume));
+      res.status(200).json(buildResumePayload(resume));
     } catch (error) {
       next(error);
     }
-  }
+  },
 
   async getResumeAnalysisById(req, res, next) {
     try {
-      const resume = await this.getResumeForUser(req, req.params.resumeId);
+      const resume = await getResumeForUser(req, req.params.resumeId);
       if (!resume) {
         return res.status(404).json({ success: false, message: 'Resume not found' });
       }
@@ -310,49 +317,49 @@ class ResumeController {
     } catch (error) {
       next(error);
     }
-  }
+  },
 
   async downloadResumeById(req, res, next) {
-    return this.previewResume(req, res, next);
-  }
+    return previewResume(req, res, next);
+  },
+};
 
-  async previewResume(req, res, next) {
-    try {
-      const resume = req.params.resumeId
-        ? await this.getResumeForUser(req, req.params.resumeId)
-        : await this.getResumeForUser(req);
+async function previewResume(req, res, next) {
+  try {
+    const resume = req.params.resumeId
+      ? await getResumeForUser(req, req.params.resumeId)
+      : await getResumeForUser(req);
 
-      if (!resume) {
-        return res.status(404).json({
-          success: false,
-          hasResume: false,
-          onboardingRequired: true,
-          resume: null,
-          message: 'Resume not found'
-        });
-      }
-
-      if (!resume.storageKey || !fs.existsSync(resume.storageKey)) {
-        logger.warn({
-          tag: 'ResumeFallback',
-          message: `Resume file missing or corrupted for user ${req.user._id} / resume ${resume._id}`
-        });
-        return res.status(200).json({
-          success: true,
-          hasResume: false,
-          onboardingRequired: true,
-          resume: null,
-          message: 'Resume file not available'
-        });
-      }
-
-      res.setHeader('Content-Type', resume.mimeType || 'application/pdf');
-      res.setHeader('Content-Disposition', `inline; filename="${resume.fileName}"`);
-      res.sendFile(path.resolve(resume.storageKey));
-    } catch (error) {
-      next(error);
+    if (!resume) {
+      return res.status(404).json({
+        success: false,
+        hasResume: false,
+        onboardingRequired: true,
+        resume: null,
+        message: 'Resume not found'
+      });
     }
+
+    if (!resume.storageKey || !fs.existsSync(resume.storageKey)) {
+      logger.warn({
+        tag: 'ResumeFallback',
+        message: `Resume file missing or corrupted for user ${req.user._id} / resume ${resume._id}`
+      });
+      return res.status(200).json({
+        success: true,
+        hasResume: false,
+        onboardingRequired: true,
+        resume: null,
+        message: 'Resume file not available'
+      });
+    }
+
+    res.setHeader('Content-Type', resume.mimeType || 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${resume.fileName}"`);
+    res.sendFile(path.resolve(resume.storageKey));
+  } catch (error) {
+    next(error);
   }
 }
 
-module.exports = new ResumeController();
+module.exports = resumeController;

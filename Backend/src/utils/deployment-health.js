@@ -212,6 +212,7 @@ const generateDeploymentHealthReport = () => {
     timestamp: new Date().toISOString(),
     status: isHealthy ? 'HEALTHY' : 'DEGRADED',
     consistency,
+    deployment: consistency.deployment,
     cacheBusting,
     docker: dockerIntegrity,
     recommendations: [

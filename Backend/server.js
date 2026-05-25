@@ -8,6 +8,7 @@ const logger = require('./src/config/logger');
 const { API_ROUTES, getAllApiRoutes } = require('./src/constants/api-routes');
 const { buildValidationReport } = require('./src/utils/route-validator');
 const { generateDeploymentHealthReport } = require('./src/utils/deployment-health');
+const { buildModuleHealthReport } = require('./src/utils/module-health');
 const { printRegisteredRoutes } = require('./src/utils/routes-printer');
 
 const PORT = process.env.PORT || 5000;
@@ -88,9 +89,18 @@ connectDB().then(() => {
         tag: 'DEPLOYMENT_HEALTH_STARTUP',
         status: deploymentReport.status,
         buildVersion: deploymentReport.buildVersion,
-        environment: deploymentReport.deployment.environment,
-        containerized: deploymentReport.deployment.containerized,
+        environment: deploymentReport.deployment?.environment || process.env.NODE_ENV || 'development',
+        containerized: deploymentReport.deployment?.containerized ?? false,
         consistency: deploymentReport.consistency.aligned ? 'ALIGNED' : 'DIVERGED'
+      });
+
+      const moduleReport = buildModuleHealthReport();
+      logger.info({
+        tag: 'MODULE_HEALTH_STARTUP',
+        status: moduleReport.status,
+        servicesLoaded: moduleReport.services.loaded,
+        servicesTotal: moduleReport.services.total,
+        circularWarnings: moduleReport.circularWarnings.length
       });
 
       logger.info('[ROUTES]');

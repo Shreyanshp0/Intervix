@@ -10,6 +10,7 @@ const { API_BASE } = require('./constants/api-routes');
 const { buildRouteHealthReport } = require('./utils/route-diagnostics');
 const { generateDeploymentHealthReport } = require('./utils/deployment-health');
 const { buildValidationReport } = require('./utils/route-validator');
+const { buildModuleHealthReport } = require('./utils/module-health');
 
 const routes = require('./routes');
 const logger = require('./config/logger');
@@ -74,6 +75,18 @@ app.get('/health/routes', (req, res) => {
       deploymentVersion: 'unknown',
       diagnosticsStatus: 'error',
       error: error.message
+    });
+  }
+});
+
+app.get('/health/modules', (req, res) => {
+  try {
+    const moduleReport = buildModuleHealthReport();
+    res.status(moduleReport.status === 'HEALTHY' ? 200 : 503).json(moduleReport);
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: error.message
     });
   }
 });
