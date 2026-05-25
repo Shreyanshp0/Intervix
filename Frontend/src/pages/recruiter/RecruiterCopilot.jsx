@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, Bot, User, ArrowRight, Table, List, Award, CornerDownLeft } from 'lucide-react';
 import api from '../../services/api';
+import { API_ROUTES } from '../../constants/apiRoutes';
 import { Panel } from '../../components/jobs/JobUi';
 
 // Custom Markdown to React Element Parser
@@ -203,7 +204,7 @@ const RecruiterCopilot = () => {
     setLoading(true);
 
     try {
-      const response = await api.post('/recruiter/advanced/copilot', { query: textToSend });
+      const response = await api.post(API_ROUTES.recruiter.copilot, { query: textToSend });
       const botMsgId = `bot-${Date.now()}`;
       setMessages((prev) => [
         ...prev,

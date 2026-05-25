@@ -1,10 +1,12 @@
 import axios from 'axios';
+import { getApiOrigin } from '../constants/apiRoutes';
 
-const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://13.127.10.169:5000/api';
+const apiBaseUrl = getApiOrigin();
 
 // Configure the base instance
 const api = axios.create({
   baseURL: apiBaseUrl,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },

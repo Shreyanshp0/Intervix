@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Target, BookOpen, Star, Sparkles, HelpCircle, CheckSquare, Award, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
+import { API_ROUTES } from '../../constants/apiRoutes';
 import { Panel } from '../../components/jobs/JobUi';
 import Button from '../../components/common/Button';
 
@@ -14,7 +15,7 @@ const PreparationHub = () => {
     const fetchProfile = async () => {
       setLoading(true);
       try {
-        const response = await api.get('/candidate/profile/me');
+        const response = await api.get(API_ROUTES.candidate.me);
         setProfile(response.data.profile);
       } catch (err) {
         setError('Failed to load preparation metrics.');

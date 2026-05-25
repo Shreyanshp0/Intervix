@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CalendarClock, MessageSquareText, Sparkles } from 'lucide-react';
 import { Panel, StageBadge, StatPill } from '../../components/jobs/JobUi';
 import api from '../../services/api';
+import { API_ROUTES } from '../../constants/apiRoutes';
 
 const STAGES = ['', 'Applied', 'Shortlisted', 'Interview Scheduled', 'Passed', 'Rejected', 'Hired'];
 
@@ -15,7 +16,7 @@ const ApplicationsPage = () => {
     const loadApplications = async () => {
       setLoading(true);
       try {
-        const response = await api.get('/candidate/applications', { params: stage ? { stage } : {} });
+        const response = await api.get(API_ROUTES.candidate.applications, { params: stage ? { stage } : {} });
         setApplications(response.data.applications || []);
         setMessage('');
       } catch (error) {

@@ -4,6 +4,7 @@ import { ArrowLeft, Briefcase, Code, Star, Shield, Sparkles, AlertCircle, FileTe
 import api from '../../services/api';
 import { Panel } from '../../components/jobs/JobUi';
 import Button from '../../components/common/Button';
+import { API_ROUTES, buildApiUrl } from '../../constants/apiRoutes';
 
 const CandidateProfileView = () => {
   const { candidateId } = useParams();
@@ -16,7 +17,7 @@ const CandidateProfileView = () => {
     const fetchCandidateData = async () => {
       setLoading(true);
       try {
-        const response = await api.get(`/recruiter/candidates/${candidateId}`);
+        const response = await api.get(API_ROUTES.recruiter.candidateDetails(candidateId));
         setData(response.data);
         setError('');
       } catch (err) {
@@ -57,7 +58,7 @@ const CandidateProfileView = () => {
   const resume = profile.resume;
   const verifiedSkillsMap = profile.verifiedSkills || {};
 
-  const baseUrl = (api.defaults.baseURL || '').replace(/\/api\/?$/, '');
+  const resumePreviewUrl = resume?._id ? buildApiUrl(API_ROUTES.resume.downloadById(resume._id)) : '';
 
   return (
     <div className="h-[92vh] flex flex-col overflow-hidden -mx-4 -my-6 lg:-mx-8">
@@ -314,7 +315,7 @@ const CandidateProfileView = () => {
             {resume ? (
               activeTab === 'pdf' ? (
                 <iframe
-                  src={`${baseUrl}/candidate/resume/preview#toolbar=0`}
+                  src={`${resumePreviewUrl}#toolbar=0`}
                   title="Candidate Resume Preview"
                   className="w-full h-full border-none"
                 />

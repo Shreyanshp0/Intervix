@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import Button from '../../components/common/Button';
 import api from '../../services/api';
+import { API_ROUTES } from '../../constants/apiRoutes';
 
 const CandidateDashboard = () => {
   const [dashboard, setDashboard] = useState(null);
@@ -11,7 +12,7 @@ const CandidateDashboard = () => {
   useEffect(() => {
     const loadDashboard = async () => {
       try {
-        const response = await api.get('/candidate/dashboard');
+        const response = await api.get(API_ROUTES.candidate.dashboard);
         setDashboard(response.data);
       } catch (error) {
         console.error('Failed to load candidate dashboard:', error);

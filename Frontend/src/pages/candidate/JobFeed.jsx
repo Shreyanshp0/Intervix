@@ -5,6 +5,7 @@ import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import { MatchBadge, Panel, StageBadge, StatPill } from '../../components/jobs/JobUi';
 import api from '../../services/api';
+import { API_ROUTES } from '../../constants/apiRoutes';
 
 const EXPERIENCE_LEVELS = ['', 'intern', 'junior', 'mid', 'senior', 'lead', 'executive'];
 
@@ -23,7 +24,7 @@ const JobFeed = () => {
     const loadJobs = async () => {
       setLoading(true);
       try {
-        const response = await api.get('/candidate/jobs/feed', { 
+        const response = await api.get(API_ROUTES.candidate.jobsFeed, { 
           params: { 
             ...filters, 
             page: currentPage, 

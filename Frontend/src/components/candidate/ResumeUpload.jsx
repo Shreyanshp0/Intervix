@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { UploadCloud, FileText, CheckCircle, AlertCircle, Trash2, RefreshCw, Star, Shield, Sparkles } from 'lucide-react';
 import api from '../../services/api';
 import Button from '../common/Button';
+import { API_ROUTES } from '../../constants/apiRoutes';
 
 export const ResumeUpload = ({ onUploadSuccess }) => {
   const [dragActive, setDragActive] = useState(false);
@@ -12,18 +13,33 @@ export const ResumeUpload = ({ onUploadSuccess }) => {
   const [resumeData, setResumeData] = useState(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchActiveResume = async () => {
       try {
-        const response = await api.get('/candidate/profile/me');
-        if (response.data?.profile?.resume) {
-          setResumeData(response.data.profile.resume);
+        const response = await api.get(API_ROUTES.resume.me);
+        if (isMounted && response.data?.resume) {
+          setErrorMessage('');
+          setStatusMessage('');
+          setResumeData(response.data.resume);
           setUploadState('success');
+        } else if (isMounted) {
+          setResumeData(null);
+          setUploadState('idle');
         }
-      } catch (err) {
-        console.error('Failed to load active resume:', err);
+      } catch {
+        if (isMounted) {
+          setResumeData(null);
+          setUploadState('idle');
+        }
       }
     };
+
     void fetchActiveResume();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleDrag = (event) => {
@@ -92,7 +108,7 @@ export const ResumeUpload = ({ onUploadSuccess }) => {
         });
       }, 800);
 
-      const response = await api.post('/candidate/resume/upload', formData, {
+      const response = await api.post(API_ROUTES.resume.upload, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
@@ -123,7 +139,7 @@ export const ResumeUpload = ({ onUploadSuccess }) => {
     setUploadState('uploading');
     setStatusMessage('Deleting resume and cleaning up storage...');
     try {
-      await api.delete('/candidate/resume');
+      await api.delete(API_ROUTES.resume.me);
       setResumeData(null);
       setUploadState('idle');
       if (onUploadSuccess) {

@@ -18,6 +18,7 @@ import {
 import { FileText, Briefcase, ArrowLeft, Download, MessageSquareQuote } from 'lucide-react';
 import Button from '../../components/common/Button';
 import api from '../../services/api';
+import { API_ROUTES } from '../../constants/apiRoutes';
 
 const InterviewReportPage = () => {
   const { sessionId } = useParams();
@@ -29,7 +30,7 @@ const InterviewReportPage = () => {
   useEffect(() => {
     const fetchReport = async () => {
       try {
-        const response = await api.get(`/interviews/${sessionId}/report`);
+        const response = await api.get(API_ROUTES.interviews.report(sessionId));
         setReport(response.data.report);
       } catch (error) {
         console.error('Failed to load report:', error);

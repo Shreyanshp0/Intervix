@@ -7,6 +7,7 @@ import { useInterviewRuntimeStore } from '../../store/useInterviewRuntimeStore';
 import { useInterviewSessionChannel } from '../../hooks/useInterviewSessionChannel';
 import Button from '../../components/common/Button';
 import api from '../../services/api';
+import { API_ROUTES } from '../../constants/apiRoutes';
 
 const normalizeDifficulty = (difficulty) => (difficulty || 'medium').toLowerCase();
 const formatRemainingTime = (remainingSeconds = 0) => `${String(Math.floor(remainingSeconds / 60)).padStart(2, '0')}:${String(remainingSeconds % 60).padStart(2, '0')}`;
@@ -63,7 +64,7 @@ const AITextInterview = () => {
   useEffect(() => {
     const bootstrap = async () => {
       try {
-        const response = await api.get('/interviews/active');
+        const response = await api.get(API_ROUTES.interviews.active);
         if (response.data?.session && response.data.session.status === 'active') {
           setSessionId(response.data.session._id);
           setSessionSnapshot(response.data.session);
@@ -90,7 +91,7 @@ const AITextInterview = () => {
     const interval = window.setInterval(async () => {
       try {
         setAutosaveStatus('saving');
-        await api.post(`/interviews/${sessionId}/autosave`, {
+        await api.post(API_ROUTES.interviews.autosave(sessionId), {
           currentAnswerDraft: input,
           aiState,
           activePhase: 'candidate_answering',
@@ -121,7 +122,7 @@ const AITextInterview = () => {
         duration: config.duration || 15,
       };
 
-      const response = await api.post('/interviews/start', payload);
+      const response = await api.post(API_ROUTES.interviews.start, payload);
       setSessionId(response.data.session._id);
       setSessionSnapshot(response.data.session);
       setSession(response.data.session);
@@ -142,7 +143,7 @@ const AITextInterview = () => {
     }
 
     try {
-      const response = await api.post(`/interviews/${sessionId}/end`);
+      const response = await api.post(API_ROUTES.interviews.end(sessionId));
       goToReport(response.data.session);
     } catch (error) {
       console.error('Failed to end interview:', error);
@@ -161,7 +162,7 @@ const AITextInterview = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await api.post(`/interviews/${sessionId}/respond`, { answer });
+      const response = await api.post(API_ROUTES.interviews.respond(sessionId), { answer });
       if (response.data.session) {
         setSessionSnapshot(response.data.session);
         setSession(response.data.session);

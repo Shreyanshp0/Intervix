@@ -6,6 +6,7 @@ import { useInterviewRuntimeStore } from '../../store/useInterviewRuntimeStore';
 import { useInterviewSessionChannel } from '../../hooks/useInterviewSessionChannel';
 import { connectSocket } from '../../services/socket';
 import api from '../../services/api';
+import { API_ROUTES, getApiOrigin } from '../../constants/apiRoutes';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button';
 
@@ -98,7 +99,7 @@ const AIVoiceInterview = () => {
   useEffect(() => {
     const bootstrap = async () => {
       try {
-        const response = await api.get('/interviews/active');
+        const response = await api.get(API_ROUTES.interviews.active);
         if (response.data?.session && response.data.session.mode === 'voice' && response.data.session.status === 'active') {
           setSessionId(response.data.session._id);
           setSessionSnapshot(response.data.session);
@@ -129,8 +130,7 @@ const AIVoiceInterview = () => {
 
       try {
         setAudioPlaying(true);
-        const baseUrl = (api.defaults.baseURL || '').replace(/\/api\/?$/, '');
-        const audio = new Audio(`${baseUrl}${next.audioUrl}`);
+        const audio = new Audio(`${getApiOrigin()}${next.audioUrl}`);
         audioRef.current = audio;
         audio.onended = () => setAudioPlaying(false);
         await audio.play();
@@ -158,14 +158,14 @@ const AIVoiceInterview = () => {
         duration: config.duration || 15,
       };
 
-      const response = await api.post('/interviews/start', payload);
+      const response = await api.post(API_ROUTES.interviews.start, payload);
       setSessionId(response.data.session._id);
       setSessionSnapshot(response.data.session);
       hydrateFromSession(response.data.session);
       setTranscript(response.data.firstQuestion);
       setHasStarted(true);
 
-      const speechResponse = await api.post('/voice/speak', { text: response.data.firstQuestion });
+      const speechResponse = await api.post(API_ROUTES.voice.speak, { text: response.data.firstQuestion });
       if (speechResponse.data?.audioUrl) {
         enqueueAudio({ sessionId: response.data.session._id, audioUrl: speechResponse.data.audioUrl });
       }
@@ -238,7 +238,7 @@ const AIVoiceInterview = () => {
 
       setRetryPayload({ sessionId, audioBlob, mimeType: audioBlob.type || 'audio/webm' });
 
-      const response = await api.post('/voice/respond', formData, {
+      const response = await api.post(API_ROUTES.voice.respond, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
@@ -278,7 +278,7 @@ const AIVoiceInterview = () => {
       formData.append('sessionId', retryPayload.sessionId);
       formData.append('audio', retryPayload.audioBlob, 'retry-recording.webm');
 
-      const response = await api.post('/voice/respond', formData, {
+      const response = await api.post(API_ROUTES.voice.respond, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
@@ -317,7 +317,7 @@ const AIVoiceInterview = () => {
 
   const handleEndSession = async () => {
     if (sessionId) {
-      const response = await api.post(`/interviews/${sessionId}/end`);
+      const response = await api.post(API_ROUTES.interviews.end(sessionId));
       goToReport(response.data.session);
     } else {
       navigate('/candidate/dashboard');

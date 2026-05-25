@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import Button from '../../components/common/Button';
 import { MatchBadge, Panel, StageBadge } from '../../components/jobs/JobUi';
 import api from '../../services/api';
+import { API_ROUTES } from '../../constants/apiRoutes';
 
 const CandidatePipeline = () => {
   const [jobs, setJobs] = useState([]);
@@ -14,26 +15,24 @@ const CandidatePipeline = () => {
   useEffect(() => {
     const loadJobs = async () => {
       try {
-        const response = await api.get('/jobs/recruiter');
+        const response = await api.get(API_ROUTES.recruiter.jobs);
         const nextJobs = response.data.jobs || [];
         setJobs(nextJobs);
-        if (!selectedJobId && nextJobs[0]?._id) {
-          setSelectedJobId(nextJobs[0]._id);
-        }
+        setSelectedJobId((current) => current || nextJobs[0]?._id || '');
       } catch (error) {
         setMessage(error.response?.data?.message || 'Unable to load recruiter jobs.');
       }
     };
 
     void loadJobs();
-  }, [selectedJobId]);
+  }, []);
 
   useEffect(() => {
     if (!selectedJobId) return;
 
     const loadPipeline = async () => {
       try {
-        const response = await api.get(`/jobs/recruiter/${selectedJobId}/pipeline`);
+        const response = await api.get(API_ROUTES.recruiter.jobPipeline(selectedJobId));
         setPipeline(response.data.pipeline || []);
         setMessage('');
       } catch (error) {

@@ -4,6 +4,7 @@ import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import { Panel, StageBadge, TextareaField, StatPill } from '../../components/jobs/JobUi';
 import api from '../../services/api';
+import { API_ROUTES } from '../../constants/apiRoutes';
 
 const emptyForm = {
   roleTitle: '',
@@ -77,7 +78,7 @@ const JobManagement = () => {
     const run = async () => {
       setLoading(true);
       try {
-        const response = await api.get('/jobs/recruiter');
+        const response = await api.get(API_ROUTES.recruiter.jobs);
         const nextJobs = response.data.jobs || [];
         setJobs(nextJobs);
         setMessage('');
@@ -94,7 +95,7 @@ const JobManagement = () => {
   const loadJobs = async (searchValue = '') => {
     setLoading(true);
     try {
-      const response = await api.get('/jobs/recruiter', { params: searchValue ? { search: searchValue } : {} });
+      const response = await api.get(API_ROUTES.recruiter.jobs, { params: searchValue ? { search: searchValue } : {} });
       const nextJobs = response.data.jobs || [];
       setJobs(nextJobs);
       if (selectedJobId) {
@@ -127,10 +128,10 @@ const JobManagement = () => {
     setSaving(true);
     try {
       if (selectedJobId) {
-        await api.put(`/jobs/recruiter/${selectedJobId}`, buildPayload(form));
+        await api.put(API_ROUTES.recruiter.jobDetails(selectedJobId), buildPayload(form));
         setMessage('Job updated successfully.');
       } else {
-        const response = await api.post('/jobs/recruiter', buildPayload(form));
+        const response = await api.post(API_ROUTES.recruiter.jobs, buildPayload(form));
         setSelectedJobId(response.data.job._id);
         setMessage('Job created successfully.');
       }
@@ -146,7 +147,7 @@ const JobManagement = () => {
     if (!selectedJobId) return;
     setSaving(true);
     try {
-      await api.delete(`/jobs/recruiter/${selectedJobId}`);
+      await api.delete(API_ROUTES.recruiter.jobDetails(selectedJobId));
       setSelectedJobId(null);
       setForm(emptyForm);
       setMessage('Job archived successfully.');

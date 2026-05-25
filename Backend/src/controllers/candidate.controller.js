@@ -45,9 +45,19 @@ const getJobsFeed = async (req, res, next) => {
   }
 };
 
+const getJobDetails = async (req, res, next) => {
+  try {
+    const job = await jobService.getCandidateJobDetails(req.user._id, req.params.jobId);
+    res.status(200).json({ job });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
   getDashboard,
-  getJobsFeed
+  getJobsFeed,
+  getJobDetails
 };

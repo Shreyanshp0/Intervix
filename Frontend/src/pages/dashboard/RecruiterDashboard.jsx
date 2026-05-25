@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import Button from '../../components/common/Button';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import api from '../../services/api';
+import { API_ROUTES } from '../../constants/apiRoutes';
 
 const StatCard = ({ title, value, icon: Icon, colorClass }) => (
   <div className="glass-card p-6 flex items-center justify-between">
@@ -23,7 +24,7 @@ const RecruiterDashboard = () => {
   useEffect(() => {
     const loadDashboard = async () => {
       try {
-        const response = await api.get('/recruiter/dashboard');
+        const response = await api.get(API_ROUTES.recruiter.dashboard);
         setDashboard(response.data);
       } catch (error) {
         console.error('Failed to load recruiter dashboard:', error);

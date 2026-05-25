@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Sparkles, Star, Clock, User, Briefcase, Code, Video, PhoneOff, Award, AlertCircle, Save } from 'lucide-react';
 import api from '../../services/api';
+import { API_ROUTES } from '../../constants/apiRoutes';
 import { connectSocket } from '../../services/socket';
 import { Panel } from '../../components/jobs/JobUi';
 import Button from '../../components/common/Button';
@@ -24,7 +25,7 @@ const InterviewCenter = () => {
     const fetchInterviews = async () => {
       setLoading(true);
       try {
-        const response = await api.get('/recruiter/advanced/live');
+        const response = await api.get(API_ROUTES.recruiter.liveInterviews);
         setInterviews(response.data.interviews || []);
         setError('');
       } catch (err) {
@@ -84,7 +85,7 @@ const InterviewCenter = () => {
   const saveRoomNotepad = async () => {
     if (!activeRoom) return;
     try {
-      await api.put(`/recruiter/advanced/live/${activeRoom._id}/notepad`, {
+      await api.put(API_ROUTES.recruiter.liveInterviewNotepad(activeRoom._id), {
         notepadContent,
         recruiterNotes
       });
@@ -113,7 +114,7 @@ const InterviewCenter = () => {
     if (!activeRoom) return;
     setEvalSaving(true);
     try {
-      await api.post(`/recruiter/advanced/live/${activeRoom._id}/evaluate`, evalScores);
+      await api.post(API_ROUTES.recruiter.liveInterviewEvaluate(activeRoom._id), evalScores);
       alert('Technical round evaluation logged and verified skills synced successfully!');
       setActiveRoom(null);
     } catch (err) {

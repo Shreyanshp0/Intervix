@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Sparkles, Star, Shield, TrendingUp, BarChart3, Users, AlertCircle, ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
+import { API_ROUTES } from '../../constants/apiRoutes';
 import { Panel } from '../../components/jobs/JobUi';
 
 const HiringAnalytics = () => {
@@ -13,7 +14,7 @@ const HiringAnalytics = () => {
     const fetchAnalytics = async () => {
       setLoading(true);
       try {
-        const response = await api.get('/recruiter/advanced/analytics');
+        const response = await api.get(API_ROUTES.recruiter.analytics);
         setData(response.data);
         setError('');
       } catch (err) {

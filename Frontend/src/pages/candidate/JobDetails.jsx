@@ -4,6 +4,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button';
 import { MatchBadge, Panel, StageBadge, TextareaField } from '../../components/jobs/JobUi';
 import api from '../../services/api';
+import { API_ROUTES } from '../../constants/apiRoutes';
 
 const JobDetails = () => {
   const { jobId } = useParams();
@@ -24,8 +25,8 @@ const JobDetails = () => {
       setLoading(true);
       try {
         const [jobRes, profileRes] = await Promise.all([
-          api.get(`/jobs/candidate/${jobId}`),
-          api.get('/candidate/profile/me')
+          api.get(API_ROUTES.candidate.jobDetails(jobId)),
+          api.get(API_ROUTES.candidate.me)
         ]);
 
         setJob(jobRes.data.job);
@@ -59,7 +60,7 @@ const JobDetails = () => {
 
     setSubmitting(true);
     try {
-      const response = await api.post(`/jobs/candidate/${jobId}/apply`, { coverLetter });
+      const response = await api.post(API_ROUTES.candidate.applyToJob(jobId), { coverLetter });
       setJob((current) => ({ ...current, application: response.data.application }));
       setMessage('Application submitted successfully.');
     } catch (error) {

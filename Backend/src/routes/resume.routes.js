@@ -56,16 +56,49 @@ router.post(
 );
 
 router.delete(
-  '/',
+  '/me',
   authorize('candidate', 'admin'),
   ensureOwnProfile('candidate'),
   resumeController.deleteResume
 );
 
 router.get(
-  '/preview',
+  '/me',
+  authorize('candidate', 'admin'),
+  ensureOwnProfile('candidate'),
+  resumeController.getMyResume
+);
+
+router.get(
+  '/me/analysis',
+  authorize('candidate', 'admin'),
+  ensureOwnProfile('candidate'),
+  resumeController.getMyResumeAnalysis
+);
+
+router.get(
+  '/me/download',
+  authorize('candidate', 'admin'),
+  ensureOwnProfile('candidate'),
+  resumeController.downloadMyResume
+);
+
+router.get(
+  '/:resumeId',
   authorize('candidate', 'recruiter', 'admin'),
-  resumeController.previewResume
+  resumeController.getResumeById
+);
+
+router.get(
+  '/:resumeId/analysis',
+  authorize('candidate', 'recruiter', 'admin'),
+  resumeController.getResumeAnalysisById
+);
+
+router.get(
+  '/:resumeId/download',
+  authorize('candidate', 'recruiter', 'admin'),
+  resumeController.downloadResumeById
 );
 
 module.exports = router;

@@ -6,6 +6,7 @@ import Input from '../../components/common/Input';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { ResumeUpload } from '../../components/candidate/ResumeUpload';
+import { API_ROUTES } from '../../constants/apiRoutes';
 
 const emptyEducation = { institution: '', degree: '', fieldOfStudy: '', startDate: '', endDate: '', grade: '', description: '' };
 const emptyExperience = { company: '', title: '', employmentType: '', location: '', startDate: '', endDate: '', currentlyWorking: false, description: '', highlights: '' };
@@ -79,7 +80,7 @@ const CandidateProfilePage = () => {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const response = await api.get('/candidate/profile/me');
+        const response = await api.get(API_ROUTES.candidate.me);
         reset(normalizeFormValues(response.data.profile));
       } catch (error) {
         setMessage(error.response?.data?.message || 'Failed to load candidate profile.');
@@ -93,7 +94,7 @@ const CandidateProfilePage = () => {
     setIsSaving(true);
     setMessage('');
     try {
-      await api.put('/candidate/profile/me', {
+      await api.put(API_ROUTES.candidate.me, {
         name: values.name,
         email: values.email,
         phone: values.phone,

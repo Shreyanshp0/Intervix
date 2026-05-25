@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Award, AlertCircle, Clock, Calendar, ShieldCheck, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
+import { API_ROUTES } from '../../constants/apiRoutes';
 import { Panel } from '../../components/jobs/JobUi';
 import Button from '../../components/common/Button';
 
@@ -14,15 +15,15 @@ const ProgressReports = () => {
     const fetchProgress = async () => {
       setLoading(true);
       try {
-        const response = await api.get('/candidate/dashboard');
+        const response = await api.get(API_ROUTES.candidate.dashboard);
         // Fetch sessions directly from dashboard summary
         const dashboard = response.data;
         // Search in active / past completed sessions
-        const res = await api.get('/interviews/active'); // Or similar session lists
+        const res = await api.get(API_ROUTES.interviews.active); // Or similar session lists
         // Let's fallback to querying candidate profiles or standard history logs
         // Wait, dashboard data itself has scoreProgression mapping!
         // Let's get past sessions list
-        const sessionsResponse = await api.get('/interviews/active'); // Let's check what exists
+        const sessionsResponse = await api.get(API_ROUTES.interviews.active); // Let's check what exists
         setLoading(false);
       } catch (err) {
         setError('Failed to load sessions timeline.');
@@ -35,7 +36,7 @@ const ProgressReports = () => {
       setLoading(true);
       try {
         // Fetch dashboard data
-        const response = await api.get('/candidate/dashboard');
+        const response = await api.get(API_ROUTES.candidate.dashboard);
         // Wait, progress reports can just load dashboard progression list!
         setSessions(response.data.scoreProgression || []);
         setError('');

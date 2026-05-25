@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import api from '../services/api';
+import { API_ROUTES } from '../constants/apiRoutes';
 
 const tokenKey = 'token';
 
@@ -26,7 +27,7 @@ export const useAuthStore = create((set) => ({
 
     set({ isBootstrapping: true });
     try {
-      const response = await api.get('/auth/me');
+      const response = await api.get(API_ROUTES.auth.me);
       const { user } = response.data;
       set({
         user,
@@ -44,7 +45,7 @@ export const useAuthStore = create((set) => ({
   login: async (credentials) => {
     set({ isLoading: true });
     try {
-      const response = await api.post('/auth/login', credentials);
+      const response = await api.post(API_ROUTES.auth.login, credentials);
       const { token, user } = response.data;
 
       localStorage.setItem(tokenKey, token);
@@ -64,7 +65,7 @@ export const useAuthStore = create((set) => ({
   register: async (userData) => {
     set({ isLoading: true });
     try {
-      const response = await api.post('/auth/register', userData);
+      const response = await api.post(API_ROUTES.auth.register, userData);
       const { token, user } = response.data;
 
       localStorage.setItem(tokenKey, token);

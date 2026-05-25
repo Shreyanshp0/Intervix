@@ -5,6 +5,7 @@ import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import { MatchBadge, Panel, StageBadge, TextareaField } from '../../components/jobs/JobUi';
 import api from '../../services/api';
+import { API_ROUTES } from '../../constants/apiRoutes';
 
 const STAGES = ['Applied', 'Shortlisted', 'Interview Scheduled', 'Passed', 'Rejected', 'Hired'];
 
@@ -21,7 +22,7 @@ const JobApplicantsPage = () => {
     const run = async () => {
       setLoading(true);
       try {
-        const response = await api.get(`/jobs/recruiter/${jobId}/applicants`, { params: stageFilter ? { stage: stageFilter } : {} });
+        const response = await api.get(API_ROUTES.recruiter.jobApplicants(jobId), { params: stageFilter ? { stage: stageFilter } : {} });
         setApplications(response.data.applications || []);
         setMessage('');
       } catch (error) {
@@ -37,7 +38,7 @@ const JobApplicantsPage = () => {
   const loadApplicants = async () => {
     setLoading(true);
     try {
-      const response = await api.get(`/jobs/recruiter/${jobId}/applicants`, { params: stageFilter ? { stage: stageFilter } : {} });
+      const response = await api.get(API_ROUTES.recruiter.jobApplicants(jobId), { params: stageFilter ? { stage: stageFilter } : {} });
       setApplications(response.data.applications || []);
       setMessage('');
     } catch (error) {
@@ -49,7 +50,7 @@ const JobApplicantsPage = () => {
 
   const updateStage = async (applicationId, stage) => {
     try {
-      await api.patch(`/jobs/applications/${applicationId}/stage`, { stage, note: `Moved to ${stage}` });
+      await api.patch(API_ROUTES.recruiter.applicationStage(applicationId), { stage, note: `Moved to ${stage}` });
       await loadApplicants();
     } catch (error) {
       setMessage(error.response?.data?.message || 'Unable to update stage.');
@@ -60,7 +61,7 @@ const JobApplicantsPage = () => {
     try {
       const draft = feedbackDrafts[applicationId];
       if (!draft?.message) return;
-      await api.patch(`/jobs/applications/${applicationId}/feedback`, draft);
+      await api.patch(API_ROUTES.recruiter.applicationFeedback(applicationId), draft);
       setFeedbackDrafts((current) => ({ ...current, [applicationId]: { message: '', visibility: 'candidate' } }));
       await loadApplicants();
     } catch (error) {
@@ -72,7 +73,7 @@ const JobApplicantsPage = () => {
     try {
       const draft = scheduleDrafts[applicationId];
       if (!draft?.scheduledFor || !draft?.timezone) return;
-      await api.patch(`/jobs/applications/${applicationId}/schedule`, draft);
+      await api.patch(API_ROUTES.recruiter.applicationSchedule(applicationId), draft);
       await loadApplicants();
     } catch (error) {
       setMessage(error.response?.data?.message || 'Unable to schedule interview.');

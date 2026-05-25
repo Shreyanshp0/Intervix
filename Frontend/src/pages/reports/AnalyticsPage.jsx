@@ -16,6 +16,7 @@ import {
   Radar,
 } from 'recharts';
 import api from '../../services/api';
+import { API_ROUTES } from '../../constants/apiRoutes';
 
 const AnalyticsPage = () => {
   const [dashboard, setDashboard] = useState(null);
@@ -23,7 +24,7 @@ const AnalyticsPage = () => {
   useEffect(() => {
     const loadAnalytics = async () => {
       try {
-        const response = await api.get('/interviews/dashboard');
+        const response = await api.get(API_ROUTES.interviews.dashboard);
         setDashboard(response.data);
       } catch (error) {
         console.error('Failed to load analytics:', error);

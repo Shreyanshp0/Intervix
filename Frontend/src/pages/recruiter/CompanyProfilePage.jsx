@@ -3,6 +3,7 @@ import { Building2, Globe, Save, UserSquare2 } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import api from '../../services/api';
+import { API_ROUTES } from '../../constants/apiRoutes';
 import { useAuthStore } from '../../store/useAuthStore';
 
 const TextareaField = ({ label, ...props }) => (
@@ -49,7 +50,7 @@ const CompanyProfilePage = () => {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const response = await api.get('/recruiter/profile/me');
+        const response = await api.get(API_ROUTES.recruiter.me);
         const { profile, company } = response.data;
         setProfileForm({
           fullName: profile?.fullName || '',
@@ -101,7 +102,7 @@ const CompanyProfilePage = () => {
     setMessage('');
     try {
       await Promise.all([
-        api.put('/recruiter/profile/me', {
+        api.put(API_ROUTES.recruiter.me, {
           fullName: profileForm.fullName,
           workEmail: profileForm.workEmail,
           phone: profileForm.phone,
@@ -113,7 +114,7 @@ const CompanyProfilePage = () => {
             twitter: profileForm.twitter
           }
         }),
-        api.put('/recruiter/company/me', {
+        api.put(API_ROUTES.recruiter.companyMe, {
           name: companyForm.name,
           logo: companyForm.logo,
           industry: companyForm.industry,

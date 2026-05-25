@@ -3,6 +3,7 @@ import { Sparkles, Star, Shield, ArrowUpRight, TrendingUp, CheckCircle, AlertCir
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { Panel } from '../../components/jobs/JobUi';
+import { API_ROUTES } from '../../constants/apiRoutes';
 import Button from '../../components/common/Button';
 
 const AnalyticsDashboard = () => {
@@ -14,7 +15,7 @@ const AnalyticsDashboard = () => {
     const loadDashboard = async () => {
       setLoading(true);
       try {
-        const response = await api.get('/candidate/dashboard');
+        const response = await api.get(API_ROUTES.candidate.dashboard);
         setData(response.data);
         setError('');
       } catch (err) {

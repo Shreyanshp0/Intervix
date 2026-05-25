@@ -7,6 +7,39 @@ const ApiError = require('../utils/api-error');
 const { calculateCandidateCompletion, buildSkillPayload } = require('../utils/profile.utils');
 
 class ResumeController {
+  async getCandidateProfile(req) {
+    const profile = await CandidateProfile.findOne({ user: req.user._id });
+    if (!profile) {
+      throw new ApiError(404, 'Candidate profile not found');
+    }
+    return profile;
+  }
+
+  async getResumeForRequest(req) {
+    if (req.params.resumeId) {
+      const resume = await Resume.findById(req.params.resumeId);
+      if (!resume) {
+        throw new ApiError(404, 'Resume not found');
+      }
+
+      if (req.user.role === 'candidate') {
+        const profile = await this.getCandidateProfile(req);
+        if (String(resume.candidateProfile) !== String(profile._id) && req.user.role !== 'admin') {
+          throw new ApiError(403, 'You cannot access this resume');
+        }
+      }
+
+      return resume;
+    }
+
+    const profile = await this.getCandidateProfile(req);
+    const resume = await Resume.findOne({ candidateProfile: profile._id });
+    if (!resume) {
+      throw new ApiError(404, 'Resume not found');
+    }
+    return resume;
+  }
+
   async uploadResume(req, res, next) {
     try {
       if (!req.file) {
@@ -142,10 +175,7 @@ class ResumeController {
 
   async deleteResume(req, res, next) {
     try {
-      const profile = await CandidateProfile.findOne({ user: req.user._id });
-      if (!profile) {
-        throw new ApiError(404, 'Candidate profile not found');
-      }
+      const profile = await this.getCandidateProfile(req);
 
       const resume = await Resume.findOne({ candidateProfile: profile._id });
       if (!resume) {
@@ -177,23 +207,60 @@ class ResumeController {
     }
   }
 
+  async getMyResume(req, res, next) {
+    try {
+      const resume = await this.getResumeForRequest(req);
+      res.status(200).json({ resume });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getMyResumeAnalysis(req, res, next) {
+    try {
+      const resume = await this.getResumeForRequest(req);
+      res.status(200).json({ resumeId: resume._id, aiAnalysis: resume.aiAnalysis, rawText: resume.rawText });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async downloadMyResume(req, res, next) {
+    return this.previewResume(req, res, next);
+  }
+
+  async getResumeById(req, res, next) {
+    try {
+      const resume = await this.getResumeForRequest(req);
+      res.status(200).json({ resume });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getResumeAnalysisById(req, res, next) {
+    try {
+      const resume = await this.getResumeForRequest(req);
+      res.status(200).json({ resumeId: resume._id, aiAnalysis: resume.aiAnalysis, rawText: resume.rawText });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async downloadResumeById(req, res, next) {
+    return this.previewResume(req, res, next);
+  }
+
   async previewResume(req, res, next) {
     try {
-      const profile = await CandidateProfile.findOne({ user: req.user._id });
-      if (!profile) {
-        throw new ApiError(404, 'Candidate profile not found');
-      }
-
-      const resume = await Resume.findOne({ candidateProfile: profile._id });
-      if (!resume) {
-        throw new ApiError(404, 'Resume not found');
-      }
+      const resume = await this.getResumeForRequest(req);
 
       if (!fs.existsSync(resume.storageKey)) {
         throw new ApiError(404, 'Resume file not found on disk');
       }
 
       res.setHeader('Content-Type', resume.mimeType || 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${resume.fileName}"`);
       res.sendFile(path.resolve(resume.storageKey));
     } catch (error) {
       next(error);

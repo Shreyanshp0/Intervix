@@ -4,14 +4,13 @@ const candidateRoutes = require('./candidate.routes');
 const interviewRoutes = require('./interview.routes');
 const recruiterRoutes = require('./recruiter.routes');
 const voiceRoutes = require('./voice.routes');
-const jobRoutes = require('./job.routes');
 const resumeRoutes = require('./resume.routes');
 const recruiterAdvancedRoutes = require('./recruiter-advanced.routes');
+const { buildRouteHealthReport } = require('../utils/route-diagnostics');
 
 
 const { fetchWithTimeout } = require('../utils/network');
 const mongoose = require('mongoose');
-const aiConfig = require('../config/ai.config');
 const router = express.Router();
 
 router.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
@@ -51,13 +50,16 @@ router.get('/health/ai', async (req, res) => {
 	}
 });
 
+router.get('/health/routes', (req, res) => {
+	return res.status(200).json(buildRouteHealthReport());
+});
+
 router.use('/auth', authRoutes);
 router.use('/candidate', candidateRoutes);
 router.use('/interviews', interviewRoutes);
 router.use('/recruiter', recruiterRoutes);
 router.use('/voice', voiceRoutes);
-router.use('/jobs', jobRoutes);
-router.use('/candidate/resume', resumeRoutes);
+router.use('/resume', resumeRoutes);
 router.use('/recruiter/advanced', recruiterAdvancedRoutes);
 
 module.exports = router;
