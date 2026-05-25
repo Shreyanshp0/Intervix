@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, BriefcaseBusiness, CalendarClock, MapPin, Sparkles, AlertTriangle, AlertCircle, CheckCircle2, Bot, ArrowRight, X } from 'lucide-react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button';
@@ -42,15 +42,18 @@ const JobDetails = () => {
     void loadJobAndProfile();
   }, [jobId]);
 
-  // Compute profile completeness for the UI
-  const completeness = useEffect(() => {
-    if (!profile) return;
+  const completeness = useMemo(() => {
+    if (!profile) return [];
     const missing = [];
     if (!profile.skills?.raw?.length) missing.push('Skills');
     if (!profile.aboutMe || !profile.aboutMe.trim()) missing.push('About Me');
     if (!profile.resume) missing.push('Resume');
-    setMissingFieldsList(missing);
+    return missing;
   }, [profile]);
+
+  useEffect(() => {
+    setMissingFieldsList(completeness);
+  }, [completeness]);
 
   const handleApply = async () => {
     if (missingFieldsList.length > 0) {

@@ -181,7 +181,7 @@ class JobService {
 
   async listCandidateJobs(userId, query = {}) {
     const candidateService = require('./candidate.service');
-    const profileDoc = await candidateService.getOrCreateProfile(userId);
+    const profileDoc = await candidateService.getOrCreateCandidateProfile(userId);
     const profile = profileDoc.toObject ? profileDoc.toObject() : profileDoc;
 
     const filter = {
@@ -239,7 +239,7 @@ class JobService {
 
   async getCandidateJobsFeed(userId, query = {}) {
     const candidateService = require('./candidate.service');
-    const profileDoc = await candidateService.getOrCreateProfile(userId);
+    const profileDoc = await candidateService.getOrCreateCandidateProfile(userId);
     const profile = profileDoc.toObject ? profileDoc.toObject() : profileDoc;
 
     const completeness = calculateProfileCompleteness(profile);
@@ -353,7 +353,7 @@ class JobService {
 
   async getCandidateJobDetails(userId, jobId) {
     const candidateService = require('./candidate.service');
-    const profileDoc = await candidateService.getOrCreateProfile(userId);
+    const profileDoc = await candidateService.getOrCreateCandidateProfile(userId);
     const profile = profileDoc.toObject ? profileDoc.toObject() : profileDoc;
 
     const job = await JobPosting.findOne({

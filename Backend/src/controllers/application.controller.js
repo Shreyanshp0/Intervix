@@ -4,7 +4,7 @@ const { calculateProfileCompleteness } = require('../utils/profile.utils');
 const applyToJob = async (req, res, next) => {
   try {
     const candidateService = require('../services/candidate.service');
-    const profile = await candidateService.getOrCreateProfile(req.user._id);
+    const profile = await candidateService.getOrCreateCandidateProfile(req.user._id);
 
     const completeness = calculateProfileCompleteness(profile);
     if (!completeness.canApply) {

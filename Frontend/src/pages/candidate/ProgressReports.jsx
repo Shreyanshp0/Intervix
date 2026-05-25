@@ -12,32 +12,10 @@ const ProgressReports = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetchProgress = async () => {
-      setLoading(true);
-      try {
-        const response = await api.get(API_ROUTES.candidate.dashboard);
-        // Fetch sessions directly from dashboard summary
-        const dashboard = response.data;
-        // Search in active / past completed sessions
-        const res = await api.get(API_ROUTES.interviews.active); // Or similar session lists
-        // Let's fallback to querying candidate profiles or standard history logs
-        // Wait, dashboard data itself has scoreProgression mapping!
-        // Let's get past sessions list
-        const sessionsResponse = await api.get(API_ROUTES.interviews.active); // Let's check what exists
-        setLoading(false);
-      } catch (err) {
-        setError('Failed to load sessions timeline.');
-        setLoading(false);
-      }
-    };
-    
-    // We can also directly fetch dashboard data to get the sessions stats
     const fetchTimeline = async () => {
       setLoading(true);
       try {
-        // Fetch dashboard data
         const response = await api.get(API_ROUTES.candidate.dashboard);
-        // Wait, progress reports can just load dashboard progression list!
         setSessions(response.data.scoreProgression || []);
         setError('');
       } catch (err) {

@@ -1,41 +1,60 @@
 const fs = require('fs');
 const path = require('path');
 const Resume = require('../models/Resume');
-const CandidateProfile = require('../models/CandidateProfile');
 const resumeParserService = require('../services/resume-parser.service');
 const ApiError = require('../utils/api-error');
+const logger = require('../config/logger');
 const { calculateCandidateCompletion, buildSkillPayload } = require('../utils/profile.utils');
 
 class ResumeController {
   async getCandidateProfile(req) {
     const candidateService = require('../services/candidate.service');
-    const profile = await candidateService.getOrCreateProfile(req.user._id);
-    return profile;
+    return candidateService.getOrCreateCandidateProfile(req.user._id);
   }
 
-  async getResumeForRequest(req) {
-    if (req.params.resumeId) {
-      const resume = await Resume.findById(req.params.resumeId);
+  async getResumeForProfile(profile) {
+    if (!profile?._id) {
+      return null;
+    }
+
+    return Resume.findOne({ candidateProfile: profile._id });
+  }
+
+  async getResumeForUser(req, resumeId = null) {
+    const profile = await this.getCandidateProfile(req);
+
+    if (resumeId) {
+      const resume = await Resume.findById(resumeId);
       if (!resume) {
-        throw new ApiError(404, 'Resume not found');
+        return null;
       }
 
-      if (req.user.role === 'candidate') {
-        const profile = await this.getCandidateProfile(req);
-        if (String(resume.candidateProfile) !== String(profile._id) && req.user.role !== 'admin') {
-          throw new ApiError(403, 'You cannot access this resume');
-        }
+      if (req.user.role === 'candidate' && String(resume.candidateProfile) !== String(profile._id)) {
+        throw new ApiError(403, 'You cannot access this resume');
       }
 
       return resume;
     }
 
-    const profile = await this.getCandidateProfile(req);
-    const resume = await Resume.findOne({ candidateProfile: profile._id });
+    return this.getResumeForProfile(profile);
+  }
+
+  buildResumePayload(resume = null) {
     if (!resume) {
-      throw new ApiError(404, 'Resume not found');
+      return {
+        success: true,
+        hasResume: false,
+        onboardingRequired: true,
+        resume: null
+      };
     }
-    return resume;
+
+    return {
+      success: true,
+      hasResume: true,
+      onboardingRequired: false,
+      resume
+    };
   }
 
   async uploadResume(req, res, next) {
@@ -45,26 +64,18 @@ class ResumeController {
       }
 
       const profile = await this.getCandidateProfile(req);
+      let resume = await this.getResumeForProfile(profile);
 
-      // Check if candidate already has a resume
-      let resume = await Resume.findOne({ candidateProfile: profile._id });
-      if (resume) {
-        // Clean up old file
-        if (resume.storageKey && fs.existsSync(resume.storageKey)) {
-          try {
-            fs.unlinkSync(resume.storageKey);
-          } catch (err) {
-            console.error('Failed to delete old resume file:', err);
-          }
+      if (resume?.storageKey && fs.existsSync(resume.storageKey)) {
+        try {
+          fs.unlinkSync(resume.storageKey);
+        } catch (err) {
+          logger.warn({ tag: 'ResumeFallback', message: `Failed to delete old resume file: ${err.message}` });
         }
       }
 
-      // Extract text from the new file
       const rawText = await resumeParserService.extractResumeText(req.file.path, req.file.mimetype);
-
-      // Perform AI Analysis on the extracted text
       const parsed = await resumeParserService.parseResumeContent(rawText);
-
       const fileUrl = `/uploads/resumes/${req.file.filename}`;
 
       const resumeData = {
@@ -95,7 +106,6 @@ class ResumeController {
         await resume.save();
       }
 
-      // Auto-populate CandidateProfile with AI parsed values
       if (parsed.skills && parsed.skills.length > 0) {
         const currentSkills = profile.skills?.raw || [];
         const uniqueRawSkills = [...new Set([...currentSkills, ...parsed.skills])];
@@ -103,7 +113,7 @@ class ResumeController {
       }
 
       if (parsed.experience && parsed.experience.length > 0) {
-        profile.experience = parsed.experience.map(exp => ({
+        profile.experience = parsed.experience.map((exp) => ({
           company: exp.company || '',
           title: exp.title || '',
           employmentType: exp.employmentType || 'full-time',
@@ -117,7 +127,7 @@ class ResumeController {
       }
 
       if (parsed.education && parsed.education.length > 0) {
-        profile.education = parsed.education.map(edu => ({
+        profile.education = parsed.education.map((edu) => ({
           institution: edu.institution || '',
           degree: edu.degree || '',
           fieldOfStudy: edu.fieldOfStudy || '',
@@ -129,7 +139,7 @@ class ResumeController {
       }
 
       if (parsed.projects && parsed.projects.length > 0) {
-        profile.projects = parsed.projects.map(proj => ({
+        profile.projects = parsed.projects.map((proj) => ({
           name: proj.name || '',
           role: proj.role || '',
           description: proj.description || '',
@@ -146,20 +156,29 @@ class ResumeController {
       profile.lastProfileUpdateAt = new Date();
       await profile.save();
 
+      logger.info({
+        tag: 'ResumeAPI',
+        message: `Resume uploaded for user ${req.user._id}`,
+        resumeId: resume._id
+      });
+
       res.status(201).json({
+        success: true,
         message: 'Resume uploaded and AI analyzed successfully',
+        hasResume: true,
+        onboardingRequired: false,
         resume,
         profile
       });
     } catch (error) {
-      // Cleanup uploaded file on error
       if (req.file && fs.existsSync(req.file.path)) {
         try {
           fs.unlinkSync(req.file.path);
         } catch (err) {
-          console.error('Failed to cleanup failed upload:', err);
+          logger.warn({ tag: 'ResumeFallback', message: `Failed to cleanup failed upload: ${err.message}` });
         }
       }
+
       next(error);
     }
   }
@@ -167,18 +186,27 @@ class ResumeController {
   async deleteResume(req, res, next) {
     try {
       const profile = await this.getCandidateProfile(req);
+      const resume = await this.getResumeForProfile(profile);
 
-      const resume = await Resume.findOne({ candidateProfile: profile._id });
       if (!resume) {
-        throw new ApiError(404, 'No resume found to delete');
+        logger.info({
+          tag: 'ResumeFallback',
+          message: `No resume found for user ${req.user._id} -> returning onboarding-safe delete response`
+        });
+        return res.status(200).json({
+          success: true,
+          hasResume: false,
+          onboardingRequired: true,
+          resume: null,
+          message: 'No resume found to delete'
+        });
       }
 
-      // Delete physical file
       if (resume.storageKey && fs.existsSync(resume.storageKey)) {
         try {
           fs.unlinkSync(resume.storageKey);
         } catch (err) {
-          console.error('Failed to delete resume file:', err);
+          logger.warn({ tag: 'ResumeFallback', message: `Failed to delete resume file: ${err.message}` });
         }
       }
 
@@ -191,6 +219,9 @@ class ResumeController {
 
       res.status(200).json({
         success: true,
+        hasResume: false,
+        onboardingRequired: true,
+        resume: null,
         message: 'Resume deleted successfully'
       });
     } catch (error) {
@@ -200,8 +231,17 @@ class ResumeController {
 
   async getMyResume(req, res, next) {
     try {
-      const resume = await this.getResumeForRequest(req);
-      res.status(200).json({ resume });
+      const resume = await this.getResumeForUser(req);
+
+      if (!resume) {
+        logger.info({
+          tag: 'ResumeAPI',
+          message: `No resume found for user ${req.user._id} -> returning onboarding state`
+        });
+        return res.status(200).json(this.buildResumePayload(null));
+      }
+
+      res.status(200).json(this.buildResumePayload(resume));
     } catch (error) {
       next(error);
     }
@@ -209,8 +249,27 @@ class ResumeController {
 
   async getMyResumeAnalysis(req, res, next) {
     try {
-      const resume = await this.getResumeForRequest(req);
-      res.status(200).json({ resumeId: resume._id, aiAnalysis: resume.aiAnalysis, rawText: resume.rawText });
+      const resume = await this.getResumeForUser(req);
+
+      if (!resume) {
+        return res.status(200).json({
+          success: true,
+          hasResume: false,
+          onboardingRequired: true,
+          resume: null,
+          aiAnalysis: null,
+          rawText: ''
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        hasResume: true,
+        onboardingRequired: false,
+        resumeId: resume._id,
+        aiAnalysis: resume.aiAnalysis || null,
+        rawText: resume.rawText || ''
+      });
     } catch (error) {
       next(error);
     }
@@ -222,8 +281,12 @@ class ResumeController {
 
   async getResumeById(req, res, next) {
     try {
-      const resume = await this.getResumeForRequest(req);
-      res.status(200).json({ resume });
+      const resume = await this.getResumeForUser(req, req.params.resumeId);
+      if (!resume) {
+        return res.status(404).json({ success: false, message: 'Resume not found' });
+      }
+
+      res.status(200).json(this.buildResumePayload(resume));
     } catch (error) {
       next(error);
     }
@@ -231,8 +294,19 @@ class ResumeController {
 
   async getResumeAnalysisById(req, res, next) {
     try {
-      const resume = await this.getResumeForRequest(req);
-      res.status(200).json({ resumeId: resume._id, aiAnalysis: resume.aiAnalysis, rawText: resume.rawText });
+      const resume = await this.getResumeForUser(req, req.params.resumeId);
+      if (!resume) {
+        return res.status(404).json({ success: false, message: 'Resume not found' });
+      }
+
+      res.status(200).json({
+        success: true,
+        hasResume: true,
+        onboardingRequired: false,
+        resumeId: resume._id,
+        aiAnalysis: resume.aiAnalysis || null,
+        rawText: resume.rawText || ''
+      });
     } catch (error) {
       next(error);
     }
@@ -244,10 +318,32 @@ class ResumeController {
 
   async previewResume(req, res, next) {
     try {
-      const resume = await this.getResumeForRequest(req);
+      const resume = req.params.resumeId
+        ? await this.getResumeForUser(req, req.params.resumeId)
+        : await this.getResumeForUser(req);
 
-      if (!fs.existsSync(resume.storageKey)) {
-        throw new ApiError(404, 'Resume file not found on disk');
+      if (!resume) {
+        return res.status(404).json({
+          success: false,
+          hasResume: false,
+          onboardingRequired: true,
+          resume: null,
+          message: 'Resume not found'
+        });
+      }
+
+      if (!resume.storageKey || !fs.existsSync(resume.storageKey)) {
+        logger.warn({
+          tag: 'ResumeFallback',
+          message: `Resume file missing or corrupted for user ${req.user._id} / resume ${resume._id}`
+        });
+        return res.status(200).json({
+          success: true,
+          hasResume: false,
+          onboardingRequired: true,
+          resume: null,
+          message: 'Resume file not available'
+        });
       }
 
       res.setHeader('Content-Type', resume.mimeType || 'application/pdf');

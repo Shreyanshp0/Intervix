@@ -1,6 +1,7 @@
 const CandidateProfile = require('../models/CandidateProfile');
 const Resume = require('../models/Resume');
 const ApiError = require('../utils/api-error');
+const logger = require('../config/logger');
 const { buildSkillPayload, calculateCandidateCompletion, uniqueStrings } = require('../utils/profile.utils');
 
 const candidatePopulate = [
@@ -8,7 +9,7 @@ const candidatePopulate = [
 ];
 
 class CandidateService {
-  async getOrCreateProfile(userId, userData = {}) {
+  async getOrCreateCandidateProfile(userId, userData = {}) {
     let profile = await CandidateProfile.findOne({ user: userId }).populate(candidatePopulate);
     if (!profile) {
       const User = require('../models/User');
@@ -16,7 +17,10 @@ class CandidateService {
       const name = user?.name || userData.name || 'Candidate';
       const email = user?.email || userData.email || 'candidate@intervix.com';
 
-      console.warn(`[CandidateProfile] Missing CandidateProfile detected for user ID: ${userId}. Performing auto-healing...`);
+      logger.warn({
+        tag: 'CandidateProfile',
+        message: `Missing CandidateProfile detected for user ${userId}. Performing auto-healing...`
+      });
       
       profile = await CandidateProfile.create({
         user: userId,
@@ -31,21 +35,31 @@ class CandidateService {
 
       if (user) {
         user.candidateProfile = profile._id;
+        if (!user.onboardingCompleted) {
+          user.onboardingCompleted = false;
+        }
         await user.save();
       }
 
-      console.log(`[CandidateProfile] Auto-created profile document successfully for candidate user ID: ${userId}`);
+      logger.info({
+        tag: 'CandidateProfile',
+        message: `Auto-created profile document successfully for candidate user ${userId}`
+      });
       profile = await CandidateProfile.findOne({ user: userId }).populate(candidatePopulate);
     }
     return profile;
   }
 
+  async getOrCreateProfile(userId, userData = {}) {
+    return this.getOrCreateCandidateProfile(userId, userData);
+  }
+
   async getProfileByUserId(userId) {
-    return this.getOrCreateProfile(userId);
+    return this.getOrCreateCandidateProfile(userId);
   }
 
   async upsertProfile(user, payload) {
-    const profile = await this.getOrCreateProfile(user._id, { name: user.name, email: user.email });
+    const profile = await this.getOrCreateCandidateProfile(user._id, { name: user.name, email: user.email });
 
     profile.name = payload.name ?? profile.name;
     profile.email = payload.email ?? profile.email;

@@ -4,7 +4,7 @@ const jobService = require('../services/job.service');
 
 const getProfile = async (req, res, next) => {
   try {
-    const profile = await candidateService.getProfileByUserId(req.user._id);
+    const profile = await candidateService.getOrCreateCandidateProfile(req.user._id);
     res.status(200).json({ profile });
   } catch (error) {
     next(error);
@@ -23,7 +23,7 @@ const updateProfile = async (req, res, next) => {
 const getDashboard = async (req, res, next) => {
   try {
     const [profile, interviewDashboard] = await Promise.all([
-      candidateService.getProfileByUserId(req.user._id),
+      candidateService.getOrCreateCandidateProfile(req.user._id),
       interviewSessionService.getDashboard(req.user._id)
     ]);
 
