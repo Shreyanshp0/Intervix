@@ -34,7 +34,7 @@ export const useAuthStore = create((set) => ({
         isBootstrapping: false
       });
       return user;
-    } catch (error) {
+    } catch {
       localStorage.removeItem(tokenKey);
       set({ user: null, isAuthenticated: false, isBootstrapping: false });
       return null;

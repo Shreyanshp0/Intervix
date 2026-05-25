@@ -16,9 +16,11 @@ export const useInterviewSessionChannel = ({ sessionId, tabId, onCompleted, onAu
   const onAudioReadyRef = useRef(onAudioReady);
   const onAudioInterruptedRef = useRef(onAudioInterrupted);
 
-  onCompletedRef.current = onCompleted;
-  onAudioReadyRef.current = onAudioReady;
-  onAudioInterruptedRef.current = onAudioInterrupted;
+  useEffect(() => {
+    onCompletedRef.current = onCompleted;
+    onAudioReadyRef.current = onAudioReady;
+    onAudioInterruptedRef.current = onAudioInterrupted;
+  });
 
   const socket = useMemo(() => connectSocket(), []);
 

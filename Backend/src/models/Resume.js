@@ -19,7 +19,17 @@ const resumeSchema = new mongoose.Schema({
   fileUrl: { type: String, trim: true, default: '' },
   mimeType: { type: String, trim: true, default: '' },
   fileSize: { type: Number, default: 0 },
-  uploadedAt: { type: Date, default: Date.now }
+  uploadedAt: { type: Date, default: Date.now },
+  rawText: { type: String, default: '' },
+  aiAnalysis: {
+    recruiterSummary: { type: String, default: '' },
+    resumeQualityScore: { type: Number, default: 0 },
+    atsScore: { type: Number, default: 0 },
+    skillConfidence: { type: Number, default: 0 },
+    strengths: [{ type: String, trim: true }],
+    weakAreas: [{ type: String, trim: true }],
+    certifications: [{ type: String, trim: true }]
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Resume', resumeSchema);

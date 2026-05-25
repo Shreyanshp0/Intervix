@@ -1,9 +1,14 @@
-import { Building2, LayoutDashboard, LogOut, Settings2, Users2 } from 'lucide-react';
+import { Building2, LayoutDashboard, LogOut, Settings2, Users2, Workflow, BriefcaseBusiness, BarChart3, Video, Bot } from 'lucide-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 
 const navItems = [
   { label: 'Overview', to: '/recruiter/dashboard', icon: LayoutDashboard },
+  { label: 'Job Management', to: '/recruiter/jobs', icon: BriefcaseBusiness },
+  { label: 'Pipeline', to: '/recruiter/pipeline', icon: Workflow },
+  { label: 'Hiring Analytics', to: '/recruiter/analytics', icon: BarChart3 },
+  { label: 'Interview Center', to: '/recruiter/interviews', icon: Video },
+  { label: 'AI Copilot', to: '/recruiter/copilot', icon: Bot },
   { label: 'Company Profile', to: '/recruiter/company', icon: Building2 }
 ];
 

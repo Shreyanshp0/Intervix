@@ -165,6 +165,35 @@ const initSocket = (server) => {
       await voiceOrchestratorService.interruptSpeech(sessionId);
     });
 
+    // Live Technical Notepad Collaborative Room Events
+    socket.on('live:join', ({ roomId, role, userName }) => {
+      if (!roomId) return;
+      const roomName = `live-${roomId}`;
+      socket.join(roomName);
+      socket.to(roomName).emit('live:user_joined', { role, userName, socketId: socket.id });
+      logger.info(`Live Room: User ${userName} (${role}) joined live session ${roomId}`);
+    });
+
+    socket.on('live:notepad_sync', ({ roomId, content }) => {
+      if (!roomId) return;
+      socket.to(`live-${roomId}`).emit('live:notepad_updated', { content });
+    });
+
+    socket.on('live:signal', ({ roomId, signal, to }) => {
+      if (!roomId) return;
+      if (to) {
+        io.to(to).emit('live:signal', { signal, from: socket.id });
+      } else {
+        socket.to(`live-${roomId}`).emit('live:signal', { signal, from: socket.id });
+      }
+    });
+
+    socket.on('live:end', ({ roomId }) => {
+      if (!roomId) return;
+      io.to(`live-${roomId}`).emit('live:ended');
+      logger.info(`Live Room: Recruiter ended live session ${roomId}`);
+    });
+
     socket.on('disconnect', async () => {
       stopSocketFeeds(socket);
       logger.info(`Client disconnected: ${socket.id}`);

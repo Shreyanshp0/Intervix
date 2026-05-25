@@ -5,6 +5,7 @@ import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { ResumeUpload } from '../../components/candidate/ResumeUpload';
 
 const emptyEducation = { institution: '', degree: '', fieldOfStudy: '', startDate: '', endDate: '', grade: '', description: '' };
 const emptyExperience = { company: '', title: '', employmentType: '', location: '', startDate: '', endDate: '', currentlyWorking: false, description: '', highlights: '' };
@@ -167,6 +168,12 @@ const CandidateProfilePage = () => {
           </div>
         </div>
       </div>
+
+      <ResumeUpload onUploadSuccess={(profileData) => {
+        if (profileData) {
+          reset(normalizeFormValues(profileData));
+        }
+      }} />
 
       <form id="candidate-profile-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <Section icon={UserRound} title="Identity" description="Keep your core candidate record aligned with the auth account.">

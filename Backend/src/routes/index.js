@@ -4,6 +4,9 @@ const candidateRoutes = require('./candidate.routes');
 const interviewRoutes = require('./interview.routes');
 const recruiterRoutes = require('./recruiter.routes');
 const voiceRoutes = require('./voice.routes');
+const jobRoutes = require('./job.routes');
+const resumeRoutes = require('./resume.routes');
+const recruiterAdvancedRoutes = require('./recruiter-advanced.routes');
 
 
 const { fetchWithTimeout } = require('../utils/network');
@@ -53,5 +56,8 @@ router.use('/candidate', candidateRoutes);
 router.use('/interviews', interviewRoutes);
 router.use('/recruiter', recruiterRoutes);
 router.use('/voice', voiceRoutes);
+router.use('/jobs', jobRoutes);
+router.use('/candidate/resume', resumeRoutes);
+router.use('/recruiter/advanced', recruiterAdvancedRoutes);
 
 module.exports = router;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, Bot, FileText, MapPin, Sparkles, Target, TrendingUp, Trophy, UserRound } from 'lucide-react';
+import { ArrowRight, Bot, FileText, MapPin, SearchCheck, Sparkles, Target, TrendingUp, Trophy, UserRound, Workflow } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import Button from '../../components/common/Button';
@@ -112,17 +112,37 @@ const CandidateDashboard = () => {
           </Link>
         </div>
 
-        {summaryCards.slice(0, 2).map((card) => (
-          <div key={card.label} className="glass-card p-6">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 rounded-xl bg-secondary/20 flex items-center justify-center text-secondary">
-                <card.icon size={22} />
-              </div>
+        <div className="glass-card p-6 flex flex-col justify-between group cursor-pointer hover:border-accent/50 transition-colors">
+          <div className="flex justify-between items-start mb-4">
+            <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center text-accent">
+              <SearchCheck size={24} />
             </div>
-            <div className="text-sm text-gray-400 mb-2">{card.label}</div>
-            <div className="text-3xl font-semibold text-white">{card.value}</div>
+            <ArrowRight size={20} className="text-gray-500 group-hover:text-accent transition-colors transform group-hover:translate-x-1" />
           </div>
-        ))}
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-1">AI Job Feed</h3>
+            <p className="text-sm text-gray-400">Browse roles ranked by skill and interview alignment.</p>
+          </div>
+          <Link to="/candidate/jobs" className="mt-4">
+            <Button variant="outline" className="w-full">Open Job Feed</Button>
+          </Link>
+        </div>
+
+        <div className="glass-card p-6 flex flex-col justify-between group cursor-pointer hover:border-emerald-400/50 transition-colors">
+          <div className="flex justify-between items-start mb-4">
+            <div className="w-12 h-12 rounded-xl bg-emerald-400/20 flex items-center justify-center text-emerald-300">
+              <Workflow size={24} />
+            </div>
+            <ArrowRight size={20} className="text-gray-500 group-hover:text-emerald-300 transition-colors transform group-hover:translate-x-1" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-1">Applications Tracker</h3>
+            <p className="text-sm text-gray-400">Monitor recruiter stage changes and interview schedules.</p>
+          </div>
+          <Link to="/candidate/applications" className="mt-4">
+            <Button variant="outline" className="w-full">View Applications</Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">

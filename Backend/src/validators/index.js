@@ -130,6 +130,66 @@ const companyProfileSchema = z.object({
   }).optional()
 });
 
+const experienceLevelSchema = z.preprocess((value) => {
+  if (typeof value !== 'string') return value;
+  return value.toLowerCase();
+}, z.enum(['intern', 'junior', 'mid', 'senior', 'lead', 'executive']));
+
+const hiringStatusSchema = z.preprocess((value) => {
+  if (typeof value !== 'string') return value;
+  return value.toLowerCase();
+}, z.enum(['draft', 'open', 'on-hold', 'closed', 'filled']));
+
+const interviewStyleSchema = z.preprocess((value) => {
+  if (typeof value !== 'string') return value;
+  return value.toLowerCase();
+}, z.enum(['technical', 'behavioral', 'case-study', 'system-design', 'mixed']));
+
+const jobPostingSchema = z.object({
+  roleTitle: z.string().min(2),
+  description: z.string().min(20),
+  requiredSkills: z.array(z.string()).default([]),
+  preferredSkills: z.array(z.string()).default([]),
+  experienceLevel: experienceLevelSchema,
+  salaryRange: z.object({
+    min: z.number().min(0),
+    max: z.number().min(0),
+    currency: z.string().min(3).max(8).default('USD'),
+    period: z.enum(['hourly', 'monthly', 'yearly']).default('yearly')
+  }),
+  location: z.string().min(2),
+  responsibilities: z.array(z.string()).default([]),
+  qualifications: z.array(z.string()).default([]),
+  hiringStatus: hiringStatusSchema.default('draft'),
+  interviewDifficulty: difficultySchema.default('medium'),
+  interviewStyle: interviewStyleSchema.default('mixed')
+}).refine((payload) => payload.salaryRange.max >= payload.salaryRange.min, {
+  message: 'Salary max must be greater than or equal to salary min',
+  path: ['salaryRange', 'max']
+});
+
+const applicationSchema = z.object({
+  coverLetter: z.string().max(4000).optional().default('')
+});
+
+const applicationStageSchema = z.object({
+  stage: z.enum(['Applied', 'Shortlisted', 'Interview Scheduled', 'Passed', 'Rejected', 'Hired']),
+  note: z.string().max(500).optional()
+});
+
+const interviewScheduleSchema = z.object({
+  scheduledFor: z.string().datetime(),
+  timezone: z.string().min(2),
+  mode: z.enum(['phone', 'video', 'onsite', 'take-home', 'async']),
+  meetingLink: z.string().optional().default(''),
+  notes: z.string().optional().default('')
+});
+
+const recruiterFeedbackSchema = z.object({
+  message: z.string().min(1).max(2000),
+  visibility: z.enum(['candidate', 'internal']).default('candidate')
+});
+
 module.exports = {
   validateRegister: validateRequest(registerSchema),
   validateLogin: validateRequest(loginSchema),
@@ -137,5 +197,10 @@ module.exports = {
   validateInterviewResponse: validateRequest(interviewResponseSchema),
   validateCandidateProfile: validateRequest(candidateProfileSchema),
   validateRecruiterProfile: validateRequest(recruiterProfileSchema),
-  validateCompanyProfile: validateRequest(companyProfileSchema)
+  validateCompanyProfile: validateRequest(companyProfileSchema),
+  validateJobPosting: validateRequest(jobPostingSchema),
+  validateApplication: validateRequest(applicationSchema),
+  validateApplicationStageUpdate: validateRequest(applicationStageSchema),
+  validateInterviewSchedule: validateRequest(interviewScheduleSchema),
+  validateRecruiterFeedback: validateRequest(recruiterFeedbackSchema)
 };

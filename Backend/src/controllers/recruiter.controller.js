@@ -36,9 +36,19 @@ const getRecruiterDashboard = async (req, res, next) => {
   }
 };
 
+const getCandidateProfileForRecruiter = async (req, res, next) => {
+  try {
+    const data = await recruiterService.getCandidateProfileForRecruiter(req.params.candidateId);
+    res.status(200).json(data);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getRecruiterProfile,
   updateRecruiterProfile,
   updateCompanyProfile,
-  getRecruiterDashboard
+  getRecruiterDashboard,
+  getCandidateProfileForRecruiter
 };

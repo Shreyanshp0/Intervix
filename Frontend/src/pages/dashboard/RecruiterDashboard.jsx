@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Activity, Award, Building2, Sparkles, Users, UserCheck } from 'lucide-react';
+import { Activity, Award, Building2, BriefcaseBusiness, Sparkles, Users, UserCheck, Workflow } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import Button from '../../components/common/Button';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import api from '../../services/api';
 
@@ -67,6 +69,38 @@ const RecruiterDashboard = () => {
         <StatCard title="Shortlisted" value={pipelineStats.shortlisted || 0} icon={Award} colorClass="bg-warning/20 text-warning" />
         <StatCard title="Interviewing" value={pipelineStats.interviewing || 0} icon={UserCheck} colorClass="bg-accent/20 text-accent" />
         <StatCard title="Completed Assessments" value={pipelineStats.completedAssessments || 0} icon={Activity} colorClass="bg-success/20 text-success" />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="glass-card p-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-sm text-gray-400">Job operations</div>
+              <div className="mt-1 text-2xl font-semibold text-white">{pipelineStats.activeJobs || 0} active roles</div>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-sky-400/20 flex items-center justify-center text-sky-200">
+              <BriefcaseBusiness size={22} />
+            </div>
+          </div>
+          <Link to="/recruiter/jobs" className="mt-5 block">
+            <Button className="w-full">Manage job postings</Button>
+          </Link>
+        </div>
+
+        <div className="glass-card p-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-sm text-gray-400">ATS workflow</div>
+              <div className="mt-1 text-2xl font-semibold text-white">{pipelineStats.totalApplications || 0} applications</div>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-amber-400/20 flex items-center justify-center text-amber-100">
+              <Workflow size={22} />
+            </div>
+          </div>
+          <Link to="/recruiter/pipeline" className="mt-5 block">
+            <Button className="w-full bg-accent text-slate-950 hover:bg-sky-300">Open hiring pipeline</Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

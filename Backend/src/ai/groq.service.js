@@ -507,6 +507,49 @@ class GroqService {
     return [];
   }
 
+  async analyzeResume(text) {
+    try {
+      const messages = [
+        {
+          role: 'system',
+          content: [
+            'You are an expert AI resume parsing and candidate analysis engine.',
+            'Extract all structured details from the provided raw CV/resume text.',
+            'Return valid JSON only matching the schema exactly.',
+            'JSON Keys must be:',
+            'candidateName, skills (array of raw strings), recruiterSummary, resumeQualityScore (integer 0-100), atsScore (integer 0-100), skillConfidence (integer 0-100), strengths (array of strings), weakAreas (array of strings), certifications (array of strings),',
+            'education (array of objects with keys: institution, degree, fieldOfStudy, startDate, endDate, grade, description),',
+            'experience (array of objects with keys: company, title, employmentType, location, startDate, endDate, currentlyWorking, description, highlights),',
+            'projects (array of objects with keys: name, role, description, technologies, repositoryUrl, projectUrl, startDate, endDate).',
+            'Ensure all dates are formatted as YYYY-MM-DD or null. highlights must be an array of strings. technologies must be an array of strings.',
+          ].join(' '),
+        },
+        {
+          role: 'user',
+          content: `Resume Raw Text:\n\n${text}`,
+        },
+      ];
+
+      const responseText = await this.generateWithFallback({
+        task: 'resume-parsing',
+        messages,
+        options: {
+          temperature: 0.1,
+          maxCompletionTokens: 2500,
+        },
+      });
+
+      if (!responseText || !responseText.trim()) {
+        throw new GroqOperationalError('Groq returned empty resume analysis response');
+      }
+
+      return this.parseJsonResponse(responseText, 'resume-parsing');
+    } catch (error) {
+      this.logGroqError('Groq resume analysis failed', error, {});
+      throw error;
+    }
+  }
+
   logInfo(message, metadata = {}) {
     logger.info(`[Groq] ${message}${Object.keys(metadata).length ? ` ${JSON.stringify(metadata)}` : ''}`);
   }

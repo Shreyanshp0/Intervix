@@ -154,9 +154,13 @@ class InterviewEngine {
       const recentMessages = await memoryService.getRecentMessages(sessionId, 6);
       const adaptiveDifficulty = this.determineAdaptiveDifficulty(session);
 
+      // Load candidate profile for resume-aware interviewing
+      const CandidateProfile = require('../models/CandidateProfile');
+      const profile = await CandidateProfile.findOne({ user: session.userId }).populate('resume').lean();
+
       // Build prompt
       const { systemInstruction, context } = promptManager.buildInterviewPrompt(
-        session, memory, recentMessages, candidateInput
+        session, memory, recentMessages, candidateInput, [], profile
       );
       context.difficulty = adaptiveDifficulty;
 
@@ -288,19 +292,14 @@ class InterviewEngine {
       let aiResponse;
       try {
         const memory = await memoryService.getSessionMemory(sessionId);
-        aiResponse = await aiService.generateInterviewAction(
-          require('../prompts/interviewer.prompts').interviewer,
-          {
-            topic: session.topic,
-            difficulty: session.difficulty,
-            experienceLevel: session.experienceLevel,
-            interviewType: session.interviewType,
-            currentInput: prompt,
-            previousQuestions: memory.previousQuestions || [],
-            discussedTopics: memory.discussedTopics || [],
-            recentHistory: (memory.conversationHistory || []).slice(-4),
-          }
+        const CandidateProfile = require('../models/CandidateProfile');
+        const profile = await CandidateProfile.findOne({ user: session.userId }).populate('resume').lean();
+
+        const { systemInstruction, context } = promptManager.buildInterviewPrompt(
+          session, memory, [], prompt, [], profile
         );
+
+        aiResponse = await aiService.generateInterviewAction(systemInstruction, context);
       } catch (error) {
         logger.error(`Start interview Groq failure for session ${sessionId}: ${error.message}`);
         aiResponse = this.buildFallbackQuestion(session);

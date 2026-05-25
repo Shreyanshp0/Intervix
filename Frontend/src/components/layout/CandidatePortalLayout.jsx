@@ -1,9 +1,13 @@
-import { BriefcaseBusiness, Bot, LayoutDashboard, LogOut, UserRound } from 'lucide-react';
+import { BriefcaseBusiness, Bot, LayoutDashboard, LogOut, UserRound, Workflow, SearchCheck, TrendingUp, Award } from 'lucide-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 
 const navItems = [
   { label: 'Overview', to: '/candidate/dashboard', icon: LayoutDashboard },
+  { label: 'AI Analytics', to: '/candidate/analytics', icon: TrendingUp },
+  { label: 'Prep Hub', to: '/candidate/prep', icon: Award },
+  { label: 'Job Feed', to: '/candidate/jobs', icon: SearchCheck },
+  { label: 'Applications', to: '/candidate/applications', icon: Workflow },
   { label: 'Profile', to: '/candidate/profile', icon: UserRound },
   { label: 'Interview Lab', to: '/candidate/interview/setup', icon: Bot }
 ];

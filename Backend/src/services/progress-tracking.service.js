@@ -69,6 +69,41 @@ class ProgressTrackingService {
       improving: scoreTrend.improving,
     };
 
+    // Dynamically update candidate profile verified skills map
+    const CandidateProfile = require('../models/CandidateProfile');
+    const profile = await CandidateProfile.findOne({ user: session.userId });
+    if (profile) {
+      if (!profile.verifiedSkills) {
+        profile.verifiedSkills = new Map();
+      }
+
+      const topic = session.topic || 'General';
+      const currentScore = profile.verifiedSkills.get
+        ? profile.verifiedSkills.get(topic)
+        : profile.verifiedSkills[topic];
+
+      const nextScore = Math.max(currentScore || 0, session.score || 0);
+
+      if (profile.verifiedSkills.set) {
+        profile.verifiedSkills.set(topic, nextScore);
+      } else {
+        profile.verifiedSkills[topic] = nextScore;
+      }
+
+      const normalizedTopic = topic.trim().toLowerCase();
+      if (!profile.skills.verified.includes(normalizedTopic)) {
+        profile.skills.verified.push(normalizedTopic);
+      }
+      if (!profile.skills.raw.includes(topic)) {
+        profile.skills.raw.push(topic);
+      }
+      if (!profile.skills.normalized.includes(normalizedTopic)) {
+        profile.skills.normalized.push(normalizedTopic);
+      }
+
+      await profile.save();
+    }
+
     await progress.save();
     return progress;
   }
@@ -84,7 +119,15 @@ class ProgressTrackingService {
       .limit(20)
       .lean();
 
-    return analyticsService.buildDashboardSummary(progress.toObject(), sessions);
+    const CandidateProfile = require('../models/CandidateProfile');
+    const profile = await CandidateProfile.findOne({ user: userId }).populate('resume').lean();
+
+    return analyticsService.buildDashboardSummary(
+      progress.toObject(),
+      sessions,
+      profile,
+      profile?.resume
+    );
   }
 }
 

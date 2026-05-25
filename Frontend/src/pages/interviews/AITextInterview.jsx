@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Bot, User, PlayCircle, Target, Clock, Zap, WifiOff } from 'lucide-react';
+import { Send, Bot, User, PlayCircle, Target, Clock, WifiOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useInterviewSetupStore } from '../../store/useInterviewSetupStore';
 import { useInterviewRuntimeStore } from '../../store/useInterviewRuntimeStore';
@@ -10,10 +10,11 @@ import api from '../../services/api';
 
 const normalizeDifficulty = (difficulty) => (difficulty || 'medium').toLowerCase();
 const formatRemainingTime = (remainingSeconds = 0) => `${String(Math.floor(remainingSeconds / 60)).padStart(2, '0')}:${String(remainingSeconds % 60).padStart(2, '0')}`;
+const generateTabId = () => `tab_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
 const AITextInterview = () => {
   const navigate = useNavigate();
-  const tabId = useMemo(() => `tab_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, []);
+  const [tabId] = useState(generateTabId);
   const { config, sessionId, setSessionId, setSessionSnapshot, setLatestReportId } = useInterviewSetupStore();
   const {
     session,
@@ -26,10 +27,8 @@ const AITextInterview = () => {
     setSession,
     hydrateFromSession,
     appendMessage,
-    setConnectionState,
     setAutosaveStatus,
     setRecoveryMessage,
-    resetRuntime,
   } = useInterviewRuntimeStore();
   const [hasStarted, setHasStarted] = useState(false);
   const [input, setInput] = useState('');

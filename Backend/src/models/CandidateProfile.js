@@ -52,6 +52,11 @@ const candidateProfileSchema = new mongoose.Schema({
     normalized: [{ type: String, trim: true, lowercase: true, index: true }],
     verified: [{ type: String, trim: true, lowercase: true }]
   },
+  verifiedSkills: {
+    type: Map,
+    of: Number,
+    default: () => ({})
+  },
   education: [educationSchema],
   experience: [experienceSchema],
   projects: [projectSchema],

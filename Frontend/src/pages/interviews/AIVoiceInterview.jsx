@@ -24,11 +24,13 @@ const WaveformVisualizer = ({ isActive }) => (
   </div>
 );
 
+const generateTabId = () => `voice_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
 const AIVoiceInterview = () => {
   const navigate = useNavigate();
-  const tabId = useMemo(() => `voice_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, []);
+  const [tabId] = useState(generateTabId);
   const { config, sessionId, setSessionId, setLatestReportId, setSessionSnapshot } = useInterviewSetupStore();
-  const { session, timerSeconds, connectionState, recoveryMessage, hydrateFromSession, setConnectionState, enqueueAudio, dequeueAudio, clearAudioQueue, setAudioPlaying, isAudioPlaying } = useInterviewRuntimeStore();
+  const { session, timerSeconds, connectionState, recoveryMessage, hydrateFromSession, enqueueAudio, dequeueAudio, clearAudioQueue, setAudioPlaying, isAudioPlaying } = useInterviewRuntimeStore();
   const [hasStarted, setHasStarted] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);

@@ -58,10 +58,8 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/Intervix
-
             docker compose down
-
             docker pull shreyanshp0/intervix-backend:latest
             docker pull shreyanshp0/intervix-frontend:latest
-
             docker compose up -d
+    

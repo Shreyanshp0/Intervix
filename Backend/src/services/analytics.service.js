@@ -50,10 +50,71 @@ class AnalyticsService {
     return [...new Set([...topicRecommendations, ...weaknessRecommendations])].slice(0, 6);
   }
 
-  buildDashboardSummary(progress, sessions = []) {
+  calculateEmployabilityScore(profile, progress, resume) {
+    const interviewPerformance = progress?.averageScore || 0;
+    
+    let verifiedSkillsScores = [];
+    if (profile?.verifiedSkills) {
+      if (profile.verifiedSkills instanceof Map) {
+        verifiedSkillsScores = [...profile.verifiedSkills.values()];
+      } else {
+        verifiedSkillsScores = Object.values(profile.verifiedSkills);
+      }
+    }
+    const verifiedSkills = verifiedSkillsScores.length ? this.average(verifiedSkillsScores) : 50;
+
+    const resumeQuality = resume?.aiAnalysis?.resumeQualityScore || 50;
+
+    const topicPerformance = progress?.topicPerformance || [];
+    const confidenceScores = topicPerformance.map(t => t.confidenceAverage).filter(Boolean);
+    const communication = confidenceScores.length ? this.average(confidenceScores) : 50;
+
+    const projectDepth = Math.min(100, (profile?.projects?.length || 0) * 33.3);
+
+    const score = Math.round(
+      (interviewPerformance * 0.35) +
+      (verifiedSkills * 0.20) +
+      (resumeQuality * 0.15) +
+      (communication * 0.15) +
+      (projectDepth * 0.15)
+    );
+
+    return {
+      overallScore: Math.min(100, Math.max(0, score)),
+      breakdown: {
+        interviewPerformance,
+        verifiedSkills,
+        resumeQuality,
+        communication,
+        projectDepth
+      }
+    };
+  }
+
+  buildDashboardSummary(progress, sessions = [], profile = null, resume = null) {
     const topicPerformance = progress?.topicPerformance || [];
     const strongestTopic = this.detectStrongTopics(topicPerformance)[0]?.topic || 'N/A';
     const weakestTopic = this.detectWeakTopics(topicPerformance)[0]?.topic || 'N/A';
+
+    const employability = this.calculateEmployabilityScore(profile, progress, resume);
+
+    // Compute mock rolling employability scores over sessions to show trends
+    const trends = sessions.map((session, idx) => {
+      const rollingAverageSession = this.average(sessions.slice(0, idx + 1).map((s) => s.score));
+      const rollingComm = this.average(sessions.slice(0, idx + 1).map((s) => s.communicationScore || s.score));
+      const rollingScore = Math.round(
+        (rollingAverageSession * 0.35) +
+        (verifiedSkills * 0.20) +
+        (resumeQuality * 0.15) +
+        (rollingComm * 0.15) +
+        (projectDepth * 0.15)
+      );
+
+      return {
+        label: new Date(session.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        employability: Math.min(100, Math.max(20, rollingScore))
+      };
+    });
 
     return {
       totalInterviews: progress?.interviewsTaken || 0,
@@ -62,6 +123,8 @@ class AnalyticsService {
       latestScore: progress?.latestScore || 0,
       strongestTopic,
       weakestTopic,
+      employability,
+      employabilityTrends: trends.length ? trends : [{ label: 'Onboarding', employability: employability.overallScore }],
       scoreProgression: sessions.map((session) => ({
         label: new Date(session.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         score: session.score || 0,

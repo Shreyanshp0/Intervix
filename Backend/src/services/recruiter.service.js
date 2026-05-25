@@ -3,6 +3,8 @@ const Company = require('../models/Company');
 const RecruiterProfile = require('../models/RecruiterProfile');
 const InterviewSession = require('../models/InterviewSession');
 const User = require('../models/User');
+const JobPosting = require('../models/JobPosting');
+const Application = require('../models/Application');
 const ApiError = require('../utils/api-error');
 
 const recruiterPopulate = [
@@ -73,7 +75,7 @@ class RecruiterService {
       throw new ApiError(404, 'Recruiter profile not found');
     }
 
-    const [totalCandidates, interviewMetrics, recentCandidates] = await Promise.all([
+    const [totalCandidates, interviewMetrics, recentCandidates, activeJobs, applicationsByStage] = await Promise.all([
       CandidateProfile.countDocuments(),
       InterviewSession.aggregate([
         { $match: { status: { $in: ['completed', 'active'] } } },
@@ -87,10 +89,29 @@ class RecruiterService {
       CandidateProfile.find({})
         .sort({ updatedAt: -1 })
         .limit(5)
-        .select('name preferredRoles location skills completionScore updatedAt')
+        .select('name preferredRoles location skills completionScore updatedAt'),
+      JobPosting.countDocuments({
+        company: recruiterProfile.company._id,
+        archivedAt: null,
+        hiringStatus: { $in: ['open', 'on-hold'] }
+      }),
+      Application.aggregate([
+        { $match: { company: recruiterProfile.company._id } },
+        {
+          $group: {
+            _id: '$stage',
+            count: { $sum: 1 }
+          }
+        }
+      ])
     ]);
 
     const metricMap = interviewMetrics.reduce((acc, entry) => {
+      acc[entry._id] = entry.count;
+      return acc;
+    }, {});
+
+    const stageMap = applicationsByStage.reduce((acc, entry) => {
       acc[entry._id] = entry.count;
       return acc;
     }, {});
@@ -100,11 +121,37 @@ class RecruiterService {
       company: recruiterProfile.company,
       pipelineStats: {
         totalCandidates,
+        activeJobs,
+        totalApplications: Object.values(stageMap).reduce((sum, value) => sum + value, 0),
         interviewing: metricMap.active || 0,
         completedAssessments: metricMap.completed || 0,
-        shortlisted: Math.min(totalCandidates, Math.max(0, Math.round(totalCandidates * 0.28)))
+        shortlisted: stageMap.Shortlisted || 0,
+        hired: stageMap.Hired || 0
       },
       recentCandidates
+    };
+  }
+
+  async getCandidateProfileForRecruiter(candidateId) {
+    const profile = await CandidateProfile.findById(candidateId)
+      .populate('resume')
+      .lean();
+
+    if (!profile) {
+      throw new ApiError(404, 'Candidate profile not found');
+    }
+
+    const sessions = await InterviewSession.find({
+      userId: profile.user,
+      status: { $in: ['completed', 'expired'] }
+    })
+      .sort({ createdAt: -1 })
+      .select('topic difficulty duration score technicalScore communicationScore confidenceScore reportGeneratedAt createdAt')
+      .lean();
+
+    return {
+      profile,
+      sessions
     };
   }
 }
