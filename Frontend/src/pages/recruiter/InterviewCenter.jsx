@@ -47,7 +47,7 @@ const InterviewCenter = () => {
   useEffect(() => {
     if (!activeRoom) {
       if (socketRef.current) {
-        socketRef.current.emit('live:end', { roomId: activeRoom?._id });
+        socketRef.current.emit('live:end', { roomId: activeRoom?.roomId || activeRoom?._id });
         socketRef.current.disconnect();
         socketRef.current = null;
       }
@@ -58,7 +58,7 @@ const InterviewCenter = () => {
     socketRef.current = socket;
 
     socket.emit('live:join', {
-      roomId: activeRoom._id,
+      roomId: activeRoom.roomId || activeRoom._id,
       role: 'recruiter',
       userName: 'Recruiter'
     });
@@ -82,7 +82,7 @@ const InterviewCenter = () => {
     setNotepadContent(val);
     if (socketRef.current && activeRoom) {
       socketRef.current.emit('live:notepad_sync', {
-        roomId: activeRoom._id,
+        roomId: activeRoom.roomId || activeRoom._id,
         content: val
       });
     }
@@ -91,7 +91,7 @@ const InterviewCenter = () => {
   const saveRoomNotepad = async () => {
     if (!activeRoom) return;
     try {
-      await api.put(API_ROUTES.recruiter.liveInterviewNotepad(activeRoom._id), {
+      await api.put(API_ROUTES.recruiter.liveInterviewNotepad(activeRoom.roomId || activeRoom._id), {
         notepadContent,
         recruiterNotes
       });
@@ -124,7 +124,7 @@ const InterviewCenter = () => {
     if (!activeRoom) return;
     setEvalSaving(true);
     try {
-      await api.post(API_ROUTES.recruiter.liveInterviewEvaluate(activeRoom._id), evalScores);
+      await api.post(API_ROUTES.recruiter.liveInterviewEvaluate(activeRoom.roomId || activeRoom._id), evalScores);
       alert('Technical round evaluation logged and verified skills synced successfully!');
       setActiveRoom(null);
     } catch (err) {

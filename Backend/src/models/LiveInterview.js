@@ -39,7 +39,7 @@ const liveInterviewSchema = new mongoose.Schema({
     type: String,
     trim: true,
     unique: true,
-    sparse: true,
+    required: true,
     index: true
   },
   problem: {

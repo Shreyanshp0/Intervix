@@ -9,6 +9,7 @@ const RecruiterProfile = require('../models/RecruiterProfile');
 const ApiError = require('../utils/api-error');
 const logger = require('../config/logger');
 const liveInterviewService = require('../services/live-interview.service');
+const crypto = require('crypto');
 
 class RecruiterAdvancedController {
   async queryCopilot(req, res, next) {
@@ -172,6 +173,7 @@ class RecruiterAdvancedController {
         job: application.job._id,
         candidate: application.candidate._id,
         recruiter: recruiter._id,
+        roomId: crypto.randomBytes(8).toString('hex'),
         scheduledAt: new Date(scheduledAt),
         status: 'scheduled',
         problem: {
@@ -196,7 +198,7 @@ class RecruiterAdvancedController {
         scheduledFor: new Date(scheduledAt),
         timezone: 'GMT',
         mode: 'video',
-        meetingLink: `/room/${liveInterview._id}`,
+        meetingLink: `/room/${liveInterview.roomId}`,
         notes: plan.plannerDirective || 'Technical notepad assessments scheduled.'
       };
       await application.save();
@@ -245,7 +247,9 @@ class RecruiterAdvancedController {
 
   async saveLiveNotepad(req, res, next) {
     try {
-      const room = await LiveInterview.findById(req.params.roomId);
+      const roomId = String(req.params.roomId || '');
+      console.log('Searching roomId:', roomId);
+      const room = await LiveInterview.findOne({ roomId });
       if (!room) {
         throw new ApiError(404, 'Live Room session not found');
       }
@@ -263,7 +267,9 @@ class RecruiterAdvancedController {
   async evaluateLiveInterview(req, res, next) {
     try {
       const { technicalScore, communicationScore, feedback } = req.body;
-      const room = await LiveInterview.findById(req.params.roomId);
+      const roomId = String(req.params.roomId || '');
+      console.log('Searching roomId:', roomId);
+      const room = await LiveInterview.findOne({ roomId });
       if (!room) {
         throw new ApiError(404, 'Live Room session not found');
       }

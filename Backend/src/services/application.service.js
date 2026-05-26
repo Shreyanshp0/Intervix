@@ -3,6 +3,7 @@ const JobPosting = require('../models/JobPosting');
 const CandidateProfile = require('../models/CandidateProfile');
 const RecruiterProfile = require('../models/RecruiterProfile');
 const LiveInterview = require('../models/LiveInterview');
+const crypto = require('crypto');
 const matchingService = require('./matching.service');
 const ApiError = require('../utils/api-error');
 
@@ -218,6 +219,7 @@ class ApplicationService {
         job: application.job?._id || application.job,
         candidate: application.candidate?._id || application.candidate,
         recruiter: recruiter._id,
+        roomId: crypto.randomBytes(8).toString('hex'),
         scheduledAt: scheduledFor,
         status: 'scheduled'
       });

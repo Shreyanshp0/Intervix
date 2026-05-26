@@ -2,17 +2,10 @@ const LiveInterview = require('../models/LiveInterview');
 const CandidateProfile = require('../models/CandidateProfile');
 const RecruiterProfile = require('../models/RecruiterProfile');
 const ApiError = require('../utils/api-error');
-const mongoose = require('mongoose');
 
 const roomName = (roomId) => `interview_${roomId}`;
 
-const roomLookup = (roomId) => {
-  const clauses = [{ roomId: String(roomId) }];
-  if (mongoose.Types.ObjectId.isValid(String(roomId))) {
-    clauses.unshift({ _id: roomId });
-  }
-  return { $or: clauses };
-};
+const roomLookup = (roomId) => ({ roomId: String(roomId) });
 
 const getRoleProfile = async (user) => {
   if (user.role === 'candidate') {
@@ -44,6 +37,7 @@ const populateRoom = (query) => query.populate([
 ]);
 
 const findRoomById = async (roomId) => {
+  console.log('Searching roomId:', roomId);
   const room = await populateRoom(LiveInterview.findOne(roomLookup(roomId)));
 
   if (!room) {
