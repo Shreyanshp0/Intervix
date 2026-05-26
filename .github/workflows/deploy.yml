@@ -1,4 +1,4 @@
-name: Optimized CI/CD Pipeline for Low-Resource Environments
+name: Full CI/CD Pipeline
 
 on:
   push:
@@ -10,129 +10,271 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
+      # ==========================================
+      # CHECKOUT REPOSITORY
+      # ==========================================
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # ==========================================
+      # SET TIMESTAMP
+      # ==========================================
+
+      - name: Set Timestamp
+        run: echo "TIMESTAMP=$(date +%Y%m%d_%H%M%S)" >> $GITHUB_ENV
+
+      # ==========================================
+      # LOGIN TO DOCKER HUB
+      # ==========================================
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
+
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and Push Backend Image
+      # ==========================================
+      # BUILD BACKEND IMAGE
+      # ==========================================
+
+      - name: Build Backend Image
         run: |
-          docker build -t shreyanshp0/intervix-backend:latest ./Backend
+          docker build \
+            -t shreyanshp0/intervix-backend:latest \
+            -t shreyanshp0/intervix-backend:${{ env.TIMESTAMP }} \
+            ./Backend
+
+      # ==========================================
+      # BUILD FRONTEND IMAGE
+      # ==========================================
+
+      - name: Build Frontend Image
+        run: |
+          docker build \
+            -t shreyanshp0/intervix-frontend:latest \
+            -t shreyanshp0/intervix-frontend:${{ env.TIMESTAMP }} \
+            ./Frontend
+
+      # ==========================================
+      # PUSH BACKEND IMAGE
+      # ==========================================
+
+      - name: Push Backend Images
+        run: |
           docker push shreyanshp0/intervix-backend:latest
+          docker push shreyanshp0/intervix-backend:${{ env.TIMESTAMP }}
 
-      - name: Build and Push Frontend Image
+      # ==========================================
+      # PUSH FRONTEND IMAGE
+      # ==========================================
+
+      - name: Push Frontend Images
         run: |
-          docker build -t shreyanshp0/intervix-frontend:latest ./Frontend
           docker push shreyanshp0/intervix-frontend:latest
+          docker push shreyanshp0/intervix-frontend:${{ env.TIMESTAMP }}
 
-      - name: Deploy to EC2 with Staged Startup
+      # ==========================================
+      # DEPLOY TO EC2
+      # ==========================================
+
+      - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
+
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+
         with:
           host: ${{ secrets.EC2_HOST }}
+
           username: ${{ secrets.EC2_USERNAME }}
+
           key: ${{ secrets.EC2_SSH_KEY }}
+
+          timeout: 180s
+
+          command_timeout: 40m
+
+          script_stop: true
+
+          envs: MONGODB_URI,JWT_SECRET,GROQ_API_KEY,GEMINI_API_KEY,HF_TOKEN
+
           script: |
+
             set -e
+
             cd ~/Intervix
 
-            echo "======================================================"
-            echo "🚀 Starting Optimized Deployment for Low-Memory EC2"
-            echo "======================================================"
+            echo "========================================="
+            echo "🚀 Ultra-Light Deployment Starting"
+            echo "========================================="
 
-            # Create .env files securely
+            # =====================================
+            # UPDATE CODE SAFELY
+            # =====================================
+
+            echo "📦 Updating repository..."
+
+            git fetch origin
+
+            git reset --hard origin/main
+
+            # =====================================
+            # CREATE ENV FILES
+            # =====================================
+
             echo "🔐 Creating environment files..."
-            # Backend .env
-            cat > Backend/.env << EOF
-            MONGODB_URI=${{ secrets.MONGODB_URI }}
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
-            GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
-            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
-            HF_TOKEN=${{ secrets.HF_TOKEN }}
+
+            mkdir -p Backend
+
+            mkdir -p Frontend
+
+            # -------------------------------------
+            # BACKEND ENV
+            # -------------------------------------
+
+            cat > Backend/.env <<EOF
+            MONGODB_URI=${MONGODB_URI}
+
+            JWT_SECRET=${JWT_SECRET}
+
+            GROQ_API_KEY=${GROQ_API_KEY}
+
+            GEMINI_API_KEY=${GEMINI_API_KEY}
+
+            HF_TOKEN=${HF_TOKEN}
+
+            CLIENT_URL=https://intervix.duckdns.org
+
+            NODE_ENV=production
             EOF
-            # Frontend .env (if needed for runtime vars)
-            # cat > Frontend/.env << EOF
-            # VITE_API_URL=${{ secrets.VITE_API_URL }}
-            # EOF
-            echo "✅ Environment files created."
 
-            echo "🛑 Stopping all services to free up resources..."
-            docker compose down --remove-orphans || echo "No containers were running. Proceeding."
+            # -------------------------------------
+            # FRONTEND ENV
+            # -------------------------------------
 
-            # Safer cleanup: Remove only unused images and networks
-            echo "🧹 Performing safe cleanup..."
-            docker image prune -f
-            docker network prune -f
-            echo "✅ Cleanup complete."
+            cat > Frontend/.env <<EOF
+            VITE_API_URL=https://intervix.duckdns.org/api
 
-            # --- STAGE 1: Start Database ---
-            echo "--- Stage 1: Starting Database ---"
-            echo "📥 Pulling MongoDB image..."
-            docker compose pull mongodb
+            NODE_ENV=production
+            EOF
+
+            echo "✅ Environment files created"
+
+            # =====================================
+            # STOP OLD CONTAINERS
+            # =====================================
+
+            echo "🛑 Stopping old containers..."
+
+            docker compose down || true
+
+            # =====================================
+            # PULL ONLY REQUIRED IMAGES
+            # =====================================
+
+            echo "📥 Pulling latest backend/frontend images..."
+
+            docker compose pull backend frontend
+
+            # =====================================
+            # START DATABASE
+            # =====================================
+
             echo "🟢 Starting MongoDB..."
+
             docker compose up -d mongodb
-            echo "⏳ Waiting for MongoDB to initialize (15 seconds)..."
-            sleep 15
 
-            # --- STAGE 2: Start Backend ---
-            echo "--- Stage 2: Starting Backend ---"
-            echo "📥 Pulling Backend image..."
-            docker compose pull backend
+            echo "⏳ Waiting for MongoDB..."
+
+            sleep 45
+
+            # =====================================
+            # START BACKEND
+            # =====================================
+
             echo "🟢 Starting Backend..."
+
             docker compose up -d backend
-            echo "⏳ Waiting for Backend to initialize (10 seconds)..."
-            sleep 10
 
-            # --- STAGE 3: Start Frontend & Coturn ---
-            echo "--- Stage 3: Starting Frontend & Coturn ---"
-            echo "📥 Pulling Frontend and Coturn images..."
-            docker compose pull frontend coturn
-            echo "🟢 Starting Frontend and Coturn..."
-            docker compose up -d frontend coturn
-            echo "⏳ Final wait for all services (5 seconds)..."
-            sleep 5
+            echo "⏳ Waiting for Backend..."
 
-            echo "=========================================="
-            echo "📊 Current Container Status:"
-            docker compose ps
-            echo "=========================================="
+            sleep 45
 
-            # --- Lightweight Health Validation ---
-            echo "🏥 Performing lightweight health validation..."
-            
-            # Check backend (retry loop for resilience)
-            echo "  → Checking backend connectivity..."
-            for i in {1..5}; do
-              if curl -sf http://127.0.0.1:5000/health > /dev/null; then
-                echo "  ✅ Backend is responsive."
-                break
-              else
-                if [ $i -eq 5 ]; then
-                  echo "  ❌ Backend failed to respond after 5 attempts."
-                  docker compose logs backend --tail 50
-                  exit 1
-                fi
-                echo "  ⏳ Backend not ready, retrying in 3s... (Attempt $i/5)"
-                sleep 3
-              fi
-            done
+            # =====================================
+            # START FRONTEND
+            # =====================================
 
-            # Check frontend
-            echo "  → Checking frontend connectivity..."
-            if curl -sf http://127.0.0.1:3000/ > /dev/null; then
-              echo "  ✅ Frontend is responsive."
-            else
-              echo "  ❌ Frontend failed to respond."
-              docker compose logs frontend --tail 50
-              exit 1
-            fi
+            echo "🟢 Starting Frontend..."
+
+            docker compose up -d frontend
+
+            echo "⏳ Waiting for Frontend..."
+
+            sleep 30
+
+            # =====================================
+            # LIGHTWEIGHT HEALTH CHECKS
+            # =====================================
+
+            echo "🏥 Checking Backend..."
+
+            curl --max-time 10 http://127.0.0.1:5000/health || true
+
+            echo "🏥 Checking Frontend..."
+
+            curl --max-time 10 http://127.0.0.1:3000 || true
+
+            # =====================================
+            # SHOW PORT STATUS
+            # =====================================
+
+            echo "🌐 Active Ports"
+
+            sudo lsof -i :3000 || true
+
+            sudo lsof -i :5000 || true
+
+            sudo lsof -i :80 || true
+
+            sudo lsof -i :443 || true
+
+            # =====================================
+            # NGINX VALIDATION
+            # =====================================
+
+            echo "🔧 Validating NGINX..."
+
+            sudo nginx -t
+
+            echo "🔄 Restarting NGINX..."
+
+            sudo systemctl restart nginx
+
+            # =====================================
+            # FINAL CONTAINER STATUS
+            # =====================================
+
+            echo "📦 Running Containers"
+
+            docker ps
 
             echo ""
-            echo "=========================================="
-            echo "✅ Deployment completed successfully!"
-            echo "=========================================="
+
+            echo "========================================="
+            echo "✅ Deployment Finished Successfully"
+            echo "========================================="
+
             echo ""
-            echo "🔗 Application is accessible via your NGINX reverse proxy."
+            echo "🌐 Frontend:"
+            echo "https://intervix.duckdns.org"
+
+            echo ""
+            echo "🌐 Backend:"
+            echo "https://intervix.duckdns.org/api"

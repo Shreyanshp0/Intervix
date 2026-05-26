@@ -1,108 +1,119 @@
-version: '3.9'
-
-# Optimized for Low-Resource Environments (e.g., 1GB RAM EC2)
-#
-# Key Optimizations:
-# - Removed all healthchecks to reduce startup pressure
-# - Removed `condition: service_healthy` to avoid blocking startup
-# - Added memory and CPU limits to prevent resource exhaustion
-# - Staged startup sequence (mongo -> backend -> frontend)
-# - Limited MongoDB cache size to 100MB
-# - Removed public port exposure for MongoDB
-# - Uses `pull_policy: always` to ensure latest images are used
-
 services:
+
+  # ==========================================
+  # MONGODB
+  # ==========================================
+
   mongodb:
     image: mongo:6
+
     container_name: intervix_mongodb
-    # No public ports - accessible only within Docker network
-    # ports:
-    #   - "127.0.0.1:27017:27017" # Expose only to host if needed for debugging
+
+    restart: unless-stopped
+
+    command:
+      - --wiredTigerCacheSizeGB
+      - "0.1"
+
     volumes:
       - mongodb_data:/data/db
-    restart: unless-stopped
-    command: ["--wiredTigerCacheSizeGB", "0.1"] # Limit cache to 100MB
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 256M
-        reservations:
-          memory: 128M
+
+    mem_limit: 300m
+
+    cpus: 0.40
+
     networks:
       - intervix-network
+
+  # ==========================================
+  # BACKEND
+  # ==========================================
 
   backend:
     image: shreyanshp0/intervix-backend:latest
-    pull_policy: always # Ensure the latest image is always pulled
+
     container_name: intervix_backend
+
+    pull_policy: always
+
+    restart: unless-stopped
+
     ports:
-      - "127.0.0.1:5000:5000" # Bind to localhost on host
-    environment:
-      - MONGODB_URI=mongodb://mongodb:27017/intervix
-      - NODE_ENV=production
-      - DOCKER_CONTAINER=true
+      - "5000:5000"
+
     env_file:
       - ./Backend/.env
+
+    environment:
+      - NODE_ENV=production
+
+      - DOCKER_CONTAINER=true
+
+      - MONGODB_URI=mongodb://mongodb:27017/intervix
+
+      - FRONTEND_URL=https://intervix.duckdns.org
+
+      - PUBLIC_APP_URL=https://intervix.duckdns.org
+
+      - TRUSTED_ORIGINS=https://intervix.duckdns.org,http://localhost:3000
+
     depends_on:
       - mongodb
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 256M
-        reservations:
-          memory: 128M
+
+    mem_limit: 400m
+
+    cpus: 0.50
+
     networks:
       - intervix-network
+
+  # ==========================================
+  # FRONTEND
+  # ==========================================
 
   frontend:
     image: shreyanshp0/intervix-frontend:latest
-    pull_policy: always
+
     container_name: intervix_frontend
+
+    pull_policy: always
+
+    restart: unless-stopped
+
     ports:
-      - "127.0.0.1:3000:80" # Bind to localhost on host
+      - "3000:80"
+
+    env_file:
+      - ./Frontend/.env
+
     environment:
       - NODE_ENV=production
+
       - DOCKER_CONTAINER=true
+
+      - VITE_API_URL=/api
+
     depends_on:
       - backend
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.25'
-          memory: 128M
-        reservations:
-          memory: 64M
+
+    mem_limit: 200m
+
+    cpus: 0.30
+
     networks:
       - intervix-network
 
-  coturn:
-    image: coturn/coturn:4
-    container_name: intervix_coturn
-    command: ["-c", "/etc/coturn/turnserver.conf"]
-    ports:
-      - "3478:3478/tcp"
-      - "3478:3478/udp"
-      - "5349:5349/tcp"
-      - "49160-49200:49160-49200/udp"
-    volumes:
-      - ./infra/coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
-      - /etc/letsencrypt:/etc/letsencrypt:ro
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.10'
-          memory: 64M
-    networks:
-      - intervix-network
-
-volumes:
-  mongodb_data:
+# ==========================================
+# NETWORKS
+# ==========================================
 
 networks:
   intervix-network:
     driver: bridge
+
+# ==========================================
+# VOLUMES
+# ==========================================
+
+volumes:
+  mongodb_data:
