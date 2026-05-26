@@ -7,6 +7,7 @@ import { MatchBadge, Panel, StageBadge, TextareaField } from '../../components/j
 import api from '../../services/api';
 import { API_ROUTES } from '../../constants/apiRoutes';
 import { safeArray } from '../../utils/safety';
+import { formatDateTimeLocal } from '../../utils/dateUtils';
 
 const STAGES = ['Applied', 'Shortlisted', 'Interview Scheduled', 'Passed', 'Rejected', 'Hired'];
 
@@ -178,12 +179,12 @@ const JobApplicantsPage = () => {
                   <div className="mt-4 grid gap-3">
                     <Input
                       type="datetime-local"
-                      value={scheduleDrafts[application._id]?.scheduledFor || ''}
+                      value={formatDateTimeLocal(scheduleDrafts[application._id]?.scheduledFor)}
                       onChange={(event) => setScheduleDrafts((current) => ({
                         ...current,
                         [application._id]: {
                           ...(current[application._id] || { mode: 'video', meetingLink: '', notes: '', timezone: 'Asia/Kolkata' }),
-                          scheduledFor: new Date(event.target.value).toISOString()
+                          scheduledFor: event.target.value
                         }
                       }))}
                     />
