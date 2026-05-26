@@ -28,7 +28,7 @@ services:
 
       - PUBLIC_APP_URL=https://intervix.duckdns.org
 
-      - TRUSTED_ORIGINS=https://intervix.duckdns.org,http://localhost:3000
+      - TRUSTED_ORIGINS=https://intervix.duckdns.org,http://intervix.duckdns.org,http://localhost:3000
 
     mem_limit: 500m
 
