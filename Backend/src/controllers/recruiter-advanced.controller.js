@@ -162,35 +162,57 @@ class RecruiterAdvancedController {
         throw new ApiError(404, 'Recruiter profile not found');
       }
 
+      console.log("Checking application details for candidate existence:", application);
+
       // Generate AI-planner tailoring directive
       const plan = await interviewPlannerService.generateTailoredPlan(
         application.candidateUser,
         application.job._id
       );
 
-      const liveInterview = await LiveInterview.create({
-        application: application._id,
-        job: application.job._id,
-        candidate: application.candidate._id,
-        recruiter: recruiter._id,
-        roomId: crypto.randomBytes(8).toString('hex'),
-        scheduledAt: new Date(scheduledAt),
-        status: 'scheduled',
-        problem: {
-          title: `${application.job.roleTitle || 'Technical'} Live Challenge`,
-          description: plan.plannerDirective || 'Evaluate problem solving, coding fluency, communication, and debugging tradeoffs.',
-          difficulty: 'Medium',
-          testCases: [
-            { name: 'Case 1', input: 'Default input', expectedOutput: 'Expected output' }
-          ]
-        },
-        codeState: {
-          code: `function solution(input) {\n  // Explain your approach as you code.\n  return input;\n}\n\nconsole.log(solution('Default input'));`,
-          language: 'javascript'
-        },
-        notepadContent: `// Dynamic Interview Plan:\n// ${plan.plannerDirective || 'Verify tech skills and core projects.'}\n\nfunction verifyTechnicalArchitect() {\n  // Code collaborative технічний round\n}\n`,
-        recruiterNotes: `AI planner unverified gaps found: ${(plan.unverifiedSkills || []).join(', ') || 'None'}`
-      });
+      const roomId = crypto.randomUUID();
+      console.log("Generated roomId:", roomId);
+
+      let liveInterview;
+      try {
+        console.log("Persisting LiveInterview document...");
+        liveInterview = await LiveInterview.create({
+          application: application._id,
+          job: application.job._id,
+          candidate: application.candidate._id,
+          recruiter: recruiter._id,
+          roomId,
+          scheduledAt: new Date(scheduledAt),
+          status: 'scheduled',
+          problem: {
+            title: `${application.job.roleTitle || 'Technical'} Live Challenge`,
+            description: plan.plannerDirective || 'Evaluate problem solving, coding fluency, communication, and debugging tradeoffs.',
+            difficulty: 'Medium',
+            testCases: [
+              { name: 'Case 1', input: 'Default input', expectedOutput: 'Expected output' }
+            ]
+          },
+          codeState: {
+            code: `function solution(input) {\n  // Explain your approach as you code.\n  return input;\n}\n\nconsole.log(solution('Default input'));`,
+            language: 'javascript'
+          },
+          notepadContent: `// Dynamic Interview Plan:\n// ${plan.plannerDirective || 'Verify tech skills and core projects.'}\n\nfunction verifyTechnicalArchitect() {\n  // Code collaborative технічний round\n}\n`,
+          recruiterNotes: `AI planner unverified gaps found: ${(plan.unverifiedSkills || []).join(', ') || 'None'}`
+        });
+
+        if (!liveInterview) {
+          throw new Error("Failed to persist LiveInterview");
+        }
+        console.log("LiveInterview created successfully:", liveInterview);
+      } catch (error) {
+        console.error("Mongoose Persistence Error in scheduleLiveInterview:", error);
+        if (error.errors) {
+          Object.keys(error.errors).forEach((key) => {
+            console.error(`Validation error on field "${key}":`, error.errors[key].message);
+          });
+        }
+        throw error;
+      }
 
       // Update Application Schedule
       application.stage = 'Interview Scheduled';
@@ -198,10 +220,11 @@ class RecruiterAdvancedController {
         scheduledFor: new Date(scheduledAt),
         timezone: 'GMT',
         mode: 'video',
-        meetingLink: `/room/${liveInterview.roomId}`,
+        meetingLink: `/room/${roomId}`,
         notes: plan.plannerDirective || 'Technical notepad assessments scheduled.'
       };
       await application.save();
+      console.log("Application updated with meeting link successfully.");
 
       res.status(201).json({
         message: 'Live assessment scheduled and AI tailored plan generated successfully.',
@@ -235,6 +258,7 @@ class RecruiterAdvancedController {
 
   async getLiveInterviewRoom(req, res, next) {
     try {
+      console.log("Searching roomId:", req.params.roomId);
       const access = await liveInterviewService.assertRoomAccess(req.params.roomId, req.user, 'view');
       res.status(200).json({
         success: true,

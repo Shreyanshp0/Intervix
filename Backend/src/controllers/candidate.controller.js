@@ -82,17 +82,14 @@ const listLiveInterviews = async (req, res, next) => {
   }
 };
 
+// ... existing code ...
 const getLiveInterviewRoom = async (req, res, next) => {
   try {
+    console.log("Candidate controller searching for roomId:", req.params.roomId);
     const access = await liveInterviewService.assertRoomAccess(req.params.roomId, req.user, 'view');
     res.status(200).json({
       success: true,
-      ...liveInterviewService.buildRoomPayload(access.room, access.role)
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+// ... existing code ...
 
 module.exports = {
   getProfile,
