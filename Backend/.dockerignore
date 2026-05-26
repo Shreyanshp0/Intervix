@@ -1,5 +1,8 @@
 node_modules
 npm-debug.log
-.env
+logs
 uploads/temp
-uploads/audio
+.env
+.git
+.gitignore
+coverage

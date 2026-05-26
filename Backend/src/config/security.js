@@ -9,17 +9,23 @@ const uniq = (items) => [...new Set(items.filter(Boolean))];
 
 const getTrustedOrigins = () => {
   const configured = splitCsv(process.env.TRUSTED_ORIGINS || process.env.CORS_ORIGINS || '');
+  const appDomain = process.env.APP_DOMAIN || process.env.DOMAIN || '';
+  const domainOrigins = appDomain && appDomain !== 'localhost'
+    ? [`https://${appDomain}`, `http://${appDomain}`]
+    : [];
+
   return uniq([
     process.env.FRONTEND_URL,
     process.env.PUBLIC_APP_URL,
     process.env.APP_PUBLIC_URL,
     process.env.VITE_APP_URL,
-    'http://13.127.10.169',
-    'http://13.127.10.169:5000',
-    'https://13.127.10.169',
+    ...domainOrigins,
     'http://localhost:5173',
     'http://localhost:3000',
     'http://localhost:5000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5000',
     ...configured
   ]);
 };

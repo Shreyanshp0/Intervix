@@ -4,11 +4,11 @@ FROM node:20-alpine AS build
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 COPY . .
-# The VITE_API_URL is now passed during `docker compose up` or via environment files,
-# making the build more generic. If you need build-time variables, add them here.
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
 # Stage 2: Serve the application with NGINX

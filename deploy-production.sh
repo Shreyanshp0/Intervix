@@ -225,14 +225,14 @@ else
 fi
 
 # =====================================
-# PULL LATEST IMAGES
+# BUILD CURRENT CHECKED-OUT CODE
 # =====================================
 
-echo "Pulling latest images..."
+echo "Building current backend and frontend images..."
 
-docker compose pull
+docker compose build --pull backend frontend
 
-log_success "Images pulled"
+log_success "Images built"
 
 # =====================================
 # START CONTAINERS
@@ -240,7 +240,7 @@ log_success "Images pulled"
 
 echo "Starting containers..."
 
-docker compose up -d --force-recreate --no-build
+docker compose up -d --force-recreate
 
 log_success "Containers started"
 
