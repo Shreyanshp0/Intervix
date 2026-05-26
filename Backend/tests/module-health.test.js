@@ -1,6 +1,6 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { buildModuleHealthReport } = require('../src/utils/module-health');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { buildModuleHealthReport } from '../src/utils/module-health.js';
 
 test('module health report loads services safely and exposes dependency metadata', () => {
   const report = buildModuleHealthReport();

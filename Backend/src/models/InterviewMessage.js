@@ -26,4 +26,4 @@ const interviewMessageSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-export default mongoose.model('InterviewMessage', interviewMessageSchema);
+export default mongoose.models.InterviewMessage || mongoose.model('InterviewMessage', interviewMessageSchema);

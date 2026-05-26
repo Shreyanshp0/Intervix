@@ -75,4 +75,4 @@ const candidateProfileSchema = new mongoose.Schema({
 
 candidateProfileSchema.index({ 'skills.normalized': 1, location: 1 });
 
-export default mongoose.model('CandidateProfile', candidateProfileSchema);
+export default mongoose.models.CandidateProfile || mongoose.model('CandidateProfile', candidateProfileSchema);

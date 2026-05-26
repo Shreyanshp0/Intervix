@@ -33,4 +33,4 @@ const companySchema = new mongoose.Schema({
 
 companySchema.index({ name: 1, industry: 1 });
 
-export default mongoose.model('Company', companySchema);
+export default mongoose.models.Company || mongoose.model('Company', companySchema);

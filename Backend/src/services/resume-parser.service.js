@@ -1,5 +1,5 @@
 import fs from 'fs';
-import pdfParse from 'pdf-parse';
+import { PDFParse } from 'pdf-parse';
 import mammoth from 'mammoth';
 import groqService from '../ai/groq.service.js';
 import ApiError from '../utils/api-error.js';
@@ -13,8 +13,13 @@ class ResumeParserService {
     try {
       if (mimeType === 'application/pdf') {
         const dataBuffer = fs.readFileSync(filePath);
-        const pdfData = await pdfParse(dataBuffer);
-        return pdfData.text || '';
+        const parser = new PDFParse({ data: dataBuffer });
+        try {
+          const pdfData = await parser.getText();
+          return pdfData.text || '';
+        } finally {
+          await parser.destroy();
+        }
       } 
       
       if (

@@ -344,4 +344,4 @@ const interviewSessionSchema = new mongoose.Schema(
 interviewSessionSchema.index({ userId: 1, createdAt: -1 });
 interviewSessionSchema.index({ userId: 1, topic: 1, createdAt: -1 });
 
-export default mongoose.model('InterviewSession', interviewSessionSchema);
+export default mongoose.models.InterviewSession || mongoose.model('InterviewSession', interviewSessionSchema);

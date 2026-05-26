@@ -131,4 +131,4 @@ applicationSchema.index({ job: 1, candidate: 1 }, { unique: true });
 applicationSchema.index({ recruiter: 1, stage: 1, updatedAt: -1 });
 applicationSchema.index({ candidateUser: 1, updatedAt: -1 });
 
-export default mongoose.model('Application', applicationSchema);
+export default mongoose.models.Application || mongoose.model('Application', applicationSchema);

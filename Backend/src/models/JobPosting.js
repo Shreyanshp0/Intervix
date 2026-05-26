@@ -107,4 +107,4 @@ jobPostingSchema.index({
 jobPostingSchema.index({ company: 1, hiringStatus: 1, createdAt: -1 });
 jobPostingSchema.index({ 'requiredSkills.normalized': 1, experienceLevel: 1, hiringStatus: 1 });
 
-export default mongoose.model('JobPosting', jobPostingSchema);
+export default mongoose.models.JobPosting || mongoose.model('JobPosting', jobPostingSchema);

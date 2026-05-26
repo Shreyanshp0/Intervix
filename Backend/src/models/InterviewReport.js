@@ -39,4 +39,4 @@ const interviewReportSchema = new mongoose.Schema({
   }]
 }, { timestamps: true });
 
-export default mongoose.model('InterviewReport', interviewReportSchema);
+export default mongoose.models.InterviewReport || mongoose.model('InterviewReport', interviewReportSchema);

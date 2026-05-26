@@ -75,4 +75,4 @@ const interviewMemorySchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-export default mongoose.model('InterviewMemory', interviewMemorySchema);
+export default mongoose.models.InterviewMemory || mongoose.model('InterviewMemory', interviewMemorySchema);

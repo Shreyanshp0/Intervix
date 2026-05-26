@@ -44,6 +44,11 @@ const validateStartupConfiguration = () => {
 // Create HTTP server
 const server = http.createServer(app);
 
+server.on('error', (error) => {
+  logger.error(`HTTP server failed to start: ${error.message}`);
+  process.exit(1);
+});
+
 // Initialize Socket.IO
 initSocket(server);
 

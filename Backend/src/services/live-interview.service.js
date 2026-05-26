@@ -36,9 +36,7 @@ const populateRoom = (query) => query.populate([
   { path: 'application', select: 'stage matchSnapshot interviewSchedule coverLetter' }
 ]);
 
-// ... existing code ...
 const findRoomById = async (roomId) => {
-  console.log('Searching roomId:', roomId);
   const room = await populateRoom(LiveInterview.findOne(roomLookup(roomId)));
 
   if (!room) {
@@ -49,12 +47,10 @@ const findRoomById = async (roomId) => {
 };
 
 const assertRoomAccess = async (roomId, user, requiredAction = 'join') => {
-  console.log(`Asserting ${requiredAction} access for user ${user._id} to room ${roomId}`);
   const room = await findRoomById(roomId);
   const { role, profile } = await getRoleProfile(user);
 
   if (role === 'admin') {
-// ... existing code ...
     return { room, role: 'admin', profile };
   }
 

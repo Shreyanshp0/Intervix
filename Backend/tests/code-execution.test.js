@@ -1,6 +1,6 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { runCode } = require('../src/controllers/code.controller');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { runCode } from '../src/controllers/code.controller.js';
 
 test('Code Execution - executes simple JavaScript code and returns stdout', async () => {
   const req = {

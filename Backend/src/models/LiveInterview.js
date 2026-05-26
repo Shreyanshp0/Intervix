@@ -32,7 +32,6 @@ const liveInterviewSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['scheduled', 'active', 'paused', 'completed', 'cancelled'],
-// ... existing code ...
     default: 'scheduled',
     index: true
   },
@@ -45,7 +44,6 @@ const liveInterviewSchema = new mongoose.Schema({
   },
   problem: {
     title: { type: String, trim: true, default: 'Live Coding Challenge' },
-// ... existing code ...
     description: { type: String, default: 'Solve the problem collaboratively while explaining your approach.' },
     difficulty: { type: String, trim: true, default: 'Medium' },
     testCases: [{
@@ -142,4 +140,4 @@ liveInterviewSchema.pre('validate', function ensureRoomId(next) {
   next();
 });
 
-export default mongoose.model('LiveInterview', liveInterviewSchema);
+export default mongoose.models.LiveInterview || mongoose.model('LiveInterview', liveInterviewSchema);

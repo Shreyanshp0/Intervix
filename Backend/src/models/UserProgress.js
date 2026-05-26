@@ -134,4 +134,4 @@ const userProgressSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model('UserProgress', userProgressSchema);
+export default mongoose.models.UserProgress || mongoose.model('UserProgress', userProgressSchema);

@@ -1,8 +1,12 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('fs');
-const path = require('path');
-const { buildRouteHealthReport } = require('../src/utils/route-diagnostics');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { buildRouteHealthReport } from '../src/utils/route-diagnostics.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const frontendRoot = path.resolve(__dirname, '../../Frontend/src');
 const frontendApiRoutesFile = path.join(frontendRoot, 'constants', 'apiRoutes.js');
