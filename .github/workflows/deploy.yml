@@ -36,27 +36,6 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       # ==========================================
-      # BACKEND ENV
-      # ==========================================
-
-      - name: Create Backend .env
-        run: |
-          echo "MONGODB_URI=${{ secrets.MONGODB_URI }}" >> Backend/.env
-          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> Backend/.env
-          echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" >> Backend/.env
-          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> Backend/.env
-          echo "HF_TOKEN=${{ secrets.HF_TOKEN }}" >> Backend/.env
-          echo "CLIENT_URL=https://intervix.duckdns.org" >> Backend/.env
-
-      # ==========================================
-      # FRONTEND ENV
-      # ==========================================
-
-      - name: Create Frontend .env
-        run: |
-          echo "VITE_API_URL=https://intervix.duckdns.org/api" >> Frontend/.env
-
-      # ==========================================
       # NODE SETUP
       # ==========================================
 
@@ -119,10 +98,21 @@ jobs:
 
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
+
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
+
+          envs: MONGODB_URI,JWT_SECRET,GROQ_API_KEY,GEMINI_API_KEY,HF_TOKEN
+
           script: |
 
             set -e
@@ -136,7 +126,42 @@ jobs:
             echo ""
             echo "📦 Pulling latest code..."
 
-            git pull origin main || true
+            git reset --hard
+            git pull origin main
+
+            echo ""
+            echo "📁 Creating environment files..."
+
+            mkdir -p ~/Intervix/Backend
+            mkdir -p ~/Intervix/Frontend
+
+            # =====================================
+            # BACKEND .ENV
+            # =====================================
+
+            cat > ~/Intervix/Backend/.env <<EOF
+            MONGODB_URI=${MONGODB_URI}
+            JWT_SECRET=${JWT_SECRET}
+            GROQ_API_KEY=${GROQ_API_KEY}
+            GEMINI_API_KEY=${GEMINI_API_KEY}
+            HF_TOKEN=${HF_TOKEN}
+
+            CLIENT_URL=https://intervix.duckdns.org
+
+            NODE_ENV=production
+            EOF
+
+            # =====================================
+            # FRONTEND .ENV
+            # =====================================
+
+            cat > ~/Intervix/Frontend/.env <<EOF
+            VITE_API_URL=https://intervix.duckdns.org/api
+
+            NODE_ENV=production
+            EOF
+
+            echo "✅ Environment files created"
 
             echo ""
             echo "⏹️ Stopping existing containers..."
@@ -162,7 +187,7 @@ jobs:
             echo ""
             echo "⏳ Waiting for services..."
 
-            sleep 15
+            sleep 20
 
             echo ""
             echo "📊 Container Status"
