@@ -41,6 +41,6 @@ const printRegisteredRoutes = (expressApp) => {
   console.log('[ROUTES] =============================================\n');
 };
 
-module.exports = {
+export {
   printRegisteredRoutes
 };

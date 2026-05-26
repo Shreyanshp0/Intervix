@@ -1,8 +1,8 @@
-const candidateService = require('../services/candidate.service');
-const interviewSessionService = require('../services/interview-session.service');
-const jobService = require('../services/job.service');
-const LiveInterview = require('../models/LiveInterview');
-const liveInterviewService = require('../services/live-interview.service');
+import candidateService from '../services/candidate.service.js';
+import interviewSessionService from '../services/interview-session.service.js';
+import jobService from '../services/job.service.js';
+import LiveInterview from '../models/LiveInterview.js';
+import liveInterviewService from '../services/live-interview.service.js';
 
 const getProfile = async (req, res, next) => {
   try {
@@ -91,7 +91,7 @@ const getLiveInterviewRoom = async (req, res, next) => {
       success: true,
 // ... existing code ...
 
-module.exports = {
+export {
   getProfile,
   updateProfile,
   getDashboard,

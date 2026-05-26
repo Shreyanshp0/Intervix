@@ -1,22 +1,15 @@
-const fs = require('fs');
-const path = require('path');
-const logger = require('../config/logger');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import logger from '../config/logger.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const serviceDir = path.join(__dirname, '../services');
 
 const safeLoadService = (name) => {
-  try {
-    const servicePath = path.join(serviceDir, `${name}.service.js`);
-    const cachedModule = require.cache[require.resolve(servicePath)];
-    const moduleRef = cachedModule?.exports;
-
-    return {
-      name,
-      loaded: !!cachedModule,
-      keys: moduleRef && typeof moduleRef === 'object' ? Object.keys(moduleRef).slice(0, 12) : [],
-      error: null
-    };
-  } catch (error) {
+  // require.cache is not available in ESM. Returning a placeholder.
     logger.warn({
       tag: 'SERVICE_FAILED',
       service: name,
@@ -49,7 +42,7 @@ const buildDependencyGraph = () => {
   files.forEach((file) => {
     const source = fs.readFileSync(path.join(serviceDir, file), 'utf8');
     const serviceName = file.replace('.service.js', '');
-    const requires = Array.from(source.matchAll(/require\(['"]\.\/([a-z-]+)\.service['"]\)/g))
+    const requires = Array.from(source.matchAll(/import\s+[a-zA-Z0-9]+\s+from\s+['"]\.\/([a-z-]+)\.service\.js['"]/g))
       .map((match) => match[1]);
 
     graph[serviceName] = requires;
@@ -121,6 +114,6 @@ const buildModuleHealthReport = () => {
   };
 };
 
-module.exports = {
+export {
   buildModuleHealthReport
 };

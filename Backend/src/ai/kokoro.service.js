@@ -1,10 +1,14 @@
-const fs = require('fs');
-const path = require('path');
-const dns = require('dns');
-const crypto = require('crypto');
-const logger = require('../config/logger');
-const { retryWithBackoff, withTimeout } = require('../utils/async-timeout');
-const env = require('../config/env');
+import fs from 'fs';
+import path from 'path';
+import dns from 'dns';
+import crypto from 'crypto';
+import { fileURLToPath } from 'url';
+import logger from '../config/logger.js';
+import { retryWithBackoff, withTimeout } from '../utils/async-timeout.js';
+import env from '../config/env.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Prefer IPv4 resolution where possible
 if (typeof dns.setDefaultResultOrder === 'function') {
@@ -227,4 +231,4 @@ class KokoroService {
   }
 }
 
-module.exports = new KokoroService();
+export default new KokoroService();

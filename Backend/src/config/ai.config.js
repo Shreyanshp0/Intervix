@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   groq: {
     primaryModel: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
     fallbackModels: [

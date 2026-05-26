@@ -1,7 +1,8 @@
-const CandidateProfile = require('../models/CandidateProfile');
-const JobPosting = require('../models/JobPosting');
-const InterviewSession = require('../models/InterviewSession');
-const logger = require('../config/logger');
+import CandidateProfile from '../models/CandidateProfile.js';
+import JobPosting from '../models/JobPosting.js';
+import InterviewSession from '../models/InterviewSession.js';
+import logger from '../config/logger.js';
+import ApiError from '../utils/api-error.js';
 
 class InterviewPlannerService {
   async generateTailoredPlan(userId, jobId) {
@@ -11,7 +12,6 @@ class InterviewPlannerService {
     ]);
 
     if (!job) {
-      const ApiError = require('../utils/api-error');
       throw new ApiError(404, 'Job posting not found');
     }
 
@@ -82,4 +82,4 @@ class InterviewPlannerService {
   }
 }
 
-module.exports = new InterviewPlannerService();
+export default new InterviewPlannerService();

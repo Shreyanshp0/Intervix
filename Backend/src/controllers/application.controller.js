@@ -1,9 +1,9 @@
-const applicationService = require('../services/application.service');
-const { calculateProfileCompleteness } = require('../utils/profile.utils');
+import applicationService from '../services/application.service.js';
+import candidateService from '../services/candidate.service.js';
+import { calculateProfileCompleteness } from '../utils/profile.utils.js';
 
 const applyToJob = async (req, res, next) => {
   try {
-    const candidateService = require('../services/candidate.service');
     const profile = await candidateService.getOrCreateCandidateProfile(req.user._id);
 
     const completeness = calculateProfileCompleteness(profile);
@@ -101,7 +101,7 @@ const addRecruiterFeedback = async (req, res, next) => {
   }
 };
 
-module.exports = {
+export {
   applyToJob,
   listCandidateApplications,
   getCandidateApplication,

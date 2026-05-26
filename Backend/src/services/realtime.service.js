@@ -1,4 +1,4 @@
-const logger = require('../config/logger');
+import logger from '../config/logger.js';
 
 class RealtimeService {
   constructor() {
@@ -41,4 +41,4 @@ class RealtimeService {
   }
 }
 
-module.exports = new RealtimeService();
+export default new RealtimeService();

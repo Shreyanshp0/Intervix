@@ -1,4 +1,4 @@
-const InterviewSession = require('../models/InterviewSession');
+import InterviewSession from '../models/InterviewSession.js';
 
 const EXPERIENCE_ORDER = ['intern', 'junior', 'mid', 'senior', 'lead', 'executive'];
 const WEIGHTS = {
@@ -241,4 +241,4 @@ class MatchingService {
   }
 }
 
-module.exports = new MatchingService();
+export default new MatchingService();

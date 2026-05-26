@@ -1,4 +1,4 @@
-const recruiterService = require('../services/recruiter.service');
+import recruiterService from '../services/recruiter.service.js';
 
 const getRecruiterProfile = async (req, res, next) => {
   try {
@@ -67,7 +67,7 @@ const getCandidateProfileForRecruiter = async (req, res, next) => {
   }
 };
 
-module.exports = {
+export {
   getRecruiterProfile,
   updateRecruiterProfile,
   updateCompanyProfile,

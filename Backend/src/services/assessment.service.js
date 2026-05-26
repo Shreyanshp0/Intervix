@@ -1,6 +1,6 @@
-const aiService = require('../ai/groq.service');
-const logger = require('../config/logger');
-const { InterviewError } = require('../utils/interview-errors');
+import aiService from '../ai/groq.service.js';
+import logger from '../config/logger.js';
+import { InterviewError } from '../utils/interview-errors.js';
 
 class AssessmentService {
   validateAssessment(data) {
@@ -76,4 +76,4 @@ class AssessmentService {
   }
 }
 
-module.exports = new AssessmentService();
+export default new AssessmentService();

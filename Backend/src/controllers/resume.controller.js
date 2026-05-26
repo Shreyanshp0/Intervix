@@ -1,13 +1,13 @@
-const fs = require('fs');
-const path = require('path');
-const mongoose = require('mongoose');
-const Resume = require('../models/Resume');
-const candidateService = require('../services/candidate.service');
-const resumeParserService = require('../services/resume-parser.service');
-const cloudinaryService = require('../services/cloudinary.service');
-const ApiError = require('../utils/api-error');
-const logger = require('../config/logger');
-const { calculateCandidateCompletion, buildSkillPayload } = require('../utils/profile.utils');
+import fs from 'fs';
+import path from 'path';
+import mongoose from 'mongoose';
+import Resume from '../models/Resume.js';
+import candidateService from '../services/candidate.service.js';
+import resumeParserService from '../services/resume-parser.service.js';
+import cloudinaryService from '../services/cloudinary.service.js';
+import ApiError from '../utils/api-error.js';
+import logger from '../config/logger.js';
+import { calculateCandidateCompletion, buildSkillPayload } from '../utils/profile.utils.js';
 
 const isValidObjectId = (value) => mongoose.Types.ObjectId.isValid(value);
 
@@ -419,4 +419,4 @@ async function previewResume(req, res, next) {
   }
 }
 
-module.exports = resumeController;
+export default resumeController;

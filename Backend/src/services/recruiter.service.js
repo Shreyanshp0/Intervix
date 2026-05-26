@@ -1,12 +1,12 @@
-const CandidateProfile = require('../models/CandidateProfile');
-const Company = require('../models/Company');
-const RecruiterProfile = require('../models/RecruiterProfile');
-const InterviewSession = require('../models/InterviewSession');
-const User = require('../models/User');
-const JobPosting = require('../models/JobPosting');
-const Application = require('../models/Application');
-const ApiError = require('../utils/api-error');
-const logger = require('../config/logger');
+import CandidateProfile from '../models/CandidateProfile.js';
+import Company from '../models/Company.js';
+import RecruiterProfile from '../models/RecruiterProfile.js';
+import InterviewSession from '../models/InterviewSession.js';
+import User from '../models/User.js';
+import JobPosting from '../models/JobPosting.js';
+import Application from '../models/Application.js';
+import ApiError from '../utils/api-error.js';
+import logger from '../config/logger.js';
 
 const recruiterPopulate = [
   { path: 'company' }
@@ -210,4 +210,4 @@ class RecruiterService {
   }
 }
 
-module.exports = new RecruiterService();
+export default new RecruiterService();

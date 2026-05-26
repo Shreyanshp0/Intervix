@@ -4,6 +4,6 @@ const USER_ROLES = Object.freeze({
   ADMIN: 'admin'
 });
 
-module.exports = {
+export {
   USER_ROLES
 };

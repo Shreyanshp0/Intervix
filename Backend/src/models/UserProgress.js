@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const topicPerformanceSchema = new mongoose.Schema(
   {
@@ -134,4 +134,4 @@ const userProgressSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model('UserProgress', userProgressSchema);
+export default mongoose.model('UserProgress', userProgressSchema);

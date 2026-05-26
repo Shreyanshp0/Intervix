@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const stageHistorySchema = new mongoose.Schema({
   stage: {
@@ -131,4 +131,4 @@ applicationSchema.index({ job: 1, candidate: 1 }, { unique: true });
 applicationSchema.index({ recruiter: 1, stage: 1, updatedAt: -1 });
 applicationSchema.index({ candidateUser: 1, updatedAt: -1 });
 
-module.exports = mongoose.model('Application', applicationSchema);
+export default mongoose.model('Application', applicationSchema);

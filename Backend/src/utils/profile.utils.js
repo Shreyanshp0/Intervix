@@ -78,7 +78,7 @@ const calculateProfileCompleteness = (profile) => {
   };
 };
 
-module.exports = {
+export {
   buildSkillPayload,
   calculateCandidateCompletion,
   calculateProfileCompleteness,

@@ -125,7 +125,7 @@ function shouldTrimForBudget(messages = [], budget = DEFAULT_TOKEN_BUDGET) {
   return estimateTokens(messages) > budget;
 }
 
-module.exports = {
+export {
   DEFAULT_HISTORY_LIMIT,
   DEFAULT_TOKEN_BUDGET,
   compactHistory,

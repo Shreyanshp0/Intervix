@@ -8,7 +8,7 @@
  * - Detect misconfigured endpoints
  */
 
-const { buildQualifiedRoutes, ROUTE_DEFINITIONS } = require('../constants/api-routes');
+import { buildQualifiedRoutes, ROUTE_DEFINITIONS } from '../constants/api-routes.js';
 
 const normalizeRoute = (route) => {
   // Normalize route to compare correctly
@@ -177,7 +177,7 @@ const buildValidationReport = () => {
   };
 };
 
-module.exports = {
+export {
   detectRouteConflicts,
   validateRouteProtection,
   validateMissingRoutes,

@@ -1,14 +1,14 @@
-const socketIo = require('socket.io');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const logger = require('../config/logger');
-const interviewSessionService = require('../services/interview-session.service');
-const timerService = require('../services/timer.service');
-const realtimeService = require('../services/realtime.service');
-const voiceOrchestratorService = require('../services/voice-orchestrator.service');
-const registerInterviewHandlers = require('./interview.socket');
-const { getTrustedOrigins } = require('../config/security');
-const liveInterviewService = require('../services/live-interview.service');
+import * as socketIo from 'socket.io';
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
+import logger from '../config/logger.js';
+import interviewSessionService from '../services/interview-session.service.js';
+import timerService from '../services/timer.service.js';
+import realtimeService from '../services/realtime.service.js';
+import voiceOrchestratorService from '../services/voice-orchestrator.service.js';
+import registerInterviewHandlers from './interview.socket.js';
+import { getTrustedOrigins } from '../config/security.js';
+import liveInterviewService from '../services/live-interview.service.js';
 
 let io;
 const timerIntervals = new Map();
@@ -80,7 +80,7 @@ const authenticateSocket = async (socket, next) => {
 };
 
 const initSocket = (server) => {
-  io = socketIo(server, {
+  io = new socketIo.Server(server, {
     cors: {
       origin: getTrustedOrigins(),
       methods: ['GET', 'POST'],
@@ -249,4 +249,4 @@ const getIo = () => {
   return io;
 };
 
-module.exports = { initSocket, getIo };
+export { initSocket, getIo };

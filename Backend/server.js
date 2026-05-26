@@ -1,15 +1,15 @@
-require('dotenv').config();
-const dns = require('dns');
-const http = require('http');
-const app = require('./src/app');
-const { initSocket } = require('./src/sockets');
-const { connectDB, closeDB, mongoose } = require('./src/config/db');
-const logger = require('./src/config/logger');
-const { API_ROUTES, getAllApiRoutes } = require('./src/constants/api-routes');
-const { buildValidationReport } = require('./src/utils/route-validator');
-const { generateDeploymentHealthReport } = require('./src/utils/deployment-health');
-const { buildModuleHealthReport } = require('./src/utils/module-health');
-const { printRegisteredRoutes } = require('./src/utils/routes-printer');
+import 'dotenv/config';
+import dns from 'dns';
+import http from 'http';
+import app from './src/app.js';
+import { initSocket } from './src/sockets/index.js';
+import { connectDB, closeDB, mongoose } from './src/config/db.js';
+import logger from './src/config/logger.js';
+import { API_ROUTES, getAllApiRoutes } from './src/constants/api-routes.js';
+import { buildValidationReport } from './src/utils/route-validator.js';
+import { generateDeploymentHealthReport } from './src/utils/deployment-health.js';
+import { buildModuleHealthReport } from './src/utils/module-health.js';
+import { printRegisteredRoutes } from './src/utils/routes-printer.js';
 
 const PORT = process.env.PORT || 5000;
 

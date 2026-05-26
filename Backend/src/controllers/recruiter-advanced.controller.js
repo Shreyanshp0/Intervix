@@ -1,15 +1,15 @@
-const copilotService = require('../services/copilot.service');
-const interviewPlannerService = require('../services/interview-planner.service');
-const analyticsService = require('../services/analytics.service');
-const LiveInterview = require('../models/LiveInterview');
-const Application = require('../models/Application');
-const JobPosting = require('../models/JobPosting');
-const CandidateProfile = require('../models/CandidateProfile');
-const RecruiterProfile = require('../models/RecruiterProfile');
-const ApiError = require('../utils/api-error');
-const logger = require('../config/logger');
-const liveInterviewService = require('../services/live-interview.service');
-const crypto = require('crypto');
+import copilotService from '../services/copilot.service.js';
+import interviewPlannerService from '../services/interview-planner.service.js';
+import analyticsService from '../services/analytics.service.js';
+import LiveInterview from '../models/LiveInterview.js';
+import Application from '../models/Application.js';
+import JobPosting from '../models/JobPosting.js';
+import CandidateProfile from '../models/CandidateProfile.js';
+import RecruiterProfile from '../models/RecruiterProfile.js';
+import ApiError from '../utils/api-error.js';
+import logger from '../config/logger.js';
+import liveInterviewService from '../services/live-interview.service.js';
+import crypto from 'crypto';
 
 class RecruiterAdvancedController {
   async queryCopilot(req, res, next) {
@@ -310,7 +310,6 @@ class RecruiterAdvancedController {
       await room.save();
 
       // Dynamically verify this skill in Candidate Profile
-      const CandidateProfile = require('../models/CandidateProfile');
       const profile = await CandidateProfile.findById(room.candidate);
       if (profile) {
         if (!profile.verifiedSkills) {
@@ -351,4 +350,4 @@ class RecruiterAdvancedController {
   }
 }
 
-module.exports = new RecruiterAdvancedController();
+export default new RecruiterAdvancedController();

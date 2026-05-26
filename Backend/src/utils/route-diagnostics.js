@@ -1,4 +1,4 @@
-const { buildQualifiedRoutes, ROUTE_DEFINITIONS, API_BASE } = require('../constants/api-routes');
+import { buildQualifiedRoutes, ROUTE_DEFINITIONS, API_BASE } from '../constants/api-routes.js';
 
 const normalizePath = (value = '') => {
   if (!value) return '/';
@@ -77,7 +77,7 @@ const buildRouteHealthReport = () => {
   };
 };
 
-module.exports = {
+export {
   buildRouteHealthReport,
   getClosestRoute,
   normalizePath,

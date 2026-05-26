@@ -1,5 +1,5 @@
-const fs = require('fs');
-const logger = require('../config/logger');
+import fs from 'fs';
+import logger from '../config/logger.js';
 
 const safeRemoveFile = async (filePath, metadata = {}) => {
   if (!filePath) {
@@ -16,6 +16,6 @@ const safeRemoveFile = async (filePath, metadata = {}) => {
   }
 };
 
-module.exports = {
+export {
   safeRemoveFile,
 };

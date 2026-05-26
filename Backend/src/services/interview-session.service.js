@@ -1,10 +1,10 @@
-const InterviewSession = require('../models/InterviewSession');
-const InterviewMessage = require('../models/InterviewMessage');
-const timerService = require('./timer.service');
-const assessmentService = require('./assessment.service');
-const progressTrackingService = require('./progress-tracking.service');
-const realtimeService = require('./realtime.service');
-const { OwnershipError, DuplicateSubmissionError, SessionLockedError } = require('../utils/interview-errors');
+import InterviewSession from '../models/InterviewSession.js';
+import InterviewMessage from '../models/InterviewMessage.js';
+import timerService from './timer.service.js';
+import assessmentService from './assessment.service.js';
+import progressTrackingService from './progress-tracking.service.js';
+import realtimeService from './realtime.service.js';
+import { OwnershipError, DuplicateSubmissionError, SessionLockedError } from '../utils/interview-errors.js';
 
 class InterviewSessionService {
   sanitizeText(value = '', fallback = '') {
@@ -305,4 +305,4 @@ class InterviewSessionService {
   }
 }
 
-module.exports = new InterviewSessionService();
+export default new InterviewSessionService();

@@ -9,8 +9,8 @@
  * - Route mismatches and path normalization hints
  */
 
-const logger = require('../config/logger');
-const { getClosestRoute } = require('./route-diagnostics');
+import logger from '../config/logger.js';
+import { getClosestRoute } from './route-diagnostics.js';
 
 class APIRequestDiagnosticsLogger {
   constructor() {
@@ -233,7 +233,7 @@ const getDiagnosticsLogger = () => {
   return instance;
 };
 
-module.exports = {
+export {
   APIRequestDiagnosticsLogger,
   getDiagnosticsLogger
 };

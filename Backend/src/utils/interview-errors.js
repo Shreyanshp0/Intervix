@@ -1,4 +1,4 @@
-const ApiError = require('./api-error');
+import ApiError from './api-error.js';
 
 class InterviewError extends ApiError {
   constructor(statusCode, message, details = {}) {
@@ -31,7 +31,7 @@ class OwnershipError extends InterviewError {
   }
 }
 
-module.exports = {
+export {
   InterviewError,
   SessionExpiredError,
   SessionLockedError,

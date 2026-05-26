@@ -1,4 +1,4 @@
-const logger = require('../config/logger');
+import logger from '../config/logger.js';
 
 const logVoiceStage = (stage, payload = {}) => {
   const serialized = Object.keys(payload).length ? ` ${JSON.stringify(payload)}` : '';
@@ -21,7 +21,7 @@ const logVoiceError = (stage, error, payload = {}) => {
   logger.error(`[VoicePipeline] ${stage} failed ${JSON.stringify(base)}`);
 };
 
-module.exports = {
+export {
   logVoiceStage,
   logVoiceWarning,
   logVoiceError,

@@ -1,8 +1,8 @@
-const CandidateProfile = require('../models/CandidateProfile');
-const RecruiterProfile = require('../models/RecruiterProfile');
-const JobPosting = require('../models/JobPosting');
-const groqService = require('../ai/groq.service');
-const ApiError = require('../utils/api-error');
+import CandidateProfile from '../models/CandidateProfile.js';
+import RecruiterProfile from '../models/RecruiterProfile.js';
+import JobPosting from '../models/JobPosting.js';
+import groqService from '../ai/groq.service.js';
+import ApiError from '../utils/api-error.js';
 
 class CopilotService {
   async queryCopilot(query, userId) {
@@ -100,4 +100,4 @@ class CopilotService {
   }
 }
 
-module.exports = new CopilotService();
+export default new CopilotService();

@@ -1,5 +1,5 @@
-const InterviewSession = require('../models/InterviewSession');
-const { SessionExpiredError, SessionLockedError } = require('../utils/interview-errors');
+import InterviewSession from '../models/InterviewSession.js';
+import { SessionExpiredError, SessionLockedError } from '../utils/interview-errors.js';
 
 const DURATION_QUESTION_MAP = {
   10: { min: 5, max: 7 },
@@ -65,4 +65,4 @@ class TimerService {
   }
 }
 
-module.exports = new TimerService();
+export default new TimerService();

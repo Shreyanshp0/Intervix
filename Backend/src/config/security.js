@@ -1,4 +1,4 @@
-const logger = require('./logger');
+import logger from './logger.js';
 
 const splitCsv = (value = '') => String(value)
   .split(',')
@@ -90,7 +90,7 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 
-module.exports = {
+export {
   getTrustedOrigins,
   getHelmetOptions,
   corsOptions

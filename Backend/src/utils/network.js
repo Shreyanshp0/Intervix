@@ -1,5 +1,5 @@
-const dns = require('dns');
-const { withTimeout, retryWithBackoff: retryBase } = require('./async-timeout');
+import dns from 'dns';
+import { withTimeout, retryWithBackoff as retryBase } from './async-timeout.js';
 
 // Prefer IPv4 on Windows where DNS resolution can return IPv6 first and cause
 // issues with some providers.
@@ -84,8 +84,8 @@ const classifyNetworkError = (error) => {
 
 };
 
-module.exports = {
+export {
   fetchWithTimeout,
-  retryWithBackoff: retryBase,
+  retryBase as retryWithBackoff,
   classifyNetworkError,
 };

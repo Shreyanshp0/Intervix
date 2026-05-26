@@ -1,4 +1,4 @@
-const codeExecutionService = require('../services/code-execution.service');
+import codeExecutionService from '../services/code-execution.service.js';
 
 const runCode = async (req, res, next) => {
   try {
@@ -9,6 +9,6 @@ const runCode = async (req, res, next) => {
   }
 };
 
-module.exports = {
+export {
   runCode,
 };

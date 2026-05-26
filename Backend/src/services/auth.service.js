@@ -1,10 +1,10 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const CandidateProfile = require('../models/CandidateProfile');
-const RecruiterProfile = require('../models/RecruiterProfile');
-const Company = require('../models/Company');
-const ApiError = require('../utils/api-error');
-const { USER_ROLES } = require('../utils/roles');
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
+import CandidateProfile from '../models/CandidateProfile.js';
+import RecruiterProfile from '../models/RecruiterProfile.js';
+import Company from '../models/Company.js';
+import ApiError from '../utils/api-error.js';
+import { USER_ROLES } from '../utils/roles.js';
 
 class AuthService {
   async registerUser(userData) {
@@ -55,7 +55,7 @@ class AuthService {
   }
 
   async loginUserWithEmailAndPassword(emailOrUserId, password) {
-    const mongoose = require('mongoose');
+    import mongoose from 'mongoose';
     let query = {};
     if (mongoose.Types.ObjectId.isValid(emailOrUserId)) {
       query = { $or: [{ email: emailOrUserId }, { _id: emailOrUserId }] };
@@ -87,4 +87,4 @@ class AuthService {
   }
 }
 
-module.exports = new AuthService();
+export default new AuthService();

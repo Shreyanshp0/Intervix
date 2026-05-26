@@ -1,10 +1,11 @@
-const JobPosting = require('../models/JobPosting');
-const Application = require('../models/Application');
-const RecruiterProfile = require('../models/RecruiterProfile');
-const CandidateProfile = require('../models/CandidateProfile');
-const matchingService = require('./matching.service');
-const ApiError = require('../utils/api-error');
-const { calculateProfileCompleteness } = require('../utils/profile.utils');
+import JobPosting from '../models/JobPosting.js';
+import Application from '../models/Application.js';
+import RecruiterProfile from '../models/RecruiterProfile.js';
+import CandidateProfile from '../models/CandidateProfile.js';
+import matchingService from './matching.service.js';
+import candidateService from './candidate.service.js';
+import ApiError from '../utils/api-error.js';
+import { calculateProfileCompleteness } from '../utils/profile.utils.js';
 
 const baseJobPopulate = [
   { path: 'company', select: 'name logo industry website description' },
@@ -180,7 +181,6 @@ class JobService {
   }
 
   async listCandidateJobs(userId, query = {}) {
-    const candidateService = require('./candidate.service');
     const profileDoc = await candidateService.getOrCreateCandidateProfile(userId);
     const profile = profileDoc.toObject ? profileDoc.toObject() : profileDoc;
 
@@ -238,7 +238,6 @@ class JobService {
   }
 
   async getCandidateJobsFeed(userId, query = {}) {
-    const candidateService = require('./candidate.service');
     const profileDoc = await candidateService.getOrCreateCandidateProfile(userId);
     const profile = profileDoc.toObject ? profileDoc.toObject() : profileDoc;
 
@@ -352,7 +351,6 @@ class JobService {
   }
 
   async getCandidateJobDetails(userId, jobId) {
-    const candidateService = require('./candidate.service');
     const profileDoc = await candidateService.getOrCreateCandidateProfile(userId);
     const profile = profileDoc.toObject ? profileDoc.toObject() : profileDoc;
 
@@ -386,4 +384,4 @@ class JobService {
   }
 }
 
-module.exports = new JobService();
+export default new JobService();

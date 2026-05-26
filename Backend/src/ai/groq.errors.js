@@ -1,4 +1,4 @@
-const ApiError = require('../utils/api-error');
+import ApiError from '../utils/api-error.js';
 
 class GroqOperationalError extends ApiError {
   constructor(message, details = {}, statusCode = 500) {
@@ -30,7 +30,7 @@ class ModelUnavailableError extends GroqOperationalError {
   }
 }
 
-module.exports = {
+export {
   GroqOperationalError,
   TokenLimitError,
   UnsupportedParameterError,

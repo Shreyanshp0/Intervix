@@ -8,9 +8,13 @@
  * to AWS S3 & CloudFront when keys are provided in production.
  */
 
-const fs = require('fs');
-const path = require('path');
-const logger = require('./logger') || console;
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import logger from './logger.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // AWS Environment Configurations
 const CONFIG = {
@@ -33,8 +37,8 @@ let s3ClientInstance = null;
 
 if (CONFIG.enabled) {
   try {
-    const s3ClientModule = require('@aws-sdk/client-s3');
-    const s3PresignerModule = require('@aws-sdk/s3-request-presigner');
+    const s3ClientModule = await import('@aws-sdk/client-s3');
+    const s3PresignerModule = await import('@aws-sdk/s3-request-presigner');
     
     S3Client = s3ClientModule.S3Client;
     PutObjectCommand = s3ClientModule.PutObjectCommand;
@@ -214,7 +218,7 @@ class S3ReadyAdapter {
   }
 }
 
-module.exports = new S3ReadyAdapter();
+export default new S3ReadyAdapter();
 
 /**
  * =========================================================================

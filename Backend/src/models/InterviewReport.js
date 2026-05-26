@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const interviewReportSchema = new mongoose.Schema({
   sessionId: {
@@ -39,4 +39,4 @@ const interviewReportSchema = new mongoose.Schema({
   }]
 }, { timestamps: true });
 
-module.exports = mongoose.model('InterviewReport', interviewReportSchema);
+export default mongoose.model('InterviewReport', interviewReportSchema);

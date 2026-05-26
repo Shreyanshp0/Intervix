@@ -1,6 +1,6 @@
-const cloudinary = require('../config/cloudinary');
-const logger = require('../config/logger');
-const ApiError = require('../utils/api-error');
+import cloudinary from '../config/cloudinary.js';
+import logger from '../config/logger.js';
+import ApiError from '../utils/api-error.js';
 
 class CloudinaryService {
   async uploadRawFile(filePath, folder, uniqueFilename) {
@@ -34,4 +34,4 @@ class CloudinaryService {
   }
 }
 
-module.exports = new CloudinaryService();
+export default new CloudinaryService();

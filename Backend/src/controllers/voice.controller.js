@@ -1,14 +1,14 @@
-const whisperService = require('../ai/whisper.service');
-const kokoroService = require('../ai/kokoro.service');
-const interviewEngine = require('../ai/interview.engine');
-const interviewSessionService = require('../services/interview-session.service');
-const timerService = require('../services/timer.service');
-const realtimeService = require('../services/realtime.service');
-const voiceOrchestratorService = require('../services/voice-orchestrator.service');
-const { SessionExpiredError } = require('../utils/interview-errors');
-const { VoicePipelineError } = require('../utils/voice-errors');
-const { safeRemoveFile } = require('../utils/file-cleanup');
-const { logVoiceStage, logVoiceError, logVoiceWarning } = require('../utils/voice-pipeline-logger');
+import whisperService from '../ai/whisper.service.js';
+import kokoroService from '../ai/kokoro.service.js';
+import interviewEngine from '../ai/interview.engine.js';
+import interviewSessionService from '../services/interview-session.service.js';
+import timerService from '../services/timer.service.js';
+import realtimeService from '../services/realtime.service.js';
+import voiceOrchestratorService from '../services/voice-orchestrator.service.js';
+import { SessionExpiredError } from '../utils/interview-errors.js';
+import { VoicePipelineError } from '../utils/voice-errors.js';
+import { safeRemoveFile } from '../utils/file-cleanup.js';
+import { logVoiceStage, logVoiceError, logVoiceWarning } from '../utils/voice-pipeline-logger.js';
 
 const buildVoiceErrorResponse = (stage, error) => ({
   success: false,
@@ -249,7 +249,7 @@ const processVoiceResponse = async (req, res, next) => {
 };
 
 
-module.exports = {
+export {
   transcribeAudio,
   generateSpeech,
   processVoiceResponse

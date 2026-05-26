@@ -9,9 +9,13 @@
  * - Cache busting mechanisms
  */
 
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Build version/hash from git commit or timestamp
 const getBuildVersion = () => {
@@ -222,7 +226,7 @@ const generateDeploymentHealthReport = () => {
   };
 };
 
-module.exports = {
+export {
   getBuildVersion,
   getPackageVersion,
   calculateDirHash,

@@ -53,7 +53,7 @@ const retryWithBackoff = async (fn, options = {}) => {
   return null;
 };
 
-module.exports = {
+export {
   sleep,
   withTimeout,
   retryWithBackoff,

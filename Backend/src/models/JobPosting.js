@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const skillSetSchema = new mongoose.Schema({
   raw: [{ type: String, trim: true }],
@@ -107,4 +107,4 @@ jobPostingSchema.index({
 jobPostingSchema.index({ company: 1, hiringStatus: 1, createdAt: -1 });
 jobPostingSchema.index({ 'requiredSkills.normalized': 1, experienceLevel: 1, hiringStatus: 1 });
 
-module.exports = mongoose.model('JobPosting', jobPostingSchema);
+export default mongoose.model('JobPosting', jobPostingSchema);

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const liveInterviewSchema = new mongoose.Schema({
   application: {
@@ -142,4 +142,4 @@ liveInterviewSchema.pre('validate', function ensureRoomId(next) {
   next();
 });
 
-module.exports = mongoose.model('LiveInterview', liveInterviewSchema);
+export default mongoose.model('LiveInterview', liveInterviewSchema);

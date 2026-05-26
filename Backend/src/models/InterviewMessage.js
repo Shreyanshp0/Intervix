@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const interviewMessageSchema = new mongoose.Schema({
   sessionId: {
@@ -26,4 +26,4 @@ const interviewMessageSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-module.exports = mongoose.model('InterviewMessage', interviewMessageSchema);
+export default mongoose.model('InterviewMessage', interviewMessageSchema);

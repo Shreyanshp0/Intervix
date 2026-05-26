@@ -1,4 +1,4 @@
-const crypto = require('crypto');
+import crypto from 'crypto';
 
 /**
  * Creates a unique roomId for collaborative interviews.
@@ -36,7 +36,7 @@ const validateRoom = async (req, res, next) => {
   }
 };
 
-module.exports = {
+export {
   createRoom,
   validateRoom,
 };

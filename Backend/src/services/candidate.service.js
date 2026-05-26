@@ -1,8 +1,9 @@
-const CandidateProfile = require('../models/CandidateProfile');
-const Resume = require('../models/Resume');
-const ApiError = require('../utils/api-error');
-const logger = require('../config/logger');
-const { buildSkillPayload, calculateCandidateCompletion, uniqueStrings } = require('../utils/profile.utils');
+import CandidateProfile from '../models/CandidateProfile.js';
+import Resume from '../models/Resume.js';
+import User from '../models/User.js';
+import ApiError from '../utils/api-error.js';
+import logger from '../config/logger.js';
+import { buildSkillPayload, calculateCandidateCompletion, uniqueStrings } from '../utils/profile.utils.js';
 
 const candidatePopulate = [
   { path: 'resume', select: 'fileName fileUrl mimeType fileSize uploadedAt' }
@@ -12,7 +13,6 @@ class CandidateService {
   async getOrCreateCandidateProfile(userId, userData = {}) {
     let profile = await CandidateProfile.findOne({ user: userId }).populate(candidatePopulate);
     if (!profile) {
-      const User = require('../models/User');
       const user = await User.findById(userId);
       const name = user?.name || userData.name || 'Candidate';
       const email = user?.email || userData.email || 'candidate@intervix.com';
@@ -143,4 +143,4 @@ class CandidateService {
   }
 }
 
-module.exports = new CandidateService();
+export default new CandidateService();

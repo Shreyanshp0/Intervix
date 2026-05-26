@@ -1,8 +1,8 @@
-const SYSTEM_PROMPTS = require('../prompts/interviewer.prompts');
-const {
+import SYSTEM_PROMPTS from '../prompts/interviewer.prompts.js';
+import {
   buildInterviewContext,
   compactHistory,
-} = require('./groq.utils');
+} from './groq.utils.js';
 
 class PromptManager {
   buildInterviewPrompt(session, memory, recentMessages, currentInput, conversationHistory = [], profile = null) {
@@ -56,4 +56,4 @@ class PromptManager {
   }
 }
 
-module.exports = new PromptManager();
+export default new PromptManager();

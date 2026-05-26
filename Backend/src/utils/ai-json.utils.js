@@ -49,7 +49,7 @@ const buildFallbackInterviewResponse = ({ topic = 'technical interview', difficu
   feedback: 'Fallback question used after invalid AI response.',
 });
 
-module.exports = {
+export {
   extractJsonPayload,
   safeJsonParse,
   buildFallbackInterviewResponse,

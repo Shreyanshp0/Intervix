@@ -1,10 +1,10 @@
-const fs = require('fs');
-const path = require('path');
-const dns = require('dns');
-const logger = require('../config/logger');
-const { isSupportedAudioMimeType, MAX_AUDIO_FILE_SIZE, normalizeMime } = require('../utils/audio-utils');
-const { retryWithBackoff } = require('../utils/async-timeout');
-const { fetchWithTimeout, classifyNetworkError } = require('../utils/network');
+import fs from 'fs';
+import path from 'path';
+import dns from 'dns';
+import logger from '../config/logger.js';
+import { isSupportedAudioMimeType, MAX_AUDIO_FILE_SIZE, normalizeMime } from '../utils/audio-utils.js';
+import { retryWithBackoff } from '../utils/async-timeout.js';
+import { fetchWithTimeout, classifyNetworkError } from '../utils/network.js';
 
 // Prefer IPv4 to avoid Windows DNS issues
 if (typeof dns.setDefaultResultOrder === 'function') {
@@ -212,7 +212,7 @@ class WhisperService {
     logger.info('[Whisper] Attempting Whisper transcription via Hugging Face Inference');
     logger.info(`[Whisper] Mime type: ${mimeType}`);
 
-    const normalizedMime = require('../utils/audio-utils').normalizeMime(mimeType);
+    const normalizedMime = normalizeMime(mimeType);
     const safeMime = normalizedMime || 'audio/webm';
 
     logger.info('[Whisper] Preparing request body');
@@ -296,4 +296,4 @@ class WhisperService {
   }
 }
 
-module.exports = new WhisperService();
+export default new WhisperService();

@@ -22,7 +22,7 @@ const isSupportedAudioMimeType = (mimeType = '') => {
 
 const MAX_AUDIO_FILE_SIZE = Number(process.env.VOICE_MAX_FILE_SIZE_BYTES || 15 * 1024 * 1024);
 
-module.exports = {
+export {
   SUPPORTED_AUDIO_MIME_TYPES,
   isSupportedAudioMimeType,
   MAX_AUDIO_FILE_SIZE,

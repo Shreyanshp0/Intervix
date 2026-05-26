@@ -1,12 +1,13 @@
-const aiService = require('./groq.service');
-const memoryService = require('./memory.service');
-const promptManager = require('./prompt.manager');
-const InterviewSession = require('../models/InterviewSession');
-const InterviewMessage = require('../models/InterviewMessage');
-const logger = require('../config/logger');
-const timerService = require('../services/timer.service');
-const interviewSessionService = require('../services/interview-session.service');
-const { buildFallbackInterviewResponse } = require('../utils/ai-json.utils');
+import aiService from './groq.service.js';
+import memoryService from './memory.service.js';
+import promptManager from './prompt.manager.js';
+import InterviewSession from '../models/InterviewSession.js';
+import InterviewMessage from '../models/InterviewMessage.js';
+import CandidateProfile from '../models/CandidateProfile.js';
+import logger from '../config/logger.js';
+import timerService from '../services/timer.service.js';
+import interviewSessionService from '../services/interview-session.service.js';
+import { buildFallbackInterviewResponse } from '../utils/ai-json.utils.js';
 
 class InterviewEngine {
   normalizeQuestion(question = '') {
@@ -155,7 +156,6 @@ class InterviewEngine {
       const adaptiveDifficulty = this.determineAdaptiveDifficulty(session);
 
       // Load candidate profile for resume-aware interviewing
-      const CandidateProfile = require('../models/CandidateProfile');
       const profile = await CandidateProfile.findOne({ user: session.userId }).populate('resume').lean();
 
       // Build prompt
@@ -292,7 +292,6 @@ class InterviewEngine {
       let aiResponse;
       try {
         const memory = await memoryService.getSessionMemory(sessionId);
-        const CandidateProfile = require('../models/CandidateProfile');
         const profile = await CandidateProfile.findOne({ user: session.userId }).populate('resume').lean();
 
         const { systemInstruction, context } = promptManager.buildInterviewPrompt(
@@ -356,4 +355,4 @@ class InterviewEngine {
   }
 }
 
-module.exports = new InterviewEngine();
+export default new InterviewEngine();

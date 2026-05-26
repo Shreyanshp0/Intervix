@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const recruiterProfileSchema = new mongoose.Schema({
   user: {
@@ -26,4 +26,4 @@ const recruiterProfileSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-module.exports = mongoose.model('RecruiterProfile', recruiterProfileSchema);
+export default mongoose.model('RecruiterProfile', recruiterProfileSchema);

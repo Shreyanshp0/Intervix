@@ -4,7 +4,7 @@ const toBool = (v, defaultVal = false) => {
   return String(v).toLowerCase() === 'true';
 };
 
-module.exports = {
+export default {
   ENABLE_TTS: toBool(process.env.ENABLE_TTS, true),
   WHISPER_TIMEOUT_MS: Number(process.env.WHISPER_TIMEOUT_MS || 20000),
   WHISPER_MAX_RETRIES: Number(process.env.WHISPER_MAX_RETRIES || 2),

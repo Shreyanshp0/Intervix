@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const interviewMemorySchema = new mongoose.Schema({
   sessionId: {
@@ -75,4 +75,4 @@ const interviewMemorySchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-module.exports = mongoose.model('InterviewMemory', interviewMemorySchema);
+export default mongoose.model('InterviewMemory', interviewMemorySchema);

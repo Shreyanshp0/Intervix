@@ -1,7 +1,8 @@
-const UserProgress = require('../models/UserProgress');
-const InterviewSession = require('../models/InterviewSession');
-const analyticsService = require('./analytics.service');
-const logger = require('../config/logger');
+import UserProgress from '../models/UserProgress.js';
+import InterviewSession from '../models/InterviewSession.js';
+import CandidateProfile from '../models/CandidateProfile.js';
+import analyticsService from './analytics.service.js';
+import logger from '../config/logger.js';
 
 class ProgressTrackingService {
   async getOrCreate(userId) {
@@ -71,7 +72,6 @@ class ProgressTrackingService {
     };
 
     // Dynamically update candidate profile verified skills map
-    const CandidateProfile = require('../models/CandidateProfile');
     const profile = await CandidateProfile.findOne({ user: session.userId });
     if (profile) {
       if (!profile.verifiedSkills) {
@@ -132,7 +132,6 @@ class ProgressTrackingService {
         .limit(20)
         .lean();
 
-      const CandidateProfile = require('../models/CandidateProfile');
       const profile = await CandidateProfile.findOne({ user: userId }).populate('resume').lean();
       const progressDoc = progress.toObject ? progress.toObject() : progress;
 
@@ -153,4 +152,4 @@ class ProgressTrackingService {
   }
 }
 
-module.exports = new ProgressTrackingService();
+export default new ProgressTrackingService();

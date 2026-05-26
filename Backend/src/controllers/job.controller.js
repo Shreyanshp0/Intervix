@@ -1,4 +1,4 @@
-const jobService = require('../services/job.service');
+import jobService from '../services/job.service.js';
 
 const createJob = async (req, res, next) => {
   try {
@@ -63,7 +63,7 @@ const getCandidateJob = async (req, res, next) => {
   }
 };
 
-module.exports = {
+export {
   createJob,
   listRecruiterJobs,
   getRecruiterJob,

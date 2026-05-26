@@ -1,9 +1,9 @@
-const Groq = require('groq-sdk');
-const logger = require('../config/logger');
-const aiConfig = require('../config/ai.config');
-const { safeJsonParse, extractJsonPayload } = require('../utils/ai-json.utils');
-const { withTimeout } = require('../utils/async-timeout');
-const {
+import Groq from 'groq-sdk';
+import logger from '../config/logger.js';
+import aiConfig from '../config/ai.config.js';
+import { safeJsonParse, extractJsonPayload } from '../utils/ai-json.utils.js';
+import { withTimeout } from '../utils/async-timeout.js';
+import {
   compactHistory,
   compactList,
   estimateTokens,
@@ -11,13 +11,13 @@ const {
   supportsReasoningEffort,
   trimContextForTokens,
   shouldTrimForBudget,
-} = require('./groq.utils');
-const {
+} from './groq.utils.js';
+import {
   GroqOperationalError,
   TokenLimitError,
   UnsupportedParameterError,
   ModelUnavailableError,
-} = require('./groq.errors');
+} from './groq.errors.js';
 
 class GroqService {
   constructor() {
@@ -569,4 +569,4 @@ class GroqService {
   }
 }
 
-module.exports = new GroqService();
+export default new GroqService();

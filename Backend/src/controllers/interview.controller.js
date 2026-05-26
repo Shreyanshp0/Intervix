@@ -1,8 +1,8 @@
-const interviewEngine = require('../ai/interview.engine');
-const interviewSessionService = require('../services/interview-session.service');
-const timerService = require('../services/timer.service');
-const realtimeService = require('../services/realtime.service');
-const { SessionExpiredError } = require('../utils/interview-errors');
+import interviewEngine from '../ai/interview.engine.js';
+import interviewSessionService from '../services/interview-session.service.js';
+import timerService from '../services/timer.service.js';
+import realtimeService from '../services/realtime.service.js';
+import { SessionExpiredError } from '../utils/interview-errors.js';
 
 const logControllerError = (scope, error, extras = {}) => {
   const details = {
@@ -202,7 +202,7 @@ const getDashboard = async (req, res, next) => {
   }
 };
 
-module.exports = {
+export {
   startSession,
   getActiveSession,
   getSessionStatus,

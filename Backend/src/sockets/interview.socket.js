@@ -1,7 +1,7 @@
-const logger = require('../config/logger');
-const LiveInterview = require('../models/LiveInterview');
-const liveInterviewService = require('../services/live-interview.service');
-const codeExecutionService = require('../services/code-execution.service');
+import logger from '../config/logger.js';
+import LiveInterview from '../models/LiveInterview.js';
+import liveInterviewService from '../services/live-interview.service.js';
+import codeExecutionService from '../services/code-execution.service.js';
 
 const logSocketError = (socket, event, error) => {
   logger.warn(`[SOCKET] ${event} failed for ${socket.id}: ${error.message}`);
@@ -476,4 +476,4 @@ const registerInterviewHandlers = (io, socket) => {
   });
 };
 
-module.exports = registerInterviewHandlers;
+export default registerInterviewHandlers;

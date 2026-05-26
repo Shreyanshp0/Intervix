@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const educationSchema = new mongoose.Schema({
   institution: { type: String, trim: true },
@@ -75,4 +75,4 @@ const candidateProfileSchema = new mongoose.Schema({
 
 candidateProfileSchema.index({ 'skills.normalized': 1, location: 1 });
 
-module.exports = mongoose.model('CandidateProfile', candidateProfileSchema);
+export default mongoose.model('CandidateProfile', candidateProfileSchema);

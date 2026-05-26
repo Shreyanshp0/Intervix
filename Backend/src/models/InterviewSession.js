@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const transcriptEntrySchema = new mongoose.Schema(
   {
@@ -344,4 +344,4 @@ const interviewSessionSchema = new mongoose.Schema(
 interviewSessionSchema.index({ userId: 1, createdAt: -1 });
 interviewSessionSchema.index({ userId: 1, topic: 1, createdAt: -1 });
 
-module.exports = mongoose.model('InterviewSession', interviewSessionSchema);
+export default mongoose.model('InterviewSession', interviewSessionSchema);

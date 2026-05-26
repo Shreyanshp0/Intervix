@@ -1,9 +1,9 @@
-const crypto = require('crypto');
-const kokoroService = require('../ai/kokoro.service');
-const realtimeService = require('./realtime.service');
-const interviewSessionService = require('./interview-session.service');
-const logger = require('../config/logger');
-const { logVoiceStage, logVoiceWarning } = require('../utils/voice-pipeline-logger');
+import crypto from 'crypto';
+import kokoroService from '../ai/kokoro.service.js';
+import realtimeService from './realtime.service.js';
+import interviewSessionService from './interview-session.service.js';
+import logger from '../config/logger.js';
+import { logVoiceStage, logVoiceWarning } from '../utils/voice-pipeline-logger.js';
 
 class VoiceOrchestratorService {
   createRequestId(sessionId) {
@@ -109,4 +109,4 @@ class VoiceOrchestratorService {
   }
 }
 
-module.exports = new VoiceOrchestratorService();
+export default new VoiceOrchestratorService();

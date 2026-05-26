@@ -1,7 +1,11 @@
-const { exec } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-const logger = require('../config/logger');
+import { exec } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import logger from '../config/logger.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const SUPPORTED_LANGUAGES = new Set(['javascript', 'js', 'python', 'py', 'c', 'cpp', 'c++', 'java']);
 
@@ -119,7 +123,7 @@ const runCode = async ({ code, language = 'javascript', input = '' }) => {
   }
 };
 
-module.exports = {
+export default {
   runCode,
   normalizeLanguage,
 };

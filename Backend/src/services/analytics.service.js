@@ -193,4 +193,4 @@ class AnalyticsService {
   }
 }
 
-module.exports = new AnalyticsService();
+export default new AnalyticsService();

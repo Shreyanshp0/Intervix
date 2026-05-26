@@ -1,6 +1,6 @@
-const InterviewMemory = require('../models/InterviewMemory');
-const InterviewMessage = require('../models/InterviewMessage');
-const logger = require('../config/logger');
+import InterviewMemory from '../models/InterviewMemory.js';
+import InterviewMessage from '../models/InterviewMessage.js';
+import logger from '../config/logger.js';
 
 class MemoryService {
   async getSessionMemory(sessionId) {
@@ -113,4 +113,4 @@ class MemoryService {
   }
 }
 
-module.exports = new MemoryService();
+export default new MemoryService();

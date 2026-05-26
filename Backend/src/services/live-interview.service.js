@@ -1,7 +1,7 @@
-const LiveInterview = require('../models/LiveInterview');
-const CandidateProfile = require('../models/CandidateProfile');
-const RecruiterProfile = require('../models/RecruiterProfile');
-const ApiError = require('../utils/api-error');
+import LiveInterview from '../models/LiveInterview.js';
+import CandidateProfile from '../models/CandidateProfile.js';
+import RecruiterProfile from '../models/RecruiterProfile.js';
+import ApiError from '../utils/api-error.js';
 
 const roomName = (roomId) => `interview_${roomId}`;
 
@@ -145,7 +145,7 @@ const markParticipantLeft = async ({ roomIds, user, socketId }) => {
   }));
 };
 
-module.exports = {
+export default {
   roomName,
   assertRoomAccess,
   buildRoomPayload,

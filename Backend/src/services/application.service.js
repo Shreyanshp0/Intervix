@@ -1,11 +1,12 @@
-const Application = require('../models/Application');
-const JobPosting = require('../models/JobPosting');
-const CandidateProfile = require('../models/CandidateProfile');
-const RecruiterProfile = require('../models/RecruiterProfile');
-const LiveInterview = require('../models/LiveInterview');
-const crypto = require('crypto');
-const matchingService = require('./matching.service');
-const ApiError = require('../utils/api-error');
+import Application from '../models/Application.js';
+import JobPosting from '../models/JobPosting.js';
+import CandidateProfile from '../models/CandidateProfile.js';
+import RecruiterProfile from '../models/RecruiterProfile.js';
+import LiveInterview from '../models/LiveInterview.js';
+import crypto from 'crypto';
+import matchingService from './matching.service.js';
+import candidateService from './candidate.service.js';
+import ApiError from '../utils/api-error.js';
 
 const applicationPopulate = [
   {
@@ -43,7 +44,6 @@ class ApplicationService {
   }
 
   async applyToJob(user, jobId, payload) {
-    const candidateService = require('./candidate.service');
     const [profile, job] = await Promise.all([
       candidateService.getOrCreateCandidateProfile(user._id),
       JobPosting.findOne({ _id: jobId, archivedAt: null }).populate('company recruiter')
@@ -217,7 +217,7 @@ class ApplicationService {
     // console.log("Generated roomId:", roomId);
     
     // For now, I will generate a random roomId as a placeholder.
-    const roomId = require('crypto').randomBytes(8).toString('hex');
+    const roomId = crypto.randomBytes(8).toString('hex');
 
     if (liveInterview) {
       liveInterview.scheduledAt = scheduledFor;
@@ -274,4 +274,4 @@ class ApplicationService {
   }
 }
 
-module.exports = new ApplicationService();
+export default new ApplicationService();

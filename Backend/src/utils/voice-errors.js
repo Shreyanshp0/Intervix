@@ -1,4 +1,4 @@
-const ApiError = require('./api-error');
+import ApiError from './api-error.js';
 
 class VoicePipelineError extends ApiError {
   constructor(stage, message, details = {}, statusCode = 500) {
@@ -15,7 +15,7 @@ class ExternalProviderError extends VoicePipelineError {
   }
 }
 
-module.exports = {
+export {
   VoicePipelineError,
   ExternalProviderError,
 };

@@ -1,8 +1,8 @@
-const fs = require('fs');
-const pdfParse = require('pdf-parse');
-const mammoth = require('mammoth');
-const groqService = require('../ai/groq.service');
-const ApiError = require('../utils/api-error');
+import fs from 'fs';
+import pdfParse from 'pdf-parse';
+import mammoth from 'mammoth';
+import groqService from '../ai/groq.service.js';
+import ApiError from '../utils/api-error.js';
 
 class ResumeParserService {
   async extractResumeText(filePath, mimeType) {
@@ -46,4 +46,4 @@ class ResumeParserService {
   }
 }
 
-module.exports = new ResumeParserService();
+export default new ResumeParserService();

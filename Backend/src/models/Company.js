@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const socialLinksSchema = new mongoose.Schema({
   linkedin: { type: String, trim: true, default: '' },
@@ -33,4 +33,4 @@ const companySchema = new mongoose.Schema({
 
 companySchema.index({ name: 1, industry: 1 });
 
-module.exports = mongoose.model('Company', companySchema);
+export default mongoose.model('Company', companySchema);
