@@ -77,7 +77,7 @@ app.get('/health/socket', (req, res) => {
 });
 
 app.get('/health/webrtc', (req, res) => {
-  const turnConfigured = Boolean(process.env.TURN_URL || process.env.VITE_TURN_URL);
+  const turnConfigured = Boolean(process.env.TURN_URL);
   res.status(200).json({
     status: turnConfigured ? 'healthy' : 'degraded',
     service: 'webrtc',

@@ -60,6 +60,9 @@ export const API_ROUTES = {
   },
   health: {
     routes: `${API_PREFIX}/health/routes`
+  },
+  webrtc: {
+    config: `${API_PREFIX}/webrtc/config`
   }
 };
 

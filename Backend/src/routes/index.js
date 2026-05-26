@@ -9,6 +9,7 @@ import voiceRoutes from './voice.routes.js';
 import resumeRoutes from './resume.routes.js';
 import recruiterAdvancedRoutes from './recruiter-advanced.routes.js';
 import codeRoutes from './code.routes.js';
+import webrtcRoutes from './webrtc.routes.js';
 import { buildRouteHealthReport } from '../utils/route-diagnostics.js';
 import { buildValidationReport } from '../utils/route-validator.js';
 import { generateDeploymentHealthReport } from '../utils/deployment-health.js';
@@ -147,5 +148,6 @@ router.use('/voice', voiceRoutes);
 router.use('/resume', resumeRoutes);
 router.use('/recruiter/advanced', recruiterAdvancedRoutes);
 router.use('/code', codeRoutes);
+router.use('/webrtc', webrtcRoutes);
 
 export default router;

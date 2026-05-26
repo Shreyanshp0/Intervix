@@ -113,36 +113,37 @@ const registerInterviewHandlers = (io, socket) => {
     }
   });
 
-  socket.on('webrtc_offer', async ({ roomId, offer, to } = {}) => {
+  socket.on('webrtc_offer', async ({ roomId, offer, to, channel = 'main' } = {}) => {
     try {
       await liveInterviewService.assertRoomAccess(roomId, socket.user, 'signal');
-      const payload = { roomId, offer, from: socket.id };
+      const payload = { roomId, offer, from: socket.id, channel };
       if (to) io.to(to).emit('webrtc_offer', payload);
       else socket.to(liveInterviewService.roomName(roomId)).emit('webrtc_offer', payload);
-      logger.info(`[WEBRTC] offer relayed for ${roomId}`);
+      logger.info(`[NEGOTIATION] offer relayed for ${roomId} channel=${channel}`);
     } catch (error) {
       logSocketError(socket, 'webrtc_offer', error);
     }
   });
 
-  socket.on('webrtc_answer', async ({ roomId, answer, to } = {}) => {
+  socket.on('webrtc_answer', async ({ roomId, answer, to, channel = 'main' } = {}) => {
     try {
       await liveInterviewService.assertRoomAccess(roomId, socket.user, 'signal');
-      const payload = { roomId, answer, from: socket.id };
+      const payload = { roomId, answer, from: socket.id, channel };
       if (to) io.to(to).emit('webrtc_answer', payload);
       else socket.to(liveInterviewService.roomName(roomId)).emit('webrtc_answer', payload);
-      logger.info(`[WEBRTC] answer relayed for ${roomId}`);
+      logger.info(`[NEGOTIATION] answer relayed for ${roomId} channel=${channel}`);
     } catch (error) {
       logSocketError(socket, 'webrtc_answer', error);
     }
   });
 
-  socket.on('webrtc_ice_candidate', async ({ roomId, candidate, to } = {}) => {
+  socket.on('webrtc_ice_candidate', async ({ roomId, candidate, to, channel = 'main' } = {}) => {
     try {
       await liveInterviewService.assertRoomAccess(roomId, socket.user, 'signal');
-      const payload = { roomId, candidate, from: socket.id };
+      const payload = { roomId, candidate, from: socket.id, channel };
       if (to) io.to(to).emit('webrtc_ice_candidate', payload);
       else socket.to(liveInterviewService.roomName(roomId)).emit('webrtc_ice_candidate', payload);
+      logger.info(`[ICE] candidate relayed for ${roomId} channel=${channel}`);
     } catch (error) {
       logSocketError(socket, 'webrtc_ice_candidate', error);
     }
