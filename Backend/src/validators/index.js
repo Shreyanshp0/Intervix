@@ -178,7 +178,10 @@ const applicationStageSchema = z.object({
 });
 
 const interviewScheduleSchema = z.object({
-  scheduledFor: z.string().datetime(),
+  scheduledFor: z.string().min(1, 'scheduledFor is required').refine((value) => {
+    const date = new Date(value);
+    return !Number.isNaN(date.getTime());
+  }, { message: 'Invalid ISO datetime' }),
   timezone: z.string().min(2),
   mode: z.enum(['phone', 'video', 'onsite', 'take-home', 'async']),
   meetingLink: z.string().optional().default(''),

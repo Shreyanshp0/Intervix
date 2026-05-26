@@ -198,8 +198,14 @@ class ApplicationService {
 
   async scheduleInterview(userId, applicationId, payload) {
     const application = await this.ensureRecruiterOwnsApplication(userId, applicationId);
+    const scheduledFor = new Date(payload.scheduledFor);
+
+    if (Number.isNaN(scheduledFor.getTime())) {
+      throw new ApiError(400, 'Invalid ISO datetime');
+    }
+
     application.interviewSchedule = {
-      scheduledFor: payload.scheduledFor,
+      scheduledFor,
       timezone: payload.timezone,
       mode: payload.mode,
       meetingLink: payload.meetingLink,

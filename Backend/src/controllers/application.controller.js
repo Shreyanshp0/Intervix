@@ -71,6 +71,17 @@ const updateApplicationStage = async (req, res, next) => {
 
 const scheduleInterview = async (req, res, next) => {
   try {
+    console.log('Received schedule date:', req.body?.scheduledFor);
+
+    const date = new Date(req.body?.scheduledFor);
+    if (!req.body?.scheduledFor || Number.isNaN(date.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid ISO datetime'
+      });
+    }
+
+    req.body.scheduledFor = date.toISOString();
     const application = await applicationService.scheduleInterview(req.user._id, req.params.applicationId, req.body);
     res.status(200).json({ application });
   } catch (error) {

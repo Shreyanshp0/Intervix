@@ -74,11 +74,29 @@ const JobApplicantsPage = () => {
   const submitSchedule = async (applicationId) => {
     try {
       const draft = scheduleDrafts[applicationId];
-      if (!draft?.scheduledFor || !draft?.timezone) return;
-      await api.patch(API_ROUTES.recruiter.applicationSchedule(applicationId), draft);
+      const scheduleDate = draft?.scheduledFor;
+      const timezone = draft?.timezone?.trim();
+
+      if (!scheduleDate || !timezone) {
+        setMessage('Schedule date and timezone are required.');
+        return;
+      }
+
+      const parsedDate = new Date(scheduleDate);
+      if (Number.isNaN(parsedDate.getTime())) {
+        throw new Error('Invalid schedule date');
+      }
+
+      const isoDate = parsedDate.toISOString();
+
+      await api.patch(API_ROUTES.recruiter.applicationSchedule(applicationId), {
+        ...draft,
+        scheduledFor: isoDate,
+        timezone
+      });
       await loadApplicants();
     } catch (error) {
-      setMessage(error.response?.data?.message || 'Unable to schedule interview.');
+      setMessage(error.response?.data?.message || error.message || 'Unable to schedule interview.');
     }
   };
 
