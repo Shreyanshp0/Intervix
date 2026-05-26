@@ -1,109 +1,163 @@
 version: '3.9'
 
 services:
+
+  # ==========================================
+  # MONGODB
+  # ==========================================
+
   mongodb:
     image: mongo:6
     container_name: intervix_mongodb
-    ports:
-      - "27017:27017"
+
     volumes:
       - mongodb_data:/data/db
+
     restart: unless-stopped
+
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
       interval: 10s
       timeout: 5s
       retries: 5
+
     networks:
       - intervix-network
+
+  # ==========================================
+  # BACKEND
+  # ==========================================
 
   backend:
     image: shreyanshp0/intervix-backend:latest
-    build:
-      context: ./Backend
-      args:
-        - BUILDKIT_INLINE_CACHE=1
-        - BUILD_VERSION=${BUILD_VERSION:-$(date +%s)}
+
+    pull_policy: always
+
     container_name: intervix_backend
+
     ports:
       - "5000:5000"
+
     environment:
       - MONGODB_URI=mongodb://mongodb:27017/intervix
-      - NODE_ENV=${NODE_ENV:-production}
+
+      - NODE_ENV=production
+
       - DOCKER_CONTAINER=true
-      - FRONTEND_URL=${FRONTEND_URL:-https://intervix.duckdns.org}
-      - PUBLIC_APP_URL=${PUBLIC_APP_URL:-https://intervix.duckdns.org}
-      - TRUSTED_ORIGINS=${TRUSTED_ORIGINS:-https://intervix.duckdns.org,http://localhost:3000,http://localhost:5173}
-      - TURN_URL=${TURN_URL:-turns:intervix.duckdns.org:5349,turn:intervix.duckdns.org:3478}
-      - BUILD_VERSION=${BUILD_VERSION:-$(date +%s)}
+
+      - FRONTEND_URL=https://intervix.duckdns.org
+
+      - PUBLIC_APP_URL=https://intervix.duckdns.org
+
+      - TRUSTED_ORIGINS=https://intervix.duckdns.org,http://localhost:3000,http://localhost:5173
+
+      - TURN_URL=turns:intervix.duckdns.org:5349,turn:intervix.duckdns.org:3478
+
     env_file:
       - ./Backend/.env
+
     depends_on:
       mongodb:
         condition: service_healthy
+
     restart: unless-stopped
+
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:5000/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
       start_period: 40s
+
     networks:
       - intervix-network
+
+  # ==========================================
+  # FRONTEND
+  # ==========================================
 
   frontend:
     image: shreyanshp0/intervix-frontend:latest
-    build:
-      context: ./Frontend
-      args:
-        - BUILDKIT_INLINE_CACHE=1
-        - BUILD_VERSION=${BUILD_VERSION:-$(date +%s)}
-        - VITE_API_URL=${VITE_API_URL:-/api}
+
+    pull_policy: always
+
     container_name: intervix_frontend
+
     ports:
       - "3000:80"
+
     environment:
-      - VITE_API_URL=${VITE_API_URL:-/api}
-      - VITE_TURN_URL=${VITE_TURN_URL:-turns:intervix.duckdns.org:5349,turn:intervix.duckdns.org:3478}
-      - VITE_TURN_USERNAME=${VITE_TURN_USERNAME:-}
-      - VITE_TURN_CREDENTIAL=${VITE_TURN_CREDENTIAL:-}
-      - NODE_ENV=${NODE_ENV:-production}
+      - VITE_API_URL=/api
+
+      - VITE_TURN_URL=turns:intervix.duckdns.org:5349,turn:intervix.duckdns.org:3478
+
+      - VITE_TURN_USERNAME=
+
+      - VITE_TURN_CREDENTIAL=
+
+      - NODE_ENV=production
+
       - DOCKER_CONTAINER=true
-      - BUILD_VERSION=${BUILD_VERSION:-$(date +%s)}
+
     depends_on:
       backend:
         condition: service_healthy
+
     restart: unless-stopped
+
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      test: ["CMD-SHELL", "wget --spider -q http://localhost || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
       start_period: 40s
+
     networks:
       - intervix-network
 
+  # ==========================================
+  # COTURN
+  # ==========================================
+
   coturn:
     image: coturn/coturn:4
+
     container_name: intervix_coturn
+
     command: ["-c", "/etc/coturn/turnserver.conf"]
+
     ports:
       - "3478:3478/tcp"
       - "3478:3478/udp"
+
       - "5349:5349/tcp"
+
       - "49160-49200:49160-49200/udp"
+
     environment:
-      - TURN_STATIC_AUTH_SECRET=${TURN_STATIC_AUTH_SECRET:-change-me}
+      - TURN_STATIC_AUTH_SECRET=change-me
+
     volumes:
       - ./infra/coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+
       - /etc/letsencrypt:/etc/letsencrypt:ro
+
     restart: unless-stopped
+
     networks:
       - intervix-network
+
+# ==========================================
+# NETWORKS
+# ==========================================
 
 networks:
   intervix-network:
     driver: bridge
+
+# ==========================================
+# VOLUMES
+# ==========================================
 
 volumes:
   mongodb_data:
