@@ -1,10 +1,10 @@
-const express = require('express');
-const multer = require('multer');
-const voiceController = require('../controllers/voice.controller');
-const { protect } = require('../middleware/auth.middleware');
-const fs = require('fs');
-const ApiError = require('../utils/api-error');
-const { isSupportedAudioMimeType, MAX_AUDIO_FILE_SIZE } = require('../utils/audio-utils');
+import express from 'express';
+import multer from 'multer';
+import * as voiceController from '../controllers/voice.controller.js';
+import { protect } from '../middleware/auth.middleware.js';
+import fs from 'node:fs';
+import ApiError from '../utils/api-error.js';
+import { isSupportedAudioMimeType, MAX_AUDIO_FILE_SIZE } from '../utils/audio-utils.js';
 
 const router = express.Router();
 
@@ -50,4 +50,4 @@ router.use((err, req, res, next) => {
   });
 });
 
-module.exports = router;
+export default router;

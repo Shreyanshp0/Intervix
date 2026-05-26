@@ -1,7 +1,7 @@
-const express = require('express');
-const interviewController = require('../controllers/interview.controller');
-const { protect, authorize } = require('../middleware/auth.middleware');
-const { validateStartSession, validateInterviewResponse } = require('../validators');
+import express from 'express';
+import * as interviewController from '../controllers/interview.controller.js';
+import { protect, authorize } from '../middleware/auth.middleware.js';
+import { validateStartSession, validateInterviewResponse } from '../validators/index.js';
 
 const router = express.Router();
 
@@ -18,4 +18,4 @@ router.post('/:sessionId/recover', interviewController.recoverSession);
 router.post('/:sessionId/respond', validateInterviewResponse, interviewController.respondToQuestion);
 router.post('/:sessionId/end', interviewController.endSession);
 
-module.exports = router;
+export default router;

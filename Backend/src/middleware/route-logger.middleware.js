@@ -1,6 +1,6 @@
-const logger = require('../config/logger');
-const { getClosestRoute, normalizePath } = require('../utils/route-diagnostics');
-const { getDiagnosticsLogger } = require('../utils/request-diagnostics');
+import logger from '../config/logger.js';
+import { getClosestRoute, normalizePath } from '../utils/route-diagnostics.js';
+import { getDiagnosticsLogger } from '../utils/request-diagnostics.js';
 
 const routeNotFoundHandler = (req, res) => {
   try {
@@ -62,7 +62,7 @@ const requestTimingMiddleware = (req, res, next) => {
   next();
 };
 
-module.exports = {
+export {
   routeNotFoundHandler,
   requestTimingMiddleware
 };

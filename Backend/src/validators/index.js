@@ -1,5 +1,5 @@
-const { z } = require('zod');
-const ApiError = require('../utils/api-error');
+import { z } from 'zod';
+import ApiError from '../utils/api-error.js';
 
 const validateRequest = (schema) => (req, res, next) => {
   try {
@@ -193,17 +193,31 @@ const recruiterFeedbackSchema = z.object({
   visibility: z.enum(['candidate', 'internal']).default('candidate')
 });
 
-module.exports = {
-  validateRegister: validateRequest(registerSchema),
-  validateLogin: validateRequest(loginSchema),
-  validateStartSession: validateRequest(startSessionSchema),
-  validateInterviewResponse: validateRequest(interviewResponseSchema),
-  validateCandidateProfile: validateRequest(candidateProfileSchema),
-  validateRecruiterProfile: validateRequest(recruiterProfileSchema),
-  validateCompanyProfile: validateRequest(companyProfileSchema),
-  validateJobPosting: validateRequest(jobPostingSchema),
-  validateApplication: validateRequest(applicationSchema),
-  validateApplicationStageUpdate: validateRequest(applicationStageSchema),
-  validateInterviewSchedule: validateRequest(interviewScheduleSchema),
-  validateRecruiterFeedback: validateRequest(recruiterFeedbackSchema)
+const validateRegister = validateRequest(registerSchema);
+const validateLogin = validateRequest(loginSchema);
+const validateStartSession = validateRequest(startSessionSchema);
+const validateInterviewResponse = validateRequest(interviewResponseSchema);
+const validateCandidateProfile = validateRequest(candidateProfileSchema);
+const validateRecruiterProfile = validateRequest(recruiterProfileSchema);
+const validateCompanyProfile = validateRequest(companyProfileSchema);
+const validateJobPosting = validateRequest(jobPostingSchema);
+const validateApplication = validateRequest(applicationSchema);
+const validateApplicationStageUpdate = validateRequest(applicationStageSchema);
+const validateInterviewSchedule = validateRequest(interviewScheduleSchema);
+const validateRecruiterFeedback = validateRequest(recruiterFeedbackSchema);
+
+export {
+  validateRequest,
+  validateRegister,
+  validateLogin,
+  validateStartSession,
+  validateInterviewResponse,
+  validateCandidateProfile,
+  validateRecruiterProfile,
+  validateCompanyProfile,
+  validateJobPosting,
+  validateApplication,
+  validateApplicationStageUpdate,
+  validateInterviewSchedule,
+  validateRecruiterFeedback
 };

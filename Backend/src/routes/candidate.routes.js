@@ -1,8 +1,8 @@
-const express = require('express');
-const candidateController = require('../controllers/candidate.controller');
-const applicationController = require('../controllers/application.controller');
-const { protect, authorize, ensureOwnProfile } = require('../middleware/auth.middleware');
-const { validateApplication, validateCandidateProfile } = require('../validators');
+import express from 'express';
+import * as candidateController from '../controllers/candidate.controller.js';
+import * as applicationController from '../controllers/application.controller.js';
+import { protect, authorize, ensureOwnProfile } from '../middleware/auth.middleware.js';
+import { validateApplication, validateCandidateProfile } from '../validators/index.js';
 
 const router = express.Router();
 
@@ -21,4 +21,4 @@ router.get('/applications/:applicationId', ensureOwnProfile('candidate'), applic
 router.get('/live-interviews', ensureOwnProfile('candidate'), candidateController.listLiveInterviews);
 router.get('/live-interviews/:roomId', ensureOwnProfile('candidate'), candidateController.getLiveInterviewRoom);
 
-module.exports = router;
+export default router;

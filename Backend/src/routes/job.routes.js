@@ -1,14 +1,14 @@
-const express = require('express');
-const jobController = require('../controllers/job.controller');
-const applicationController = require('../controllers/application.controller');
-const { protect, authorize, ensureOwnProfile } = require('../middleware/auth.middleware');
-const {
+import express from 'express';
+import * as jobController from '../controllers/job.controller.js';
+import * as applicationController from '../controllers/application.controller.js';
+import { protect, authorize, ensureOwnProfile } from '../middleware/auth.middleware.js';
+import {
   validateApplication,
   validateJobPosting,
   validateApplicationStageUpdate,
   validateInterviewSchedule,
   validateRecruiterFeedback
-} = require('../validators');
+} from '../validators/index.js';
 
 const router = express.Router();
 
@@ -30,4 +30,4 @@ router.patch('/applications/:applicationId/stage', authorize('recruiter', 'admin
 router.patch('/applications/:applicationId/schedule', authorize('recruiter', 'admin'), ensureOwnProfile('recruiter'), validateInterviewSchedule, applicationController.scheduleInterview);
 router.patch('/applications/:applicationId/feedback', authorize('recruiter', 'admin'), ensureOwnProfile('recruiter'), validateRecruiterFeedback, applicationController.addRecruiterFeedback);
 
-module.exports = router;
+export default router;

@@ -1,5 +1,5 @@
-const ApiError = require('../utils/api-error');
-const logger = require('../config/logger');
+import ApiError from '../utils/api-error.js';
+import logger from '../config/logger.js';
 
 const errorConverter = (err, req, res, next) => {
   let error = err;
@@ -39,7 +39,7 @@ const errorHandler = (err, req, res, next) => {
   res.status(statusCode).json(response);
 };
 
-module.exports = {
+export {
   errorConverter,
   errorHandler,
 };

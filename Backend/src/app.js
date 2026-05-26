@@ -1,20 +1,24 @@
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const path = require('path');
-const { errorConverter, errorHandler } = require('./middleware/error.middleware');
-const apiLimiter = require('./middleware/rate-limiter');
-const { routeNotFoundHandler, requestTimingMiddleware } = require('./middleware/route-logger.middleware');
-const { API_BASE } = require('./constants/api-routes');
-const { buildRouteHealthReport } = require('./utils/route-diagnostics');
-const { generateDeploymentHealthReport } = require('./utils/deployment-health');
-const { buildValidationReport } = require('./utils/route-validator');
-const { buildModuleHealthReport } = require('./utils/module-health');
-const { getHelmetOptions, corsOptions } = require('./config/security');
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const routes = require('./routes');
-const logger = require('./config/logger');
+import { errorConverter, errorHandler } from './middleware/error.middleware.js';
+import apiLimiter from './middleware/rate-limiter.js';
+import { routeNotFoundHandler, requestTimingMiddleware } from './middleware/route-logger.middleware.js';
+import { API_BASE } from './constants/api-routes.js';
+import { buildRouteHealthReport } from './utils/route-diagnostics.js';
+import { generateDeploymentHealthReport } from './utils/deployment-health.js';
+import { buildValidationReport } from './utils/route-validator.js';
+import { buildModuleHealthReport } from './utils/module-health.js';
+import { getHelmetOptions, corsOptions } from './config/security.js';
+import routes from './routes/index.js';
+import logger from './config/logger.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -145,4 +149,4 @@ app.use(routeNotFoundHandler);
 app.use(errorConverter);
 app.use(errorHandler);
 
-module.exports = app;
+export default app;

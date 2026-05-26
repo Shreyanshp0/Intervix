@@ -1,6 +1,6 @@
-const express = require('express');
-const recruiterAdvancedController = require('../controllers/recruiter-advanced.controller');
-const { protect, authorize, ensureOwnProfile } = require('../middleware/auth.middleware');
+import express from 'express';
+import recruiterAdvancedController from '../controllers/recruiter-advanced.controller.js';
+import { protect, authorize, ensureOwnProfile } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
@@ -16,4 +16,4 @@ router.get('/live/:roomId', ensureOwnProfile('recruiter'), recruiterAdvancedCont
 router.put('/live/:roomId/notepad', ensureOwnProfile('recruiter'), recruiterAdvancedController.saveLiveNotepad);
 router.post('/live/:roomId/evaluate', ensureOwnProfile('recruiter'), recruiterAdvancedController.evaluateLiveInterview);
 
-module.exports = router;
+export default router;

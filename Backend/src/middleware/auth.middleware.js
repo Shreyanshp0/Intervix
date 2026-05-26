@@ -1,6 +1,7 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const ApiError = require('../utils/api-error');
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
+import ApiError from '../utils/api-error.js';
+import candidateService from '../services/candidate.service.js';
 
 const protect = async (req, res, next) => {
   try {
@@ -47,7 +48,6 @@ const ensureOwnProfile = (role) => async (req, res, next) => {
 
   if (role === 'candidate' && !req.user.candidateProfile) {
     try {
-      const candidateService = require('../services/candidate.service');
       const profile = await candidateService.getOrCreateProfile(req.user._id);
       req.user.candidateProfile = profile._id;
     } catch (err) {
@@ -62,4 +62,4 @@ const ensureOwnProfile = (role) => async (req, res, next) => {
   return next();
 };
 
-module.exports = { protect, authorize, ensureOwnProfile };
+export { protect, authorize, ensureOwnProfile };

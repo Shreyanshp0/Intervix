@@ -1,7 +1,7 @@
-const express = require('express');
-const codeController = require('../controllers/code.controller');
-const roomController = require('../controllers/room.controller');
-const { protect } = require('../middleware/auth.middleware');
+import express from 'express';
+import * as codeController from '../controllers/code.controller.js';
+import * as roomController from '../controllers/room.controller.js';
+import { protect } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
@@ -12,4 +12,4 @@ router.post('/run', codeController.runCode);
 router.post('/room', roomController.createRoom);
 router.get('/room/:roomId', roomController.validateRoom);
 
-module.exports = router;
+export default router;

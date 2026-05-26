@@ -1,19 +1,20 @@
-const express = require('express');
-const authRoutes = require('./auth.routes');
-const candidateRoutes = require('./candidate.routes');
-const interviewRoutes = require('./interview.routes');
-const recruiterRoutes = require('./recruiter.routes');
-const voiceRoutes = require('./voice.routes');
-const resumeRoutes = require('./resume.routes');
-const recruiterAdvancedRoutes = require('./recruiter-advanced.routes');
-const codeRoutes = require('./code.routes');
-const { buildRouteHealthReport } = require('../utils/route-diagnostics');
-const { buildValidationReport } = require('../utils/route-validator');
-const { generateDeploymentHealthReport } = require('../utils/deployment-health');
-const { getDiagnosticsLogger } = require('../utils/request-diagnostics');
+import express from 'express';
+import mongoose from 'mongoose';
 
-const { fetchWithTimeout } = require('../utils/network');
-const mongoose = require('mongoose');
+import authRoutes from './auth.routes.js';
+import candidateRoutes from './candidate.routes.js';
+import interviewRoutes from './interview.routes.js';
+import recruiterRoutes from './recruiter.routes.js';
+import voiceRoutes from './voice.routes.js';
+import resumeRoutes from './resume.routes.js';
+import recruiterAdvancedRoutes from './recruiter-advanced.routes.js';
+import codeRoutes from './code.routes.js';
+import { buildRouteHealthReport } from '../utils/route-diagnostics.js';
+import { buildValidationReport } from '../utils/route-validator.js';
+import { generateDeploymentHealthReport } from '../utils/deployment-health.js';
+import { getDiagnosticsLogger } from '../utils/request-diagnostics.js';
+import { fetchWithTimeout } from '../utils/network.js';
+
 const router = express.Router();
 
 router.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
@@ -147,4 +148,4 @@ router.use('/resume', resumeRoutes);
 router.use('/recruiter/advanced', recruiterAdvancedRoutes);
 router.use('/code', codeRoutes);
 
-module.exports = router;
+export default router;

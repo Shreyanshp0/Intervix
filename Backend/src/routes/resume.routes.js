@@ -1,10 +1,10 @@
-const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const os = require('os');
-const resumeController = require('../controllers/resume.controller');
-const { protect, authorize, ensureOwnProfile } = require('../middleware/auth.middleware');
+import express from 'express';
+import multer from 'multer';
+import path from 'node:path';
+import fs from 'node:fs';
+import os from 'node:os';
+import resumeController from '../controllers/resume.controller.js';
+import { protect, authorize, ensureOwnProfile } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
@@ -102,4 +102,4 @@ router.get(
   resumeController.downloadResumeById
 );
 
-module.exports = router;
+export default router;
