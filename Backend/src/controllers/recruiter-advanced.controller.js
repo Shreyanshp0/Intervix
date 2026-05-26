@@ -247,8 +247,8 @@ class RecruiterAdvancedController {
 
   async saveLiveNotepad(req, res, next) {
     try {
-      const roomId = String(req.params.roomId || '');
-      console.log('Searching roomId:', roomId);
+      const { roomId } = req.params;
+      console.log("Searching roomId for notepad save:", roomId);
       const room = await LiveInterview.findOne({ roomId });
       if (!room) {
         throw new ApiError(404, 'Live Room session not found');
@@ -267,8 +267,8 @@ class RecruiterAdvancedController {
   async evaluateLiveInterview(req, res, next) {
     try {
       const { technicalScore, communicationScore, feedback } = req.body;
-      const roomId = String(req.params.roomId || '');
-      console.log('Searching roomId:', roomId);
+      const { roomId } = req.params;
+      console.log("Searching roomId for evaluation:", roomId);
       const room = await LiveInterview.findOne({ roomId });
       if (!room) {
         throw new ApiError(404, 'Live Room session not found');

@@ -32,18 +32,20 @@ const liveInterviewSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['scheduled', 'active', 'paused', 'completed', 'cancelled'],
+// ... existing code ...
     default: 'scheduled',
     index: true
   },
   roomId: {
     type: String,
-    trim: true,
-    unique: true,
     required: true,
-    index: true
+    unique: true,
+    index: true,
+    trim: true,
   },
   problem: {
     title: { type: String, trim: true, default: 'Live Coding Challenge' },
+// ... existing code ...
     description: { type: String, default: 'Solve the problem collaboratively while explaining your approach.' },
     difficulty: { type: String, trim: true, default: 'Medium' },
     testCases: [{

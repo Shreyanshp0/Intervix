@@ -209,25 +209,42 @@ class ApplicationService {
     const recruiter = await this.getRecruiterProfile(userId);
     let liveInterview = await LiveInterview.findOne({ application: application._id });
 
+    // This service is not available in the provided code, so I am commenting it out.
+    // If you have a service to create a code room, you can uncomment this.
+    // console.log("Creating code room...");
+    // const roomResponse = await createCodeRoom(); // Assuming this function exists and returns { roomId: '...' }
+    // const roomId = roomResponse.roomId;
+    // console.log("Generated roomId:", roomId);
+    
+    // For now, I will generate a random roomId as a placeholder.
+    const roomId = require('crypto').randomBytes(8).toString('hex');
+
     if (liveInterview) {
       liveInterview.scheduledAt = scheduledFor;
       liveInterview.status = 'scheduled';
+      liveInterview.roomId = liveInterview.roomId || roomId; // Assign new roomId if it doesn't exist
       await liveInterview.save();
     } else {
+      console.log("Persisting LiveInterview...");
       liveInterview = await LiveInterview.create({
         application: application._id,
         job: application.job?._id || application.job,
         candidate: application.candidate?._id || application.candidate,
         recruiter: recruiter._id,
-        roomId: crypto.randomBytes(8).toString('hex'),
         scheduledAt: scheduledFor,
-        status: 'scheduled'
+        status: 'scheduled',
+        roomId: roomId, // Persist the generated roomId
       });
-      console.log('Created Live Interview:', liveInterview);
+      console.log("LiveInterview created:", liveInterview);
+
+      if (!liveInterview) {
+        throw new ApiError(500, "Failed to persist LiveInterview");
+      }
     }
 
-    const roomIdentifier = liveInterview.roomId || String(liveInterview._id);
+    const roomIdentifier = liveInterview.roomId;
 
+    console.log("Updating application...");
     application.interviewSchedule = {
       scheduledFor,
       timezone: payload.timezone,
