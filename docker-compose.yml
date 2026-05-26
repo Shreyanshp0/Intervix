@@ -11,10 +11,12 @@ services:
 
     restart: unless-stopped
 
+    command:
+      - --wiredTigerCacheSizeGB
+      - "0.1"
+
     volumes:
       - mongodb_data:/data/db
-
-    command: ["--wiredTigerCacheSizeGB", "0.25"]
 
     networks:
       - intervix-network
@@ -40,26 +42,23 @@ services:
 
     environment:
       - NODE_ENV=production
+
       - DOCKER_CONTAINER=true
 
       - MONGODB_URI=mongodb://mongodb:27017/intervix
 
       - FRONTEND_URL=https://intervix.duckdns.org
+
       - PUBLIC_APP_URL=https://intervix.duckdns.org
 
       - TRUSTED_ORIGINS=https://intervix.duckdns.org,http://localhost:3000
 
-      - TURN_URL=turns:intervix.duckdns.org:5349,turn:intervix.duckdns.org:3478
-
     depends_on:
       - mongodb
 
-    healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:5000/health || exit 1"]
-      interval: 60s
-      timeout: 5s
-      retries: 2
-      start_period: 60s
+    mem_limit: 400m
+
+    cpus: 0.50
 
     networks:
       - intervix-network
@@ -85,57 +84,17 @@ services:
 
     environment:
       - NODE_ENV=production
+
       - DOCKER_CONTAINER=true
 
       - VITE_API_URL=/api
 
-      - VITE_TURN_URL=turns:intervix.duckdns.org:5349,turn:intervix.duckdns.org:3478
-
     depends_on:
       - backend
 
-    healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost || exit 1"]
-      interval: 60s
-      timeout: 5s
-      retries: 2
-      start_period: 60s
+    mem_limit: 200m
 
-    networks:
-      - intervix-network
-
-  # ==========================================
-  # COTURN
-  # ==========================================
-
-  coturn:
-    image: coturn/coturn:4
-
-    container_name: intervix_coturn
-
-    restart: unless-stopped
-
-    command:
-      - -c
-      - /etc/coturn/turnserver.conf
-
-    ports:
-      - "3478:3478/tcp"
-      - "3478:3478/udp"
-
-      - "5349:5349/tcp"
-
-      - "49160-49200:49160-49200/udp"
-
-    environment:
-      - TURN_STATIC_AUTH_SECRET=change-me
-
-    volumes:
-      - ./infra/coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
-      - /etc/letsencrypt:/etc/letsencrypt:ro
-
-    depends_on:
-      - backend
+    cpus: 0.30
 
     networks:
       - intervix-network
