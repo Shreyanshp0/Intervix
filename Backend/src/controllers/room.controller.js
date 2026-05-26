@@ -11,9 +11,15 @@ const createRoom = async (req, res, next) => {
       roomId,
       message: 'Room generated successfully',
     });
-  } catch (error) {
-    next(error);
-  }
+  }catch (error) {
+  console.error("SCHEDULE ERROR STACK:");
+  console.error(error);
+  res.status(500).json({
+    success: false,
+    message: error.message,
+    stack: error.stack
+  });
+}
 };
 
 /**

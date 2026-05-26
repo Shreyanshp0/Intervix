@@ -13,12 +13,16 @@ const recruiterPopulate = [
 ];
 
 class RecruiterService {
-  async getProfileByUserId(userId) {
+  async getOrCreateRecruiterProfile(userId) {
     const profile = await RecruiterProfile.findOne({ user: userId }).populate(recruiterPopulate);
     if (!profile) {
       throw new ApiError(404, 'Recruiter profile not found');
     }
     return profile;
+  }
+
+  async getProfileByUserId(userId) {
+    return this.getOrCreateRecruiterProfile(userId);
   }
 
   async updateRecruiterProfile(user, payload) {

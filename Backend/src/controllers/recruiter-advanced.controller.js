@@ -9,6 +9,8 @@ import RecruiterProfile from '../models/RecruiterProfile.js';
 import ApiError from '../utils/api-error.js';
 import logger from '../config/logger.js';
 import liveInterviewService from '../services/live-interview.service.js';
+import candidateService from '../services/candidate.service.js';
+import recruiterService from '../services/recruiter.service.js';
 import crypto from 'crypto';
 
 class RecruiterAdvancedController {
@@ -152,17 +154,36 @@ class RecruiterAdvancedController {
         throw new ApiError(400, 'applicationId and scheduledAt are required');
       }
 
-      const application = await Application.findById(applicationId).populate('job candidate');
+      const application = await Application.findById(applicationId).populate('job candidate candidateUser');
       if (!application) {
         throw new ApiError(404, 'Application record not found');
       }
 
-      const recruiter = await RecruiterProfile.findOne({ user: req.user._id });
-      if (!recruiter) {
+      if (!application.job) {
+        throw new ApiError(404, 'Job posting not found for this application');
+      }
+
+      if (!application.candidate) {
+        throw new ApiError(404, 'Candidate profile not found for this application');
+      }
+
+      const recruiterProfile = await recruiterService.getOrCreateRecruiterProfile(req.user._id);
+      if (!recruiterProfile?._id) {
         throw new ApiError(404, 'Recruiter profile not found');
       }
 
-      console.log("Checking application details for candidate existence:", application);
+      const candidateProfile = await candidateService.getOrCreateCandidateProfile(
+        application.candidateUser?._id || application.candidate?.user || req.user._id
+      );
+
+      if (!candidateProfile?._id) {
+        throw new ApiError(404, 'Candidate profile not found for this application');
+      }
+
+      const scheduledDate = new Date(scheduledAt);
+      if (Number.isNaN(scheduledDate.getTime())) {
+        throw new ApiError(400, 'Invalid ISO datetime');
+      }
 
       // Generate AI-planner tailoring directive
       const plan = await interviewPlannerService.generateTailoredPlan(
@@ -171,18 +192,27 @@ class RecruiterAdvancedController {
       );
 
       const roomId = crypto.randomUUID();
-      console.log("Generated roomId:", roomId);
+      console.log('APPLICATION:', application?._id);
+      console.log('JOB:', application?.job);
+      console.log('CANDIDATE:', candidateProfile?._id);
+      console.log('RECRUITER:', recruiterProfile?._id);
+      console.log('SCHEDULED AT:', scheduledDate);
+      console.log('ROOM ID:', roomId);
+
+      if (!roomId) {
+        throw new ApiError(500, 'Failed to generate room ID');
+      }
 
       let liveInterview;
       try {
-        console.log("Persisting LiveInterview document...");
-        liveInterview = await LiveInterview.create({
+        console.log('Persisting LiveInterview document...');
+        liveInterview = new LiveInterview({
           application: application._id,
           job: application.job._id,
-          candidate: application.candidate._id,
-          recruiter: recruiter._id,
+          candidate: candidateProfile._id,
+          recruiter: recruiterProfile._id,
           roomId,
-          scheduledAt: new Date(scheduledAt),
+          scheduledAt: scheduledDate,
           status: 'scheduled',
           problem: {
             title: `${application.job.roleTitle || 'Technical'} Live Challenge`,
@@ -200,12 +230,22 @@ class RecruiterAdvancedController {
           recruiterNotes: `AI planner unverified gaps found: ${(plan.unverifiedSkills || []).join(', ') || 'None'}`
         });
 
+        await liveInterview.save();
+
         if (!liveInterview) {
           throw new Error("Failed to persist LiveInterview");
         }
         console.log("LiveInterview created successfully:", liveInterview);
       } catch (error) {
         console.error("Mongoose Persistence Error in scheduleLiveInterview:", error);
+        if (error?.name === 'ValidationError') {
+          console.error('LiveInterview validation failed during create:', error.errors);
+          throw new ApiError(422, 'LiveInterview validation failed');
+        }
+        if (error?.code === 11000) {
+          console.error('LiveInterview duplicate key error during create:', error.keyValue);
+          throw new ApiError(409, 'Live interview room already exists');
+        }
         if (error.errors) {
           Object.keys(error.errors).forEach((key) => {
             console.error(`Validation error on field "${key}":`, error.errors[key].message);

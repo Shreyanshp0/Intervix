@@ -6,6 +6,7 @@ import LiveInterview from '../models/LiveInterview.js';
 import crypto from 'crypto';
 import matchingService from './matching.service.js';
 import candidateService from './candidate.service.js';
+import recruiterService from './recruiter.service.js';
 import ApiError from '../utils/api-error.js';
 
 const applicationPopulate = [
@@ -206,32 +207,79 @@ class ApplicationService {
       throw new ApiError(400, 'Invalid ISO datetime');
     }
 
-    const recruiter = await this.getRecruiterProfile(userId);
+    const job = application.job?._id ? application.job : await JobPosting.findById(application.job);
+    if (!job) {
+      throw new ApiError(404, 'Job posting not found for this application');
+    }
+
+    const candidateProfile = application.candidate?._id
+      ? application.candidate
+      : await candidateService.getOrCreateCandidateProfile(application.candidateUser || application.candidate?.user || userId);
+
+    if (!candidateProfile?._id) {
+      throw new ApiError(404, 'Candidate profile not found for this application');
+    }
+
+    const recruiterProfile = await recruiterService.getOrCreateRecruiterProfile(userId);
+    if (!recruiterProfile?._id) {
+      throw new ApiError(404, 'Recruiter profile not found');
+    }
+
     let liveInterview = await LiveInterview.findOne({ application: application._id });
 
-    // This service is not available in the provided code, so I am commenting it out.
-    // If you have a service to create a code room, you can uncomment this.
-    // console.log("Creating code room...");
-    // const roomResponse = await createCodeRoom(); // Assuming this function exists and returns { roomId: '...' }
     const roomId = crypto.randomUUID();
-    console.log("Generated roomId:", roomId);
+    console.log('APPLICATION:', application?._id);
+    console.log('JOB:', application?.job);
+    console.log('CANDIDATE:', candidateProfile?._id);
+    console.log('RECRUITER:', recruiterProfile?._id);
+    console.log('SCHEDULED AT:', scheduledFor);
+    console.log('ROOM ID:', roomId);
+
+    if (!roomId) {
+      throw new ApiError(500, 'Failed to generate room ID');
+    }
 
     if (liveInterview) {
       liveInterview.scheduledAt = scheduledFor;
       liveInterview.status = 'scheduled';
-      liveInterview.roomId = liveInterview.roomId || roomId; // Assign new roomId if it doesn't exist
-      await liveInterview.save();
+      liveInterview.roomId = liveInterview.roomId || roomId;
+      liveInterview.application = application._id;
+      liveInterview.job = job._id || job;
+      liveInterview.candidate = candidateProfile._id;
+      liveInterview.recruiter = recruiterProfile._id;
+      try {
+        await liveInterview.save();
+      } catch (error) {
+        if (error?.name === 'ValidationError') {
+          console.error('LiveInterview validation failed while updating existing record:', error.errors);
+          throw new ApiError(422, 'LiveInterview validation failed');
+        }
+        throw error;
+      }
     } else {
       console.log("Persisting LiveInterview...");
-      liveInterview = await LiveInterview.create({
+      try {
+        liveInterview = new LiveInterview({
         application: application._id,
-        job: application.job?._id || application.job,
-        candidate: application.candidate?._id || application.candidate,
-        recruiter: recruiter._id,
+        job: job._id || job,
+        candidate: candidateProfile._id,
+        recruiter: recruiterProfile._id,
         scheduledAt: scheduledFor,
         status: 'scheduled',
-        roomId: roomId, // Persist the generated roomId
+        roomId,
       });
+        await liveInterview.save();
+      } catch (error) {
+        if (error?.name === 'ValidationError') {
+          console.error('LiveInterview validation failed during create:', error.errors);
+          throw new ApiError(422, 'LiveInterview validation failed');
+        }
+        if (error?.code === 11000) {
+          console.error('LiveInterview duplicate key error during create:', error.keyValue);
+          throw new ApiError(409, 'Live interview room already exists');
+        }
+        throw error;
+      }
       console.log("LiveInterview created:", liveInterview);
 
       if (!liveInterview) {
