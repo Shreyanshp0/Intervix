@@ -1,31 +1,6 @@
 services:
 
   # ==========================================
-  # MONGODB
-  # ==========================================
-
-  mongodb:
-    image: mongo:6
-
-    container_name: intervix_mongodb
-
-    restart: unless-stopped
-
-    command:
-      - --wiredTigerCacheSizeGB
-      - "0.1"
-
-    volumes:
-      - mongodb_data:/data/db
-
-    mem_limit: 300m
-
-    cpus: 0.40
-
-    networks:
-      - intervix-network
-
-  # ==========================================
   # BACKEND
   # ==========================================
 
@@ -49,20 +24,15 @@ services:
 
       - DOCKER_CONTAINER=true
 
-      - MONGODB_URI=mongodb://mongodb:27017/intervix
-
       - FRONTEND_URL=https://intervix.duckdns.org
 
       - PUBLIC_APP_URL=https://intervix.duckdns.org
 
       - TRUSTED_ORIGINS=https://intervix.duckdns.org,http://localhost:3000
 
-    depends_on:
-      - mongodb
+    mem_limit: 500m
 
-    mem_limit: 400m
-
-    cpus: 0.50
+    cpus: 0.75
 
     networks:
       - intervix-network
@@ -96,9 +66,9 @@ services:
     depends_on:
       - backend
 
-    mem_limit: 200m
+    mem_limit: 250m
 
-    cpus: 0.30
+    cpus: 0.50
 
     networks:
       - intervix-network
@@ -110,10 +80,3 @@ services:
 networks:
   intervix-network:
     driver: bridge
-
-# ==========================================
-# VOLUMES
-# ==========================================
-
-volumes:
-  mongodb_data:
