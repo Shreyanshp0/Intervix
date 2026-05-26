@@ -173,7 +173,7 @@ jobs:
 
             echo "🛑 Stopping old containers..."
 
-            docker compose down || true
+            docker compose down --remove-orphans || true
 
             # =====================================
             # PULL ONLY REQUIRED IMAGES
@@ -182,18 +182,6 @@ jobs:
             echo "📥 Pulling latest backend/frontend images..."
 
             docker compose pull backend frontend
-
-            # =====================================
-            # START DATABASE
-            # =====================================
-
-            echo "🟢 Starting MongoDB..."
-
-            docker compose up -d mongodb
-
-            echo "⏳ Waiting for MongoDB..."
-
-            sleep 45
 
             # =====================================
             # START BACKEND
@@ -205,7 +193,7 @@ jobs:
 
             echo "⏳ Waiting for Backend..."
 
-            sleep 45
+            sleep 20
 
             # =====================================
             # START FRONTEND
@@ -217,7 +205,7 @@ jobs:
 
             echo "⏳ Waiting for Frontend..."
 
-            sleep 30
+            sleep 15
 
             # =====================================
             # LIGHTWEIGHT HEALTH CHECKS
@@ -272,9 +260,11 @@ jobs:
             echo "========================================="
 
             echo ""
+
             echo "🌐 Frontend:"
             echo "https://intervix.duckdns.org"
 
             echo ""
+
             echo "🌐 Backend:"
             echo "https://intervix.duckdns.org/api"
