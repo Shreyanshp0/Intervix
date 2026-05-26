@@ -10,6 +10,7 @@ import { safeArray, safeObject } from '../../utils/safety';
 
 const CandidateDashboard = () => {
   const [dashboard, setDashboard] = useState(null);
+  const [liveInterviews, setLiveInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [randomRoomId] = useState(() => Math.random().toString(36).substring(2, 10));
@@ -18,8 +19,12 @@ const CandidateDashboard = () => {
     const loadDashboard = async () => {
       setLoading(true);
       try {
-        const response = await api.get(API_ROUTES.candidate.dashboard);
+        const [response, liveResponse] = await Promise.all([
+          api.get(API_ROUTES.candidate.dashboard),
+          api.get(API_ROUTES.candidate.liveInterviews).catch(() => ({ data: { interviews: [] } }))
+        ]);
         setDashboard(safeObject(response.data, 'candidate dashboard'));
+        setLiveInterviews(safeArray(liveResponse.data?.interviews, 'candidate live interviews'));
         setError('');
       } catch (error) {
         console.error('Failed to load candidate dashboard:', error);
@@ -209,6 +214,24 @@ const CandidateDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {liveInterviews.slice(0, 1).map((item) => (
+          <div key={item._id} className="glass-card p-6 flex flex-col justify-between group cursor-pointer hover:border-cyan-400/50 transition-colors">
+            <div className="flex justify-between items-start mb-4">
+              <div className="w-12 h-12 rounded-xl bg-cyan-400/20 flex items-center justify-center text-cyan-300">
+                <Video size={24} />
+              </div>
+              <ArrowRight size={20} className="text-gray-500 group-hover:text-cyan-300 transition-colors transform group-hover:translate-x-1" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-1">Scheduled Live Interview</h3>
+              <p className="text-sm text-gray-400">{item.job?.roleTitle || 'Technical interview'} / {new Date(item.scheduledAt).toLocaleString()}</p>
+            </div>
+            <Link to={`/room/${item._id}`} className="mt-4">
+              <Button variant="outline" className="w-full">Join Interview</Button>
+            </Link>
+          </div>
+        ))}
+
         <div className="glass-card p-6 flex flex-col justify-between group cursor-pointer hover:border-primary/50 transition-colors">
           <div className="flex justify-between items-start mb-4">
             <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center text-primary">

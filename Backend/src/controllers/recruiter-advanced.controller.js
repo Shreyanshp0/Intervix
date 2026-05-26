@@ -8,6 +8,7 @@ const CandidateProfile = require('../models/CandidateProfile');
 const RecruiterProfile = require('../models/RecruiterProfile');
 const ApiError = require('../utils/api-error');
 const logger = require('../config/logger');
+const liveInterviewService = require('../services/live-interview.service');
 
 class RecruiterAdvancedController {
   async queryCopilot(req, res, next) {
@@ -173,6 +174,18 @@ class RecruiterAdvancedController {
         recruiter: recruiter._id,
         scheduledAt: new Date(scheduledAt),
         status: 'scheduled',
+        problem: {
+          title: `${application.job.roleTitle || 'Technical'} Live Challenge`,
+          description: plan.plannerDirective || 'Evaluate problem solving, coding fluency, communication, and debugging tradeoffs.',
+          difficulty: 'Medium',
+          testCases: [
+            { name: 'Case 1', input: 'Default input', expectedOutput: 'Expected output' }
+          ]
+        },
+        codeState: {
+          code: `function solution(input) {\n  // Explain your approach as you code.\n  return input;\n}\n\nconsole.log(solution('Default input'));`,
+          language: 'javascript'
+        },
         notepadContent: `// Dynamic Interview Plan:\n// ${plan.plannerDirective || 'Verify tech skills and core projects.'}\n\nfunction verifyTechnicalArchitect() {\n  // Code collaborative технічний round\n}\n`,
         recruiterNotes: `AI planner unverified gaps found: ${(plan.unverifiedSkills || []).join(', ') || 'None'}`
       });
@@ -183,7 +196,7 @@ class RecruiterAdvancedController {
         scheduledFor: new Date(scheduledAt),
         timezone: 'GMT',
         mode: 'video',
-        meetingLink: `/recruiter/live/room/${liveInterview._id}`,
+        meetingLink: `/room/${liveInterview._id}`,
         notes: plan.plannerDirective || 'Technical notepad assessments scheduled.'
       };
       await application.save();
@@ -220,17 +233,11 @@ class RecruiterAdvancedController {
 
   async getLiveInterviewRoom(req, res, next) {
     try {
-      const room = await LiveInterview.findById(req.params.roomId)
-        .populate([
-          { path: 'candidate', select: 'name email location skills' },
-          { path: 'job', select: 'roleTitle requiredSkills' }
-        ]);
-
-      if (!room) {
-        throw new ApiError(404, 'Live Room session not found');
-      }
-
-      res.status(200).json({ room });
+      const access = await liveInterviewService.assertRoomAccess(req.params.roomId, req.user, 'view');
+      res.status(200).json({
+        success: true,
+        ...liveInterviewService.buildRoomPayload(access.room, access.role)
+      });
     } catch (error) {
       next(error);
     }

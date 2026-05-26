@@ -13,7 +13,9 @@ export const API_ROUTES = {
     jobDetails: (jobId) => `${API_PREFIX}/candidate/jobs/${jobId}`,
     applyToJob: (jobId) => `${API_PREFIX}/candidate/jobs/${jobId}/apply`,
     applications: `${API_PREFIX}/candidate/applications`,
-    applicationDetails: (applicationId) => `${API_PREFIX}/candidate/applications/${applicationId}`
+    applicationDetails: (applicationId) => `${API_PREFIX}/candidate/applications/${applicationId}`,
+    liveInterviews: `${API_PREFIX}/candidate/live-interviews`,
+    liveInterviewDetails: (roomId) => `${API_PREFIX}/candidate/live-interviews/${roomId}`
   },
   recruiter: {
     dashboard: `${API_PREFIX}/recruiter/dashboard`,

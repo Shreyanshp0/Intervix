@@ -18,5 +18,7 @@ router.get('/me', ensureOwnProfile('candidate'), candidateController.getProfile)
 router.put('/me', ensureOwnProfile('candidate'), validateCandidateProfile, candidateController.updateProfile);
 router.get('/applications', ensureOwnProfile('candidate'), applicationController.listCandidateApplications);
 router.get('/applications/:applicationId', ensureOwnProfile('candidate'), applicationController.getCandidateApplication);
+router.get('/live-interviews', ensureOwnProfile('candidate'), candidateController.listLiveInterviews);
+router.get('/live-interviews/:roomId', ensureOwnProfile('candidate'), candidateController.getLiveInterviewRoom);
 
 module.exports = router;

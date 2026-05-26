@@ -1,6 +1,8 @@
 const candidateService = require('../services/candidate.service');
 const interviewSessionService = require('../services/interview-session.service');
 const jobService = require('../services/job.service');
+const LiveInterview = require('../models/LiveInterview');
+const liveInterviewService = require('../services/live-interview.service');
 
 const getProfile = async (req, res, next) => {
   try {
@@ -63,10 +65,41 @@ const getJobDetails = async (req, res, next) => {
   }
 };
 
+const listLiveInterviews = async (req, res, next) => {
+  try {
+    const profile = await candidateService.getOrCreateCandidateProfile(req.user._id);
+    const interviews = await LiveInterview.find({ candidate: profile._id })
+      .populate([
+        { path: 'recruiter', select: 'name email title' },
+        { path: 'job', select: 'roleTitle requiredSkills' },
+        { path: 'application', select: 'stage interviewSchedule' }
+      ])
+      .sort({ scheduledAt: -1 });
+
+    res.status(200).json({ success: true, interviews });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getLiveInterviewRoom = async (req, res, next) => {
+  try {
+    const access = await liveInterviewService.assertRoomAccess(req.params.roomId, req.user, 'view');
+    res.status(200).json({
+      success: true,
+      ...liveInterviewService.buildRoomPayload(access.room, access.role)
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
   getDashboard,
   getJobsFeed,
-  getJobDetails
+  getJobDetails,
+  listLiveInterviews,
+  getLiveInterviewRoom
 };
