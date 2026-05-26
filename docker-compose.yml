@@ -1,3 +1,4 @@
+
 services:
 
   # ==========================================
@@ -5,11 +6,11 @@ services:
   # ==========================================
 
   backend:
-    image: shreyanshp0/intervix-backend:latest
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
 
     container_name: intervix_backend
-
-    pull_policy: always
 
     restart: unless-stopped
 
@@ -21,13 +22,9 @@ services:
 
     environment:
       - NODE_ENV=production
-
       - DOCKER_CONTAINER=true
-
       - FRONTEND_URL=https://intervix.duckdns.org
-
       - PUBLIC_APP_URL=https://intervix.duckdns.org
-
       - TRUSTED_ORIGINS=https://intervix.duckdns.org,http://intervix.duckdns.org,http://localhost:3000
 
     mem_limit: 500m
@@ -58,9 +55,7 @@ services:
 
     environment:
       - NODE_ENV=production
-
       - DOCKER_CONTAINER=true
-
       - VITE_API_URL=/api
 
     depends_on:
@@ -80,3 +75,4 @@ services:
 networks:
   intervix-network:
     driver: bridge
+
