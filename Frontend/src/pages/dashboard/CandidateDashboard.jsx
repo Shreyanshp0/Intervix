@@ -214,8 +214,11 @@ const CandidateDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {liveInterviews.slice(0, 1).map((item) => (
-          <div key={item._id} className="glass-card p-6 flex flex-col justify-between group cursor-pointer hover:border-cyan-400/50 transition-colors">
+        {liveInterviews.slice(0, 1).map((item) => {
+          const roomId = item.roomId;
+
+          return (
+            <div key={item._id} className="glass-card p-6 flex flex-col justify-between group cursor-pointer hover:border-cyan-400/50 transition-colors">
             <div className="flex justify-between items-start mb-4">
               <div className="w-12 h-12 rounded-xl bg-cyan-400/20 flex items-center justify-center text-cyan-300">
                 <Video size={24} />
@@ -226,11 +229,18 @@ const CandidateDashboard = () => {
               <h3 className="text-lg font-semibold text-white mb-1">Scheduled Live Interview</h3>
               <p className="text-sm text-gray-400">{item.job?.roleTitle || 'Technical interview'} / {new Date(item.scheduledAt).toLocaleString()}</p>
             </div>
-            <Link to={`/room/${item.roomId || item._id}`} className="mt-4">
-              <Button variant="outline" className="w-full">Join Interview</Button>
-            </Link>
-          </div>
-        ))}
+            <div className="mt-4">
+              {roomId ? (
+                <Link to={`/room/${roomId}`}>
+                  <Button variant="outline" className="w-full">Join Interview</Button>
+                </Link>
+              ) : (
+                <Button variant="outline" className="w-full" disabled>Interview link unavailable</Button>
+              )}
+            </div>
+            </div>
+          );
+        })}
 
         <div className="glass-card p-6 flex flex-col justify-between group cursor-pointer hover:border-primary/50 transition-colors">
           <div className="flex justify-between items-start mb-4">

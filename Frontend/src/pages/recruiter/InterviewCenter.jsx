@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Star, Clock, User, Briefcase, Code, Video, PhoneOff, Award, Save } from 'lucide-react';
+import { Clock, User, Briefcase, Code, Video, PhoneOff, Award, Save } from 'lucide-react';
 import api from '../../services/api';
 import { API_ROUTES } from '../../constants/apiRoutes';
 import { connectSocket } from '../../services/socket';
@@ -25,6 +25,7 @@ const InterviewCenter = () => {
   const [evalSaving, setEvalSaving] = useState(false);
   const [creatingRoom, setCreatingRoom] = useState(false);
   const socketRef = useRef(null);
+  const roomId = activeRoom?.roomId;
 
   useEffect(() => {
     const fetchInterviews = async () => {
@@ -47,10 +48,13 @@ const InterviewCenter = () => {
   useEffect(() => {
     if (!activeRoom) {
       if (socketRef.current) {
-        socketRef.current.emit('live:end', { roomId: activeRoom?.roomId || activeRoom?._id });
         socketRef.current.disconnect();
         socketRef.current = null;
       }
+      return;
+    }
+
+    if (!roomId) {
       return;
     }
 
@@ -58,7 +62,7 @@ const InterviewCenter = () => {
     socketRef.current = socket;
 
     socket.emit('live:join', {
-      roomId: activeRoom.roomId || activeRoom._id,
+      roomId,
       role: 'recruiter',
       userName: 'Recruiter'
     });
@@ -73,32 +77,33 @@ const InterviewCenter = () => {
     });
 
     return () => {
+      socket.emit('live:end', { roomId });
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [activeRoom]);
+  }, [activeRoom, roomId]);
 
   const handleNotepadChange = (val) => {
     setNotepadContent(val);
-    if (socketRef.current && activeRoom) {
+    if (socketRef.current && roomId) {
       socketRef.current.emit('live:notepad_sync', {
-        roomId: activeRoom.roomId || activeRoom._id,
+        roomId,
         content: val
       });
     }
   };
 
-  const saveRoomNotepad = async () => {
-    if (!activeRoom) return;
+  const saveRoomNotepad = useCallback(async () => {
+    if (!roomId) return;
     try {
-      await api.put(API_ROUTES.recruiter.liveInterviewNotepad(activeRoom.roomId || activeRoom._id), {
+      await api.put(API_ROUTES.recruiter.liveInterviewNotepad(roomId), {
         notepadContent,
         recruiterNotes
       });
     } catch (err) {
       console.error('Failed to autosave live notepad:', err);
     }
-  };
+  }, [notepadContent, recruiterNotes, roomId]);
 
   // Autosave Notepad in DB every 10 seconds during active round
   useEffect(() => {
@@ -107,10 +112,15 @@ const InterviewCenter = () => {
       void saveRoomNotepad();
     }, 10000);
     return () => clearInterval(interval);
-  }, [activeRoom, notepadContent, recruiterNotes]);
+  }, [activeRoom, saveRoomNotepad]);
 
   const handleLaunchRoom = (interview) => {
-    navigate(`/room/${interview.roomId || interview._id}`);
+    if (!interview?.roomId) {
+      setError('Missing roomId for this interview.');
+      return;
+    }
+
+    navigate(`/room/${interview.roomId}`);
   };
 
   const handleCreateInstantRoom = async () => {
@@ -121,10 +131,10 @@ const InterviewCenter = () => {
   };
 
   const submitEvaluation = async () => {
-    if (!activeRoom) return;
+    if (!roomId) return;
     setEvalSaving(true);
     try {
-      await api.post(API_ROUTES.recruiter.liveInterviewEvaluate(activeRoom.roomId || activeRoom._id), evalScores);
+      await api.post(API_ROUTES.recruiter.liveInterviewEvaluate(roomId), evalScores);
       alert('Technical round evaluation logged and verified skills synced successfully!');
       setActiveRoom(null);
     } catch (err) {

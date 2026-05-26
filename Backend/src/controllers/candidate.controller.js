@@ -3,13 +3,14 @@ import interviewSessionService from '../services/interview-session.service.js';
 import jobService from '../services/job.service.js';
 import LiveInterview from '../models/LiveInterview.js';
 import liveInterviewService from '../services/live-interview.service.js';
+import handleControllerError from '../utils/controller-error.js';
 
 const getProfile = async (req, res, next) => {
   try {
     const profile = await candidateService.getOrCreateCandidateProfile(req.user._id);
     res.status(200).json({ profile });
   } catch (error) {
-    next(error);
+    return handleControllerError('candidate.controller.getProfile', res, next, error);
   }
 };
 
@@ -18,7 +19,7 @@ const updateProfile = async (req, res, next) => {
     const profile = await candidateService.upsertProfile(req.user, req.body);
     res.status(200).json({ profile });
   } catch (error) {
-    next(error);
+    return handleControllerError('candidate.controller.updateProfile', res, next, error);
   }
 };
 
@@ -43,7 +44,7 @@ const getDashboard = async (req, res, next) => {
       interview: interviewDashboard
     });
   } catch (error) {
-    next(error);
+    return handleControllerError('candidate.controller.getDashboard', res, next, error);
   }
 };
 
@@ -52,7 +53,7 @@ const getJobsFeed = async (req, res, next) => {
     const feed = await jobService.getCandidateJobsFeed(req.user._id, req.query);
     res.status(200).json(feed);
   } catch (error) {
-    next(error);
+    return handleControllerError('candidate.controller.getJobsFeed', res, next, error);
   }
 };
 
@@ -61,7 +62,7 @@ const getJobDetails = async (req, res, next) => {
     const job = await jobService.getCandidateJobDetails(req.user._id, req.params.jobId);
     res.status(200).json({ job });
   } catch (error) {
-    next(error);
+    return handleControllerError('candidate.controller.getJobDetails', res, next, error);
   }
 };
 
@@ -78,7 +79,7 @@ const listLiveInterviews = async (req, res, next) => {
 
     res.status(200).json({ success: true, interviews });
   } catch (error) {
-    next(error);
+    return handleControllerError('candidate.controller.listLiveInterviews', res, next, error);
   }
 };
 
@@ -90,7 +91,7 @@ const getLiveInterviewRoom = async (req, res, next) => {
       ...liveInterviewService.buildRoomPayload(access.room, access.role)
     });
   } catch (error) {
-    next(error);
+    return handleControllerError('candidate.controller.getLiveInterviewRoom', res, next, error);
   }
 };
 

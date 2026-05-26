@@ -5,7 +5,7 @@ import ApiError from '../utils/api-error.js';
 
 const roomName = (roomId) => `interview_${roomId}`;
 
-const roomLookup = (roomId) => ({ roomId: String(roomId) });
+const roomLookup = (roomId) => ({ roomId: String(roomId).trim() });
 
 const getRoleProfile = async (user) => {
   if (user.role === 'candidate') {
@@ -37,7 +37,8 @@ const populateRoom = (query) => query.populate([
 ]);
 
 const findRoomById = async (roomId) => {
-  const room = await populateRoom(LiveInterview.findOne(roomLookup(roomId)));
+  const lookup = roomLookup(roomId);
+  const room = await populateRoom(LiveInterview.findOne(lookup));
 
   if (!room) {
     throw new ApiError(404, 'Live interview room not found');
@@ -67,8 +68,7 @@ const assertRoomAccess = async (roomId, user, requiredAction = 'join') => {
 
 const buildRoomPayload = (room, role) => ({
   room: {
-    id: String(room._id),
-    roomId: room.roomId || String(room._id),
+    roomId: room.roomId,
     status: room.status,
     scheduledAt: room.scheduledAt,
     role,

@@ -8,12 +8,6 @@ import { safeArray } from '../../utils/safety';
 
 const STAGES = ['', 'Applied', 'Shortlisted', 'Interview Scheduled', 'Passed', 'Rejected', 'Hired'];
 
-const getRoomIdFromMeetingLink = (link) => {
-  if (!link) return '';
-  const parts = link.split('/');
-  return parts[parts.length - 1] || '';
-};
-
 const ApplicationsPage = () => {
   const [applications, setApplications] = useState([]);
   const [stage, setStage] = useState('');
@@ -112,13 +106,15 @@ const ApplicationsPage = () => {
                         {new Date(application.interviewSchedule.scheduledFor).toLocaleString()} ({application.interviewSchedule.timezone})<br />
                         <span className="capitalize font-semibold text-primary">{application.interviewSchedule.mode} Interview</span>
                       </div>
-                      {application.interviewSchedule.meetingLink && (
+                      {application.interviewSchedule.roomId ? (
                         <Link 
-                          to={`/room/${getRoomIdFromMeetingLink(application.interviewSchedule.meetingLink)}`}
+                          to={`/room/${application.interviewSchedule.roomId}`}
                           className="mt-2 w-full flex items-center justify-center gap-1.5 rounded-xl bg-primary hover:bg-primary/80 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-primary/25 transition-all text-center"
                         >
                           <Video size={14} /> Join Live Coding Room
                         </Link>
+                      ) : (
+                        <div className="mt-2 text-xs text-gray-500">Interview link unavailable.</div>
                       )}
                     </div>
                   ) : (

@@ -61,6 +61,11 @@ const stopSocketFeeds = (socket) => {
 
 const authenticateSocket = async (socket, next) => {
   try {
+    if (typeof next !== 'function') {
+      logger.error('[SOCKET] authenticateSocket invoked without a valid next callback');
+      return;
+    }
+
     const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.replace(/^Bearer\s+/i, '');
     if (!token) {
       return next(new Error('Unauthorized'));

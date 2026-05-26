@@ -12,11 +12,19 @@ const logSocketError = (socket, event, error) => {
   });
 };
 
+const respondToSocketAck = (ack, payload) => {
+  if (typeof ack === 'function') {
+    ack(payload);
+  }
+};
+
 const touchRoom = async (roomId, update) => LiveInterview.findOneAndUpdate(
   liveInterviewService.roomLookup(roomId),
   update,
   { new: true }
 );
+
+const getRoomName = (room) => liveInterviewService.roomName(room?.roomId || room);
 
 /**
  * Registers real-time coding room and WebRTC signaling event handlers.
@@ -25,21 +33,25 @@ const touchRoom = async (roomId, update) => LiveInterview.findOneAndUpdate(
  * @param {object} socket - Connected socket client instance
  */
 const registerInterviewHandlers = (io, socket) => {
-  socket.on('join_interview', async ({ roomId } = {}) => {
+  socket.on('join_interview', async ({ roomId } = {}, ack) => {
     try {
       if (!roomId) {
         throw new Error('roomId is required');
       }
 
+      console.log('[SOCKET] Searching roomId:', roomId);
+      console.log('[SOCKET] roomId typeof:', typeof roomId);
+      console.log('[SOCKET] room query:', liveInterviewService.roomLookup(roomId));
+
       const access = await liveInterviewService.assertRoomAccess(roomId, socket.user, 'join');
       const joinedRoom = await liveInterviewService.markParticipantJoined({
-        roomId: access.room._id,
+        roomId: access.room.roomId,
         user: socket.user,
         role: access.role,
         socketId: socket.id
       });
 
-      const interviewRoomName = liveInterviewService.roomName(joinedRoom._id);
+      const interviewRoomName = liveInterviewService.roomName(joinedRoom.roomId);
       socket.join(interviewRoomName);
       socket.data.liveInterviewRooms = socket.data.liveInterviewRooms || new Set();
       socket.data.liveInterviewRooms.add(interviewRoomName);
@@ -57,22 +69,47 @@ const registerInterviewHandlers = (io, socket) => {
 
       const clients = Array.from(io.sockets.adapter.rooms.get(interviewRoomName) || []).filter((id) => id !== socket.id);
       socket.emit('interview_peers', { peers: clients });
+      respondToSocketAck(ack, {
+        success: true,
+        roomId: joinedRoom.roomId,
+        role: access.role,
+        peers: clients
+      });
+      console.log('[SOCKET] Interview found:', !!access.room);
+      console.log('[SOCKET] joined interview successfully');
       logger.info(`[INTERVIEW_ROOM] ${socket.user.email || socket.user._id} joined ${interviewRoomName} as ${access.role}`);
     } catch (error) {
+      if (error?.message === 'Live interview room not found') {
+        console.log('[SOCKET] join_interview failed:');
+        console.log('received roomId:', roomId);
+        console.log('typeof roomId:', typeof roomId);
+        console.log('query being executed:', liveInterviewService.roomLookup(roomId));
+      }
       logSocketError(socket, 'join_interview', error);
+      respondToSocketAck(ack, {
+        success: false,
+        message: error.message,
+        statusCode: error.statusCode || 500
+      });
     }
   });
 
-  socket.on('leave_interview', async ({ roomId } = {}) => {
+  socket.on('leave_interview', async ({ roomId } = {}, ack) => {
     try {
       if (!roomId) return;
       const interviewRoomName = liveInterviewService.roomName(roomId);
       socket.to(interviewRoomName).emit('participant_left', { socketId: socket.id, userId: socket.user._id });
       socket.leave(interviewRoomName);
       await liveInterviewService.markParticipantLeft({ roomIds: [interviewRoomName], user: socket.user, socketId: socket.id });
+      respondToSocketAck(ack, { success: true, roomId });
       logger.info(`[INTERVIEW_ROOM] ${socket.id} left ${interviewRoomName}`);
     } catch (error) {
       logSocketError(socket, 'leave_interview', error);
+      respondToSocketAck(ack, {
+        success: false,
+        message: error.message,
+        statusCode: error.statusCode || 500
+      });
     }
   });
 
@@ -128,7 +165,7 @@ const registerInterviewHandlers = (io, socket) => {
         $inc: { 'analytics.codeChangeCount': 1 }
       });
 
-      socket.to(liveInterviewService.roomName(room._id)).emit('code_update', {
+      socket.to(getRoomName(room)).emit('code_update', {
         code: room.codeState.code,
         language: room.codeState.language,
         version: room.codeState.version,
@@ -166,7 +203,7 @@ const registerInterviewHandlers = (io, socket) => {
         $set: { 'codeState.language': language || 'javascript', 'codeState.updatedAt': new Date() },
         $inc: { 'analytics.languageChangeCount': 1 }
       });
-      io.to(liveInterviewService.roomName(room._id)).emit('language_update', { language: room.codeState.language, from: socket.id });
+      io.to(getRoomName(room)).emit('language_update', { language: room.codeState.language, from: socket.id });
       logger.info(`[CODE_SYNC] language_change ${roomId} ${language}`);
     } catch (error) {
       logSocketError(socket, 'language_change', error);
@@ -199,7 +236,7 @@ const registerInterviewHandlers = (io, socket) => {
         $inc: { 'analytics.runCount': 1 }
       });
 
-      io.to(liveInterviewService.roomName(room._id)).emit('execution_result', {
+      io.to(getRoomName(room)).emit('execution_result', {
         ...result,
         executedBy: socket.user.name || socket.user.email,
         executedAt: new Date().toISOString()
@@ -224,7 +261,7 @@ const registerInterviewHandlers = (io, socket) => {
         },
         $push: { 'analytics.screenShareSessions': { startedAt: new Date() } }
       });
-      io.to(liveInterviewService.roomName(room._id)).emit('screen_share_started', { by: 'candidate' });
+      io.to(getRoomName(room)).emit('screen_share_started', { by: 'candidate' });
       logger.info(`[SCREEN_SHARE] started ${roomId}`);
     } catch (error) {
       logSocketError(socket, 'start_screen_share', error);
@@ -248,7 +285,7 @@ const registerInterviewHandlers = (io, socket) => {
       room.mediaState.screenShareStartedAt = null;
       room.mediaState.totalScreenShareSeconds += durationSeconds;
       await room.save();
-      io.to(liveInterviewService.roomName(room._id)).emit('screen_share_stopped', { by: access.role, durationSeconds });
+      io.to(getRoomName(room)).emit('screen_share_stopped', { by: access.role, durationSeconds });
       logger.info(`[SCREEN_SHARE] stopped ${roomId}`);
     } catch (error) {
       logSocketError(socket, 'stop_screen_share', error);
@@ -262,7 +299,7 @@ const registerInterviewHandlers = (io, socket) => {
         throw new Error('Only recruiters can request screen share');
       }
       const room = await touchRoom(roomId, { $set: { 'controls.requestedScreenShare': true } });
-      io.to(liveInterviewService.roomName(room._id)).emit('screen_share_requested', { by: socket.user.name || socket.user.email });
+      io.to(getRoomName(room)).emit('screen_share_requested', { by: socket.user.name || socket.user.email });
       logger.info(`[SCREEN_SHARE] requested ${roomId}`);
     } catch (error) {
       logSocketError(socket, 'request_screen_share', error);
@@ -278,7 +315,7 @@ const registerInterviewHandlers = (io, socket) => {
       }
       const key = roleToUpdate === 'candidate' ? 'mediaState.candidateAudioEnabled' : 'mediaState.recruiterAudioEnabled';
       const room = await touchRoom(roomId, { $set: { [key]: Boolean(enabled) }, $inc: { 'analytics.mediaToggleCount': 1 } });
-      io.to(liveInterviewService.roomName(room._id)).emit('audio_toggled', { role: roleToUpdate, enabled: Boolean(enabled), by: access.role });
+      io.to(getRoomName(room)).emit('audio_toggled', { role: roleToUpdate, enabled: Boolean(enabled), by: access.role });
     } catch (error) {
       logSocketError(socket, 'toggle_audio', error);
     }
@@ -293,7 +330,7 @@ const registerInterviewHandlers = (io, socket) => {
       }
       const key = roleToUpdate === 'candidate' ? 'mediaState.candidateVideoEnabled' : 'mediaState.recruiterVideoEnabled';
       const room = await touchRoom(roomId, { $set: { [key]: Boolean(enabled) }, $inc: { 'analytics.mediaToggleCount': 1 } });
-      io.to(liveInterviewService.roomName(room._id)).emit('video_toggled', { role: roleToUpdate, enabled: Boolean(enabled), by: access.role });
+      io.to(getRoomName(room)).emit('video_toggled', { role: roleToUpdate, enabled: Boolean(enabled), by: access.role });
     } catch (error) {
       logSocketError(socket, 'toggle_video', error);
     }
@@ -306,7 +343,7 @@ const registerInterviewHandlers = (io, socket) => {
         throw new Error('Only recruiters can lock the editor');
       }
       const room = await touchRoom(roomId, { $set: { 'controls.editorLocked': Boolean(locked) } });
-      io.to(liveInterviewService.roomName(room._id)).emit('editor_lock_changed', { locked: Boolean(locked), by: access.role });
+      io.to(getRoomName(room)).emit('editor_lock_changed', { locked: Boolean(locked), by: access.role });
     } catch (error) {
       logSocketError(socket, 'lock_editor', error);
     }
@@ -321,7 +358,7 @@ const registerInterviewHandlers = (io, socket) => {
       const room = await touchRoom(roomId, {
         $set: { status: paused ? 'paused' : 'active', 'controls.paused': Boolean(paused) }
       });
-      io.to(liveInterviewService.roomName(room._id)).emit('interview_paused', { paused: Boolean(paused), by: access.role });
+      io.to(getRoomName(room)).emit('interview_paused', { paused: Boolean(paused), by: access.role });
     } catch (error) {
       logSocketError(socket, 'pause_interview', error);
     }
@@ -343,7 +380,7 @@ const registerInterviewHandlers = (io, socket) => {
     }
   });
 
-  socket.on('end_interview', async ({ roomId } = {}) => {
+  socket.on('end_interview', async ({ roomId } = {}, ack) => {
     try {
       const access = await liveInterviewService.assertRoomAccess(roomId, socket.user, 'end interview');
       if (access.role !== 'recruiter' && access.role !== 'admin') {
@@ -358,10 +395,16 @@ const registerInterviewHandlers = (io, socket) => {
       room.analytics.endedAt = now;
       room.analytics.durationSeconds = room.analytics.startedAt ? Math.max(0, Math.round((now - room.analytics.startedAt) / 1000)) : 0;
       await room.save();
-      io.to(liveInterviewService.roomName(room._id)).emit('interview_ended', { endedBy: access.role, endedAt: now.toISOString() });
+      io.to(getRoomName(room)).emit('interview_ended', { endedBy: access.role, endedAt: now.toISOString() });
+      respondToSocketAck(ack, { success: true, roomId });
       logger.info(`[INTERVIEW_ROOM] ended ${roomId}`);
     } catch (error) {
       logSocketError(socket, 'end_interview', error);
+      respondToSocketAck(ack, {
+        success: false,
+        message: error.message,
+        statusCode: error.statusCode || 500
+      });
     }
   });
 

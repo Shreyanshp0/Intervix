@@ -12,6 +12,7 @@ import liveInterviewService from '../services/live-interview.service.js';
 import candidateService from '../services/candidate.service.js';
 import recruiterService from '../services/recruiter.service.js';
 import crypto from 'crypto';
+import handleControllerError from '../utils/controller-error.js';
 
 class RecruiterAdvancedController {
   async queryCopilot(req, res, next) {
@@ -19,7 +20,7 @@ class RecruiterAdvancedController {
       const data = await copilotService.queryCopilot(req.body.query, req.user._id);
       res.status(200).json(data);
     } catch (error) {
-      next(error);
+      return handleControllerError('recruiter-advanced.controller.queryCopilot', res, next, error);
     }
   }
 
@@ -254,6 +255,7 @@ class RecruiterAdvancedController {
         scheduledFor: new Date(scheduledAt),
         timezone: 'GMT',
         mode: 'video',
+        roomId,
         meetingLink: `/room/${roomId}`,
         notes: plan.plannerDirective || 'Technical notepad assessments scheduled.'
       };
@@ -266,7 +268,7 @@ class RecruiterAdvancedController {
         tailoredPlan: plan
       });
     } catch (error) {
-      next(error);
+      return handleControllerError('recruiter-advanced.controller.scheduleLiveInterview', res, next, error);
     }
   }
 
@@ -286,7 +288,7 @@ class RecruiterAdvancedController {
 
       res.status(200).json({ interviews: list });
     } catch (error) {
-      next(error);
+      return handleControllerError('recruiter-advanced.controller.listLiveInterviews', res, next, error);
     }
   }
 
@@ -299,7 +301,7 @@ class RecruiterAdvancedController {
         ...liveInterviewService.buildRoomPayload(access.room, access.role)
       });
     } catch (error) {
-      next(error);
+      return handleControllerError('recruiter-advanced.controller.getLiveInterviewRoom', res, next, error);
     }
   }
 
@@ -318,7 +320,7 @@ class RecruiterAdvancedController {
 
       res.status(200).json({ success: true, room });
     } catch (error) {
-      next(error);
+      return handleControllerError('recruiter-advanced.controller.saveLiveNotepad', res, next, error);
     }
   }
 
@@ -379,7 +381,7 @@ class RecruiterAdvancedController {
 
       res.status(200).json({ message: 'Live round evaluated successfully and skills verified in candidate profile.', room });
     } catch (error) {
-      next(error);
+      return handleControllerError('recruiter-advanced.controller.evaluateLiveInterview', res, next, error);
     }
   }
 }

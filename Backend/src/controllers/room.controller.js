@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import handleControllerError from '../utils/controller-error.js';
 
 /**
  * Creates a unique roomId for collaborative interviews.
@@ -12,14 +13,8 @@ const createRoom = async (req, res, next) => {
       message: 'Room generated successfully',
     });
   }catch (error) {
-  console.error("SCHEDULE ERROR STACK:");
-  console.error(error);
-  res.status(500).json({
-    success: false,
-    message: error.message,
-    stack: error.stack
-  });
-}
+    return handleControllerError('room.controller.createRoom', res, next, error);
+  }
 };
 
 /**
@@ -38,7 +33,7 @@ const validateRoom = async (req, res, next) => {
       active: true,
     });
   } catch (error) {
-    next(error);
+    return handleControllerError('room.controller.validateRoom', res, next, error);
   }
 };
 

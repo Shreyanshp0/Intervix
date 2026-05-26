@@ -104,11 +104,13 @@ const JobApplicantsPage = () => {
     try {
       const response = await api.post('/api/code/room');
       if (response.data?.success && response.data?.roomId) {
-        const generatedLink = `${window.location.origin}/room/${response.data.roomId}`;
+        const roomId = response.data.roomId;
+        const generatedLink = `${window.location.origin}/room/${roomId}`;
         setScheduleDrafts((current) => ({
           ...current,
           [applicationId]: {
             ...(current[applicationId] || { mode: 'video', notes: '', timezone: 'Asia/Kolkata' }),
+            roomId,
             meetingLink: generatedLink
           }
         }));

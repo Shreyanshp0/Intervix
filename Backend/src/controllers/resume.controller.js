@@ -8,6 +8,7 @@ import cloudinaryService from '../services/cloudinary.service.js';
 import ApiError from '../utils/api-error.js';
 import logger from '../config/logger.js';
 import { calculateCandidateCompletion, buildSkillPayload } from '../utils/profile.utils.js';
+import handleControllerError from '../utils/controller-error.js';
 
 const isValidObjectId = (value) => mongoose.Types.ObjectId.isValid(value);
 
@@ -229,7 +230,7 @@ const resumeController = {
         }
       }
 
-      next(error);
+      return handleControllerError('resume.controller.uploadResume', res, next, error);
     }
   },
 
@@ -284,7 +285,7 @@ const resumeController = {
         message: 'Resume deleted successfully'
       });
     } catch (error) {
-      next(error);
+      return handleControllerError('resume.controller.deleteResume', res, next, error);
     }
   },
 
@@ -302,7 +303,7 @@ const resumeController = {
 
       res.status(200).json(buildResumePayload(resume));
     } catch (error) {
-      next(error);
+      return handleControllerError('resume.controller.getMyResume', res, next, error);
     }
   },
 
@@ -330,7 +331,7 @@ const resumeController = {
         rawText: resume.rawText || ''
       });
     } catch (error) {
-      next(error);
+      return handleControllerError('resume.controller.getMyResumeAnalysis', res, next, error);
     }
   },
 
@@ -347,7 +348,7 @@ const resumeController = {
 
       res.status(200).json(buildResumePayload(resume));
     } catch (error) {
-      next(error);
+      return handleControllerError('resume.controller.getResumeById', res, next, error);
     }
   },
 
@@ -367,7 +368,7 @@ const resumeController = {
         rawText: resume.rawText || ''
       });
     } catch (error) {
-      next(error);
+      return handleControllerError('resume.controller.getResumeAnalysisById', res, next, error);
     }
   },
 
@@ -415,7 +416,7 @@ async function previewResume(req, res, next) {
     res.setHeader('Content-Disposition', `inline; filename="${resume.fileName}"`);
     res.sendFile(path.resolve(resume.storageKey));
   } catch (error) {
-    next(error);
+    return handleControllerError('resume.controller.previewResume', res, next, error);
   }
 }
 

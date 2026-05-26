@@ -1,4 +1,5 @@
 import recruiterService from '../services/recruiter.service.js';
+import handleControllerError from '../utils/controller-error.js';
 
 const getRecruiterProfile = async (req, res, next) => {
   try {
@@ -11,7 +12,7 @@ const getRecruiterProfile = async (req, res, next) => {
       company: profile.company
     });
   } catch (error) {
-    next(error);
+    return handleControllerError('recruiter.controller.getRecruiterProfile', res, next, error);
   }
 };
 
@@ -26,7 +27,7 @@ const updateRecruiterProfile = async (req, res, next) => {
       company: profile.company
     });
   } catch (error) {
-    next(error);
+    return handleControllerError('recruiter.controller.updateRecruiterProfile', res, next, error);
   }
 };
 
@@ -35,7 +36,7 @@ const updateCompanyProfile = async (req, res, next) => {
     const company = await recruiterService.updateCompanyProfile(req.user._id, req.body);
     res.status(200).json({ company });
   } catch (error) {
-    next(error);
+    return handleControllerError('recruiter.controller.updateCompanyProfile', res, next, error);
   }
 };
 
@@ -49,7 +50,7 @@ const getRecruiterDashboard = async (req, res, next) => {
       ...dashboard
     });
   } catch (error) {
-    next(error);
+    return handleControllerError('recruiter.controller.getRecruiterDashboard', res, next, error);
   }
 };
 
@@ -63,7 +64,7 @@ const getCandidateProfileForRecruiter = async (req, res, next) => {
       ...data
     });
   } catch (error) {
-    next(error);
+    return handleControllerError('recruiter.controller.getCandidateProfileForRecruiter', res, next, error);
   }
 };
 

@@ -294,6 +294,7 @@ class ApplicationService {
       scheduledFor,
       timezone: payload.timezone,
       mode: payload.mode,
+      roomId: roomIdentifier,
       meetingLink: `/room/${roomIdentifier}`,
       notes: payload.notes
     };

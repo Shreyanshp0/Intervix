@@ -3,6 +3,7 @@ import interviewSessionService from '../services/interview-session.service.js';
 import timerService from '../services/timer.service.js';
 import realtimeService from '../services/realtime.service.js';
 import { SessionExpiredError } from '../utils/interview-errors.js';
+import handleControllerError from '../utils/controller-error.js';
 
 const logControllerError = (scope, error, extras = {}) => {
   const details = {
@@ -32,7 +33,7 @@ const startSession = async (req, res, next) => {
     });
   } catch (error) {
     logControllerError('startSession', error);
-    next(error);
+    return handleControllerError('interview.controller.startSession', res, next, error);
   }
 };
 
@@ -52,7 +53,7 @@ const getActiveSession = async (req, res, next) => {
     return res.status(200).json(interviewSessionService.buildRecoveryPayload(session));
   } catch (error) {
     logControllerError('getActiveSession', error, { userId: req.user._id });
-    next(error);
+    return handleControllerError('interview.controller.getActiveSession', res, next, error);
   }
 };
 
@@ -71,7 +72,7 @@ const getSessionStatus = async (req, res, next) => {
     });
   } catch (error) {
     logControllerError('getSessionStatus', error, { sessionId: req.params.sessionId });
-    next(error);
+    return handleControllerError('interview.controller.getSessionStatus', res, next, error);
   }
 };
 
@@ -84,7 +85,7 @@ const autosaveSession = async (req, res, next) => {
     });
   } catch (error) {
     logControllerError('autosaveSession', error, { sessionId: req.params.sessionId });
-    next(error);
+    return handleControllerError('interview.controller.autosaveSession', res, next, error);
   }
 };
 
@@ -101,7 +102,7 @@ const recoverSession = async (req, res, next) => {
     res.status(200).json(payload);
   } catch (error) {
     logControllerError('recoverSession', error, { sessionId: req.params.sessionId });
-    next(error);
+    return handleControllerError('interview.controller.recoverSession', res, next, error);
   }
 };
 
@@ -161,7 +162,7 @@ const respondToQuestion = async (req, res, next) => {
     });
   } catch (error) {
     logControllerError('respondToQuestion', error, { sessionId: req.params.sessionId });
-    next(error);
+    return handleControllerError('interview.controller.respondToQuestion', res, next, error);
   }
 };
 
@@ -178,7 +179,7 @@ const endSession = async (req, res, next) => {
     });
   } catch (error) {
     logControllerError('endSession', error, { sessionId: req.params.sessionId });
-    next(error);
+    return handleControllerError('interview.controller.endSession', res, next, error);
   }
 };
 
@@ -188,7 +189,7 @@ const getFinalReport = async (req, res, next) => {
     res.status(200).json({ report: session });
   } catch (error) {
     logControllerError('getFinalReport', error, { sessionId: req.params.sessionId });
-    next(error);
+    return handleControllerError('interview.controller.getFinalReport', res, next, error);
   }
 };
 
@@ -198,7 +199,7 @@ const getDashboard = async (req, res, next) => {
     res.status(200).json(dashboard);
   } catch (error) {
     logControllerError('getDashboard', error, { userId: req.user._id });
-    next(error);
+    return handleControllerError('interview.controller.getDashboard', res, next, error);
   }
 };
 

@@ -30,6 +30,7 @@ const interviewScheduleSchema = new mongoose.Schema({
     enum: ['phone', 'video', 'onsite', 'take-home', 'async'],
     default: 'video'
   },
+  roomId: { type: String, trim: true, default: '' },
   meetingLink: { type: String, trim: true, default: '' },
   notes: { type: String, trim: true, default: '' }
 }, { _id: false });

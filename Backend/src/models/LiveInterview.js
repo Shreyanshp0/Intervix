@@ -133,11 +133,12 @@ const liveInterviewSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-liveInterviewSchema.pre('validate', function ensureRoomId(next) {
-  if (!this.roomId && this._id) {
-    this.roomId = String(this._id);
+liveInterviewSchema.pre('validate', function ensureRoomId() {
+  if (!this.roomId) {
+    return next(new Error('roomId is required'));
   }
-  next();
+
+  
 });
 
 export default mongoose.models.LiveInterview || mongoose.model('LiveInterview', liveInterviewSchema);
