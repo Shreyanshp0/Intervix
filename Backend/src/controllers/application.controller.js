@@ -82,8 +82,11 @@ const scheduleInterview = async (req, res, next) => {
     }
 
     req.body.scheduledFor = date.toISOString();
-    const application = await applicationService.scheduleInterview(req.user._id, req.params.applicationId, req.body);
-    res.status(200).json({ application });
+    const result = await applicationService.scheduleInterview(req.user._id, req.params.applicationId, req.body);
+    res.status(200).json({
+      application: result.application,
+      liveInterview: result.liveInterview
+    });
   } catch (error) {
     next(error);
   }

@@ -110,7 +110,7 @@ const InterviewCenter = () => {
   }, [activeRoom, notepadContent, recruiterNotes]);
 
   const handleLaunchRoom = (interview) => {
-    navigate(`/room/${interview._id}`);
+    navigate(`/room/${interview.roomId || interview._id}`);
   };
 
   const handleCreateInstantRoom = async () => {

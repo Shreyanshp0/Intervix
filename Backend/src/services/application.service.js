@@ -2,6 +2,7 @@ const Application = require('../models/Application');
 const JobPosting = require('../models/JobPosting');
 const CandidateProfile = require('../models/CandidateProfile');
 const RecruiterProfile = require('../models/RecruiterProfile');
+const LiveInterview = require('../models/LiveInterview');
 const matchingService = require('./matching.service');
 const ApiError = require('../utils/api-error');
 
@@ -204,17 +205,42 @@ class ApplicationService {
       throw new ApiError(400, 'Invalid ISO datetime');
     }
 
+    const recruiter = await this.getRecruiterProfile(userId);
+    let liveInterview = await LiveInterview.findOne({ application: application._id });
+
+    if (liveInterview) {
+      liveInterview.scheduledAt = scheduledFor;
+      liveInterview.status = 'scheduled';
+      await liveInterview.save();
+    } else {
+      liveInterview = await LiveInterview.create({
+        application: application._id,
+        job: application.job?._id || application.job,
+        candidate: application.candidate?._id || application.candidate,
+        recruiter: recruiter._id,
+        scheduledAt: scheduledFor,
+        status: 'scheduled'
+      });
+      console.log('Created Live Interview:', liveInterview);
+    }
+
+    const roomIdentifier = liveInterview.roomId || String(liveInterview._id);
+
     application.interviewSchedule = {
       scheduledFor,
       timezone: payload.timezone,
       mode: payload.mode,
-      meetingLink: payload.meetingLink,
+      meetingLink: `/room/${roomIdentifier}`,
       notes: payload.notes
     };
     application.stage = 'Interview Scheduled';
     application.stageHistory.push(this.buildStageHistory('Interview Scheduled', userId, payload.notes || 'Interview scheduled'));
     await application.save();
-    return Application.findById(applicationId).populate(applicationPopulate);
+    const updatedApplication = await Application.findById(applicationId).populate(applicationPopulate);
+    return {
+      application: updatedApplication,
+      liveInterview
+    };
   }
 
   async addRecruiterFeedback(userId, applicationId, payload) {

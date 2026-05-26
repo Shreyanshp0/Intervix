@@ -226,7 +226,7 @@ const CandidateDashboard = () => {
               <h3 className="text-lg font-semibold text-white mb-1">Scheduled Live Interview</h3>
               <p className="text-sm text-gray-400">{item.job?.roleTitle || 'Technical interview'} / {new Date(item.scheduledAt).toLocaleString()}</p>
             </div>
-            <Link to={`/room/${item._id}`} className="mt-4">
+            <Link to={`/room/${item.roomId || item._id}`} className="mt-4">
               <Button variant="outline" className="w-full">Join Interview</Button>
             </Link>
           </div>
