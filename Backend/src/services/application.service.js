@@ -260,25 +260,25 @@ class ApplicationService {
       console.log("Persisting LiveInterview...");
       try {
         liveInterview = new LiveInterview({
-        application: application._id,
-        job: job._id || job,
-        candidate: candidateProfile._id,
-        recruiter: recruiterProfile._id,
-        scheduledAt: scheduledFor,
-        status: 'scheduled',
-        roomId,
-      });
+          application: application._id,
+          job: job._id || job,
+          candidate: candidateProfile._id,
+          recruiter: recruiterProfile._id,
+          scheduledAt: scheduledFor,
+          status: 'scheduled',
+          roomId
+        });
         await liveInterview.save();
+        console.log('LiveInterview saved successfully');
       } catch (error) {
-        if (error?.name === 'ValidationError') {
-          console.error('LiveInterview validation failed during create:', error.errors);
-          throw new ApiError(422, 'LiveInterview validation failed');
-        }
-        if (error?.code === 11000) {
-          console.error('LiveInterview duplicate key error during create:', error.keyValue);
-          throw new ApiError(409, 'Live interview room already exists');
-        }
-        throw error;
+        console.error('LIVE INTERVIEW SAVE ERROR:');
+        console.error(error);
+
+        const saveError = new Error(error.message);
+        saveError.name = 'LiveInterviewSaveError';
+        saveError.stack = error.stack;
+        saveError.details = error.errors;
+        throw saveError;
       }
       console.log("LiveInterview created:", liveInterview);
 

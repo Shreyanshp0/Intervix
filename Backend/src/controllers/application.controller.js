@@ -88,6 +88,13 @@ const scheduleInterview = async (req, res, next) => {
       liveInterview: result.liveInterview
     });
   } catch (error) {
+    if (error?.name === 'LiveInterviewSaveError') {
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+        stack: error.stack
+      });
+    }
     next(error);
   }
 };

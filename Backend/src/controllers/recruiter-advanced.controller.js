@@ -231,27 +231,21 @@ class RecruiterAdvancedController {
         });
 
         await liveInterview.save();
+        console.log('LiveInterview saved successfully');
 
         if (!liveInterview) {
           throw new Error("Failed to persist LiveInterview");
         }
         console.log("LiveInterview created successfully:", liveInterview);
       } catch (error) {
-        console.error("Mongoose Persistence Error in scheduleLiveInterview:", error);
-        if (error?.name === 'ValidationError') {
-          console.error('LiveInterview validation failed during create:', error.errors);
-          throw new ApiError(422, 'LiveInterview validation failed');
-        }
-        if (error?.code === 11000) {
-          console.error('LiveInterview duplicate key error during create:', error.keyValue);
-          throw new ApiError(409, 'Live interview room already exists');
-        }
-        if (error.errors) {
-          Object.keys(error.errors).forEach((key) => {
-            console.error(`Validation error on field "${key}":`, error.errors[key].message);
-          });
-        }
-        throw error;
+        console.error('LIVE INTERVIEW SAVE ERROR:');
+        console.error(error);
+
+        return res.status(500).json({
+          success: false,
+          message: error.message,
+          stack: error.stack
+        });
       }
 
       // Update Application Schedule
