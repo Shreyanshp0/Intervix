@@ -11,15 +11,18 @@ const { buildRouteHealthReport } = require('./utils/route-diagnostics');
 const { generateDeploymentHealthReport } = require('./utils/deployment-health');
 const { buildValidationReport } = require('./utils/route-validator');
 const { buildModuleHealthReport } = require('./utils/module-health');
+const { getHelmetOptions, corsOptions } = require('./config/security');
 
 const routes = require('./routes');
 const logger = require('./config/logger');
 
 const app = express();
 
+app.set('trust proxy', 1);
+
 // Security Middlewares
-app.use(helmet());
-app.use(cors());
+app.use(helmet(getHelmetOptions()));
+app.use(cors(corsOptions));
 
 // Logging Middleware
 app.use(morgan('combined', {
@@ -47,6 +50,48 @@ app.get('/health', (req, res) => {
     status: 'healthy', 
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
+  });
+});
+
+app.get('/health/api', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    service: 'api',
+    apiBase: API_BASE,
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/health/socket', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    service: 'socket.io',
+    path: '/socket.io',
+    jwtRequired: true,
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/health/webrtc', (req, res) => {
+  const turnConfigured = Boolean(process.env.TURN_URL || process.env.VITE_TURN_URL);
+  res.status(200).json({
+    status: turnConfigured ? 'healthy' : 'degraded',
+    service: 'webrtc',
+    secureContextRequired: true,
+    stunServers: ['stun:stun.l.google.com:19302', 'stun:global.stun.twilio.com:3478'],
+    turnConfigured,
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/health/nginx', (req, res) => {
+  const forwardedProto = req.headers['x-forwarded-proto'] || req.protocol;
+  res.status(200).json({
+    status: forwardedProto === 'https' || process.env.NODE_ENV !== 'production' ? 'healthy' : 'degraded',
+    service: 'nginx',
+    forwardedProto,
+    websocketPath: '/socket.io',
+    timestamp: new Date().toISOString()
   });
 });
 

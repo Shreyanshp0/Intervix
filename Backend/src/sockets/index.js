@@ -7,6 +7,8 @@ const timerService = require('../services/timer.service');
 const realtimeService = require('../services/realtime.service');
 const voiceOrchestratorService = require('../services/voice-orchestrator.service');
 const registerInterviewHandlers = require('./interview.socket');
+const { getTrustedOrigins } = require('../config/security');
+const liveInterviewService = require('../services/live-interview.service');
 
 let io;
 const timerIntervals = new Map();
@@ -80,9 +82,23 @@ const authenticateSocket = async (socket, next) => {
 const initSocket = (server) => {
   io = socketIo(server, {
     cors: {
-      origin: process.env.FRONTEND_URL || '*',
+      origin: getTrustedOrigins(),
       methods: ['GET', 'POST'],
+      credentials: true
     },
+    pingInterval: 25000,
+    pingTimeout: 30000,
+    maxHttpBufferSize: 1e6,
+    transports: ['websocket', 'polling'],
+    allowRequest: (req, callback) => {
+      const origin = req.headers.origin;
+      const trustedOrigins = getTrustedOrigins();
+      const allowed = !origin || trustedOrigins.includes(origin);
+      if (!allowed) {
+        logger.warn({ tag: 'SOCKET', message: 'Blocked untrusted socket origin', origin });
+      }
+      callback(null, allowed);
+    }
   });
 
   realtimeService.registerIoGetter(() => io);
@@ -168,32 +184,55 @@ const initSocket = (server) => {
     });
 
     // Live Technical Notepad Collaborative Room Events
-    socket.on('live:join', ({ roomId, role, userName }) => {
-      if (!roomId) return;
-      const roomName = `live-${roomId}`;
-      socket.join(roomName);
-      socket.to(roomName).emit('live:user_joined', { role, userName, socketId: socket.id });
-      logger.info(`Live Room: User ${userName} (${role}) joined live session ${roomId}`);
-    });
-
-    socket.on('live:notepad_sync', ({ roomId, content }) => {
-      if (!roomId) return;
-      socket.to(`live-${roomId}`).emit('live:notepad_updated', { content });
-    });
-
-    socket.on('live:signal', ({ roomId, signal, to }) => {
-      if (!roomId) return;
-      if (to) {
-        io.to(to).emit('live:signal', { signal, from: socket.id });
-      } else {
-        socket.to(`live-${roomId}`).emit('live:signal', { signal, from: socket.id });
+    socket.on('live:join', async ({ roomId, role, userName }) => {
+      try {
+        if (!roomId) return;
+        const access = await liveInterviewService.assertRoomAccess(roomId, socket.user, 'join legacy live room');
+        const roomName = `live-${roomId}`;
+        socket.join(roomName);
+        socket.to(roomName).emit('live:user_joined', { role: access.role || role, userName, socketId: socket.id });
+        logger.info(`[SOCKET] Legacy live room join allowed for ${socket.user._id} in ${roomId}`);
+      } catch (error) {
+        socket.emit('live:error', { message: error.message });
       }
     });
 
-    socket.on('live:end', ({ roomId }) => {
-      if (!roomId) return;
-      io.to(`live-${roomId}`).emit('live:ended');
-      logger.info(`Live Room: Recruiter ended live session ${roomId}`);
+    socket.on('live:notepad_sync', async ({ roomId, content }) => {
+      try {
+        if (!roomId) return;
+        await liveInterviewService.assertRoomAccess(roomId, socket.user, 'sync legacy notepad');
+        socket.to(`live-${roomId}`).emit('live:notepad_updated', { content });
+      } catch (error) {
+        socket.emit('live:error', { message: error.message });
+      }
+    });
+
+    socket.on('live:signal', async ({ roomId, signal, to }) => {
+      try {
+        if (!roomId) return;
+        await liveInterviewService.assertRoomAccess(roomId, socket.user, 'signal legacy live room');
+        if (to) {
+          io.to(to).emit('live:signal', { signal, from: socket.id });
+        } else {
+          socket.to(`live-${roomId}`).emit('live:signal', { signal, from: socket.id });
+        }
+      } catch (error) {
+        socket.emit('live:error', { message: error.message });
+      }
+    });
+
+    socket.on('live:end', async ({ roomId }) => {
+      try {
+        if (!roomId) return;
+        const access = await liveInterviewService.assertRoomAccess(roomId, socket.user, 'end legacy live room');
+        if (access.role !== 'recruiter' && access.role !== 'admin') {
+          throw new Error('Only recruiters can end live rooms');
+        }
+        io.to(`live-${roomId}`).emit('live:ended');
+        logger.info(`[SOCKET] Legacy live room ended ${roomId}`);
+      } catch (error) {
+        socket.emit('live:error', { message: error.message });
+      }
     });
 
     socket.on('disconnect', async () => {

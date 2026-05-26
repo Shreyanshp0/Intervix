@@ -66,7 +66,10 @@ export const API_ROUTES = {
 const trimTrailingSegment = (value = '', pattern) => value.replace(pattern, '');
 
 export const getApiOrigin = () => {
-  const configured = import.meta.env.VITE_API_URL || 'http://13.127.10.169:5000/api';
+  const configured = import.meta.env.VITE_API_URL || '/api';
+  if (configured.startsWith('/')) {
+    return '';
+  }
   const withoutVersion = trimTrailingSegment(configured, /\/api\/v\d+\/?$/i);
   return trimTrailingSegment(withoutVersion, /\/api\/?$/i);
 };

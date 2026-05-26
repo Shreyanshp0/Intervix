@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
+import SafeResponsiveChart from '../../components/common/SafeResponsiveChart';
 import api from '../../services/api';
 import { API_ROUTES } from '../../constants/apiRoutes';
 import { safeArray, safeObject } from '../../utils/safety';
@@ -13,7 +14,6 @@ const CandidateDashboard = () => {
   const [liveInterviews, setLiveInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [randomRoomId] = useState(() => Math.random().toString(36).substring(2, 10));
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -280,7 +280,7 @@ const CandidateDashboard = () => {
           </Link>
         </div>
 
-        <div className="glass-card p-6 flex flex-col justify-between group cursor-pointer hover:border-blue-500/50 transition-colors">
+        <div className="glass-card p-6 flex flex-col justify-between group hover:border-blue-500/50 transition-colors">
           <div className="flex justify-between items-start mb-4">
             <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400">
               <Video size={24} />
@@ -288,11 +288,11 @@ const CandidateDashboard = () => {
             <ArrowRight size={20} className="text-gray-500 group-hover:text-blue-400 transition-colors transform group-hover:translate-x-1" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-white mb-1">Collaborative Room</h3>
-            <p className="text-sm text-gray-400">Launch a live collaborative room with editor sync and WebRTC video call.</p>
+            <h3 className="text-lg font-semibold text-white mb-1">Live Interview Room</h3>
+            <p className="text-sm text-gray-400">Join only recruiter-scheduled secure rooms with authenticated access control.</p>
           </div>
-          <Link to={`/room/${randomRoomId}`} className="mt-4">
-            <Button variant="outline" className="w-full">Join Live Room</Button>
+          <Link to="/candidate/applications" className="mt-4">
+            <Button variant="outline" className="w-full">View Scheduled Rooms</Button>
           </Link>
         </div>
       </div>
@@ -310,15 +310,17 @@ const CandidateDashboard = () => {
         <div className="glass-card p-6 h-[320px]">
           <h2 className="text-xl font-semibold mb-6">Score Progression</h2>
           {scoreProgression.length ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={scoreProgression}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                <XAxis dataKey="label" stroke="#888" tick={{ fill: '#888' }} axisLine={false} />
-                <YAxis stroke="#888" tick={{ fill: '#888' }} axisLine={false} tickLine={false} domain={[0, 100]} />
-                <Tooltip contentStyle={{ backgroundColor: '#1A1F2C', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
-                <Line type="monotone" dataKey="score" stroke="#6366F1" strokeWidth={3} dot={{ r: 4, fill: '#6366F1' }} />
-              </LineChart>
-            </ResponsiveContainer>
+            <SafeResponsiveChart minHeight={240}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={scoreProgression}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                  <XAxis dataKey="label" stroke="#888" tick={{ fill: '#888' }} axisLine={false} />
+                  <YAxis stroke="#888" tick={{ fill: '#888' }} axisLine={false} tickLine={false} domain={[0, 100]} />
+                  <Tooltip contentStyle={{ backgroundColor: '#1A1F2C', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
+                  <Line type="monotone" dataKey="score" stroke="#6366F1" strokeWidth={3} dot={{ r: 4, fill: '#6366F1' }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </SafeResponsiveChart>
           ) : (
             <EmptyState title="No interview scores yet" description="Run a first mock interview to populate your progression chart." />
           )}
@@ -327,15 +329,17 @@ const CandidateDashboard = () => {
         <div className="glass-card p-6 h-[320px]">
           <h2 className="text-xl font-semibold mb-6">Topic-wise Performance</h2>
           {topicPerformance.length ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={topicPerformance}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                <XAxis dataKey="topic" stroke="#888" tick={{ fill: '#888', fontSize: 12 }} axisLine={false} />
-                <YAxis stroke="#888" tick={{ fill: '#888' }} axisLine={false} tickLine={false} domain={[0, 100]} />
-                <Tooltip contentStyle={{ backgroundColor: '#1A1F2C', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
-                <Bar dataKey="averageScore" fill="#14B8A6" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <SafeResponsiveChart minHeight={240}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topicPerformance}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                  <XAxis dataKey="topic" stroke="#888" tick={{ fill: '#888', fontSize: 12 }} axisLine={false} />
+                  <YAxis stroke="#888" tick={{ fill: '#888' }} axisLine={false} tickLine={false} domain={[0, 100]} />
+                  <Tooltip contentStyle={{ backgroundColor: '#1A1F2C', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
+                  <Bar dataKey="averageScore" fill="#14B8A6" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </SafeResponsiveChart>
           ) : (
             <EmptyState title="No topic data yet" description="Topic performance will appear after you complete a few assessments." />
           )}

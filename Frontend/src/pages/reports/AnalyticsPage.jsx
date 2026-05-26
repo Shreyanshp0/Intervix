@@ -17,6 +17,7 @@ import {
 } from 'recharts';
 import api from '../../services/api';
 import { API_ROUTES } from '../../constants/apiRoutes';
+import SafeResponsiveChart from '../../components/common/SafeResponsiveChart';
 
 const AnalyticsPage = () => {
   const [dashboard, setDashboard] = useState(null);
@@ -49,57 +50,65 @@ const AnalyticsPage = () => {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         <div className="glass-card p-6 h-[360px]">
           <h2 className="text-xl font-semibold mb-6">Score Progression</h2>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={dashboard?.scoreProgression || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-              <XAxis dataKey="label" stroke="#888" tick={{ fill: '#888' }} axisLine={false} />
-              <YAxis stroke="#888" tick={{ fill: '#888' }} axisLine={false} tickLine={false} domain={[0, 100]} />
-              <Tooltip contentStyle={{ backgroundColor: '#1A1F2C', borderColor: '#333', borderRadius: '8px' }} />
-              <Line type="monotone" dataKey="score" stroke="#6366F1" strokeWidth={3} />
-              <Line type="monotone" dataKey="technicalScore" stroke="#14B8A6" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
+          <SafeResponsiveChart minHeight={280}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={dashboard?.scoreProgression || []}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                <XAxis dataKey="label" stroke="#888" tick={{ fill: '#888' }} axisLine={false} />
+                <YAxis stroke="#888" tick={{ fill: '#888' }} axisLine={false} tickLine={false} domain={[0, 100]} />
+                <Tooltip contentStyle={{ backgroundColor: '#1A1F2C', borderColor: '#333', borderRadius: '8px' }} />
+                <Line type="monotone" dataKey="score" stroke="#6366F1" strokeWidth={3} />
+                <Line type="monotone" dataKey="technicalScore" stroke="#14B8A6" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          </SafeResponsiveChart>
         </div>
 
         <div className="glass-card p-6 h-[360px]">
           <h2 className="text-xl font-semibold mb-6">Confidence Trend</h2>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={dashboard?.confidenceTrend || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-              <XAxis dataKey="label" stroke="#888" tick={{ fill: '#888' }} axisLine={false} />
-              <YAxis stroke="#888" tick={{ fill: '#888' }} axisLine={false} tickLine={false} domain={[0, 100]} />
-              <Tooltip contentStyle={{ backgroundColor: '#1A1F2C', borderColor: '#333', borderRadius: '8px' }} />
-              <Line type="monotone" dataKey="confidence" stroke="#F59E0B" strokeWidth={3} />
-            </LineChart>
-          </ResponsiveContainer>
+          <SafeResponsiveChart minHeight={280}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={dashboard?.confidenceTrend || []}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                <XAxis dataKey="label" stroke="#888" tick={{ fill: '#888' }} axisLine={false} />
+                <YAxis stroke="#888" tick={{ fill: '#888' }} axisLine={false} tickLine={false} domain={[0, 100]} />
+                <Tooltip contentStyle={{ backgroundColor: '#1A1F2C', borderColor: '#333', borderRadius: '8px' }} />
+                <Line type="monotone" dataKey="confidence" stroke="#F59E0B" strokeWidth={3} />
+              </LineChart>
+            </ResponsiveContainer>
+          </SafeResponsiveChart>
         </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         <div className="glass-card p-6 h-[360px]">
           <h2 className="text-xl font-semibold mb-6">Topic Radar</h2>
-          <ResponsiveContainer width="100%" height="100%">
-            <RadarChart data={radarData}>
-              <PolarGrid stroke="#333" />
-              <PolarAngleAxis dataKey="subject" tick={{ fill: '#888', fontSize: 12 }} />
-              <PolarRadiusAxis domain={[0, 100]} tick={{ fill: '#555' }} />
-              <Radar dataKey="value" stroke="#8B5CF6" fill="#8B5CF6" fillOpacity={0.35} />
-            </RadarChart>
-          </ResponsiveContainer>
+          <SafeResponsiveChart minHeight={280}>
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={radarData}>
+                <PolarGrid stroke="#333" />
+                <PolarAngleAxis dataKey="subject" tick={{ fill: '#888', fontSize: 12 }} />
+                <PolarRadiusAxis domain={[0, 100]} tick={{ fill: '#555' }} />
+                <Radar dataKey="value" stroke="#8B5CF6" fill="#8B5CF6" fillOpacity={0.35} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </SafeResponsiveChart>
         </div>
 
         <div className="glass-card p-6 h-[360px]">
           <h2 className="text-xl font-semibold mb-6">Improvement Graph</h2>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={dashboard?.improvementGraph || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-              <XAxis dataKey="label" stroke="#888" tick={{ fill: '#888' }} axisLine={false} />
-              <YAxis stroke="#888" tick={{ fill: '#888' }} axisLine={false} tickLine={false} domain={[0, 100]} />
-              <Tooltip contentStyle={{ backgroundColor: '#1A1F2C', borderColor: '#333', borderRadius: '8px' }} />
-              <Bar dataKey="score" fill="#10B981" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="movingAverage" fill="#0EA5E9" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <SafeResponsiveChart minHeight={280}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={dashboard?.improvementGraph || []}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                <XAxis dataKey="label" stroke="#888" tick={{ fill: '#888' }} axisLine={false} />
+                <YAxis stroke="#888" tick={{ fill: '#888' }} axisLine={false} tickLine={false} domain={[0, 100]} />
+                <Tooltip contentStyle={{ backgroundColor: '#1A1F2C', borderColor: '#333', borderRadius: '8px' }} />
+                <Bar dataKey="score" fill="#10B981" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="movingAverage" fill="#0EA5E9" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </SafeResponsiveChart>
         </div>
       </div>
 

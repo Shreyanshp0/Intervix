@@ -17,6 +17,7 @@ import {
 } from 'recharts';
 import { FileText, Briefcase, ArrowLeft, Download, MessageSquareQuote } from 'lucide-react';
 import Button from '../../components/common/Button';
+import SafeResponsiveChart from '../../components/common/SafeResponsiveChart';
 import api from '../../services/api';
 import { API_ROUTES } from '../../constants/apiRoutes';
 
@@ -108,14 +109,16 @@ const InterviewReportPage = () => {
 
         <div className="glass-card p-6 h-[360px]">
           <h2 className="text-xl font-semibold mb-4">Assessment Dimensions</h2>
-          <ResponsiveContainer width="100%" height="100%">
-            <RadarChart data={radarData}>
-              <PolarGrid stroke="#333" />
-              <PolarAngleAxis dataKey="metric" tick={{ fill: '#cbd5e1', fontSize: 12 }} />
-              <PolarRadiusAxis domain={[0, 100]} tick={{ fill: '#64748b' }} />
-              <Radar dataKey="value" stroke="#6366F1" fill="#6366F1" fillOpacity={0.35} />
-            </RadarChart>
-          </ResponsiveContainer>
+          <SafeResponsiveChart minHeight={280}>
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={radarData}>
+                <PolarGrid stroke="#333" />
+                <PolarAngleAxis dataKey="metric" tick={{ fill: '#cbd5e1', fontSize: 12 }} />
+                <PolarRadiusAxis domain={[0, 100]} tick={{ fill: '#64748b' }} />
+                <Radar dataKey="value" stroke="#6366F1" fill="#6366F1" fillOpacity={0.35} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </SafeResponsiveChart>
         </div>
       </div>
 
@@ -151,15 +154,17 @@ const InterviewReportPage = () => {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="glass-card p-6 h-[340px]">
           <h2 className="text-xl font-semibold mb-4">Question-by-Question Performance</h2>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={transcriptData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2f3541" vertical={false} />
-              <XAxis dataKey="name" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" domain={[0, 100]} />
-              <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #334155' }} />
-              <Bar dataKey="score" fill="#14B8A6" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <SafeResponsiveChart minHeight={260}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={transcriptData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2f3541" vertical={false} />
+                <XAxis dataKey="name" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" domain={[0, 100]} />
+                <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #334155' }} />
+                <Bar dataKey="score" fill="#14B8A6" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </SafeResponsiveChart>
         </div>
 
         <div className="glass-card p-6">

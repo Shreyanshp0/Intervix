@@ -14,12 +14,13 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - intervix-network
 
   backend:
     image: shreyanshp0/intervix-backend:latest
     build:
       context: ./Backend
-      # Force rebuild by invalidating cache with build argument
       args:
         - BUILDKIT_INLINE_CACHE=1
         - BUILD_VERSION=${BUILD_VERSION:-$(date +%s)}
@@ -30,7 +31,10 @@ services:
       - MONGODB_URI=mongodb://mongodb:27017/intervix
       - NODE_ENV=${NODE_ENV:-production}
       - DOCKER_CONTAINER=true
-      # Build version for tracking deployments
+      - FRONTEND_URL=${FRONTEND_URL:-https://intervix.duckdns.org}
+      - PUBLIC_APP_URL=${PUBLIC_APP_URL:-https://intervix.duckdns.org}
+      - TRUSTED_ORIGINS=${TRUSTED_ORIGINS:-https://intervix.duckdns.org,http://localhost:3000,http://localhost:5173}
+      - TURN_URL=${TURN_URL:-turns:intervix.duckdns.org:5349,turn:intervix.duckdns.org:3478}
       - BUILD_VERSION=${BUILD_VERSION:-$(date +%s)}
     env_file:
       - ./Backend/.env
@@ -44,6 +48,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - intervix-network
 
   frontend:
     image: shreyanshp0/intervix-frontend:latest
@@ -52,16 +58,17 @@ services:
       args:
         - BUILDKIT_INLINE_CACHE=1
         - BUILD_VERSION=${BUILD_VERSION:-$(date +%s)}
-        - VITE_API_URL=${VITE_API_URL:-http://localhost:5000/api}
+        - VITE_API_URL=${VITE_API_URL:-/api}
     container_name: intervix_frontend
     ports:
-      - "5173:5173" # Vite default port
-      - "3000:80"   # Production port
+      - "3000:80"
     environment:
-      - VITE_API_URL=${VITE_API_URL:-http://localhost:5000/api}
+      - VITE_API_URL=${VITE_API_URL:-/api}
+      - VITE_TURN_URL=${VITE_TURN_URL:-turns:intervix.duckdns.org:5349,turn:intervix.duckdns.org:3478}
+      - VITE_TURN_USERNAME=${VITE_TURN_USERNAME:-}
+      - VITE_TURN_CREDENTIAL=${VITE_TURN_CREDENTIAL:-}
       - NODE_ENV=${NODE_ENV:-production}
       - DOCKER_CONTAINER=true
-      # Build version for tracking deployments
       - BUILD_VERSION=${BUILD_VERSION:-$(date +%s)}
     depends_on:
       backend:
@@ -73,6 +80,30 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - intervix-network
+
+  coturn:
+    image: coturn/coturn:4
+    container_name: intervix_coturn
+    command: ["-c", "/etc/coturn/turnserver.conf"]
+    ports:
+      - "3478:3478/tcp"
+      - "3478:3478/udp"
+      - "5349:5349/tcp"
+      - "49160-49200:49160-49200/udp"
+    environment:
+      - TURN_STATIC_AUTH_SECRET=${TURN_STATIC_AUTH_SECRET:-change-me}
+    volumes:
+      - ./infra/coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    restart: unless-stopped
+    networks:
+      - intervix-network
+
+networks:
+  intervix-network:
+    driver: bridge
 
 volumes:
   mongodb_data:

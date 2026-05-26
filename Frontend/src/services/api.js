@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getApiOrigin } from '../constants/apiRoutes';
+import { recordDiagnostic } from '../utils/diagnostics';
 
 const apiBaseUrl = getApiOrigin();
 
@@ -19,9 +20,11 @@ const retryCounts = new Map();
 api.interceptors.request.use(
   (config) => {
     const key = `${config.method}:${config.url}`;
+    config.metadata = { startedAt: performance.now(), routeKey: key };
     const count = retryCounts.get(key) || 0;
     if (count >= maxRetries) {
       console.error(`[API_SAFEGUARD] Request blocked by circuit-breaker due to consecutive failures: ${key}`);
+      recordDiagnostic('ROUTING', { level: 'error', message: 'Request blocked by circuit breaker', key });
       return Promise.reject(new Error('MAX_RETRIES_EXCEEDED'));
     }
 
@@ -42,6 +45,11 @@ api.interceptors.response.use(
     if (response.config) {
       const key = `${response.config.method}:${response.config.url}`;
       retryCounts.delete(key); // Reset counter on success
+      recordDiagnostic('ROUTING', {
+        key,
+        status: response.status,
+        durationMs: Math.round(performance.now() - (response.config.metadata?.startedAt || performance.now()))
+      });
     }
     return response;
   },
@@ -50,6 +58,13 @@ api.interceptors.response.use(
       const key = `${error.config.method}:${error.config.url}`;
       const count = retryCounts.get(key) || 0;
       retryCounts.set(key, count + 1);
+      recordDiagnostic('ROUTING', {
+        level: 'error',
+        key,
+        status: error.response?.status,
+        message: error.response?.data?.message || error.message,
+        durationMs: Math.round(performance.now() - (error.config.metadata?.startedAt || performance.now()))
+      });
     }
 
     if (error.response && error.response.status === 401) {

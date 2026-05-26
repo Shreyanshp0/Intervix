@@ -12,9 +12,11 @@ const API_ROUTES = Object.freeze({
     dashboard: `${API_BASE}/candidate/dashboard`,
     jobsFeed: `${API_BASE}/candidate/jobs/feed`,
     applications: `${API_BASE}/candidate/applications`,
+    liveInterviews: `${API_BASE}/candidate/live-interviews`,
     jobDetails: (jobId) => `${API_BASE}/candidate/jobs/${jobId}`,
     applyToJob: (jobId) => `${API_BASE}/candidate/jobs/${jobId}/apply`,
-    applicationDetails: (applicationId) => `${API_BASE}/candidate/applications/${applicationId}`
+    applicationDetails: (applicationId) => `${API_BASE}/candidate/applications/${applicationId}`,
+    liveInterviewDetails: (roomId) => `${API_BASE}/candidate/live-interviews/${roomId}`
   }),
   recruiter: Object.freeze({
     me: `${API_BASE}/recruiter/me`,
@@ -31,6 +33,7 @@ const API_ROUTES = Object.freeze({
     copilot: `${API_BASE}/recruiter/advanced/copilot`,
     analytics: `${API_BASE}/recruiter/advanced/analytics`,
     liveInterviews: `${API_BASE}/recruiter/advanced/live`,
+    liveInterviewDetails: (roomId) => `${API_BASE}/recruiter/advanced/live/${roomId}`,
     liveInterviewNotepad: (roomId) => `${API_BASE}/recruiter/advanced/live/${roomId}/notepad`,
     liveInterviewEvaluate: (roomId) => `${API_BASE}/recruiter/advanced/live/${roomId}/evaluate`
   }),
@@ -84,6 +87,8 @@ const ROUTE_DEFINITIONS = Object.freeze([
   { method: 'PUT', path: API_ROUTES.candidate.me, protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile', 'validateCandidateProfile'] },
   { method: 'GET', path: API_ROUTES.candidate.jobsFeed, protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
   { method: 'GET', path: API_ROUTES.candidate.applications, protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
+  { method: 'GET', path: API_ROUTES.candidate.liveInterviews, protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
+  { method: 'GET', path: API_ROUTES.candidate.liveInterviewDetails(':roomId'), protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
 
   { method: 'GET', path: API_ROUTES.recruiter.dashboard, protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize'] },
   { method: 'GET', path: API_ROUTES.recruiter.me, protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
@@ -91,6 +96,10 @@ const ROUTE_DEFINITIONS = Object.freeze([
   { method: 'GET', path: API_ROUTES.recruiter.candidates, protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
   { method: 'GET', path: API_ROUTES.recruiter.jobs, protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
   { method: 'POST', path: API_ROUTES.recruiter.jobs, protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile', 'validateJobPosting'] },
+  { method: 'GET', path: API_ROUTES.recruiter.liveInterviews, protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
+  { method: 'GET', path: API_ROUTES.recruiter.liveInterviewDetails(':roomId'), protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
+  { method: 'PUT', path: API_ROUTES.recruiter.liveInterviewNotepad(':roomId'), protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
+  { method: 'POST', path: API_ROUTES.recruiter.liveInterviewEvaluate(':roomId'), protected: true, roles: ['recruiter', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
 
   { method: 'POST', path: API_ROUTES.resume.upload, protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },
   { method: 'GET', path: API_ROUTES.resume.me, protected: true, roles: ['candidate', 'admin'], middleware: ['protect', 'authorize', 'ensureOwnProfile'] },

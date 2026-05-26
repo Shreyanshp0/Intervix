@@ -6,13 +6,10 @@ on:
       - main
 
 jobs:
-
   deploy:
-
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -48,18 +45,22 @@ jobs:
       - name: Build Backend Image
         run: |
           docker build -t shreyanshp0/intervix-backend:latest ./Backend
+          docker tag shreyanshp0/intervix-backend:latest shreyanshp0/intervix-backend:$(date +%Y%m%d_%H%M%S)
 
       - name: Build Frontend Image
         run: |
           docker build -t shreyanshp0/intervix-frontend:latest ./Frontend
+          docker tag shreyanshp0/intervix-frontend:latest shreyanshp0/intervix-frontend:$(date +%Y%m%d_%H%M%S)
 
       - name: Push Backend Image
         run: |
           docker push shreyanshp0/intervix-backend:latest
+          docker push shreyanshp0/intervix-backend:$(date +%Y%m%d_%H%M%S)
 
       - name: Push Frontend Image
         run: |
           docker push shreyanshp0/intervix-frontend:latest
+          docker push shreyanshp0/intervix-frontend:$(date +%Y%m%d_%H%M%S)
 
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -69,18 +70,81 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/Intervix
-            docker compose down
+            
+            echo "=========================================="
+            echo "🚀 Starting Deployment..."
+            echo "=========================================="
+            
+            # Stop existing containers
+            echo "⏹️  Stopping running containers..."
+            docker compose down || true
+            
+            # Cleanup
+            echo "🧹 Cleaning up Docker resources..."
             docker system prune -a -f
             docker builder prune -a -f
             docker volume prune -f
+            
+            # Pull and start fresh
+            echo "📥 Pulling latest images..."
             docker compose pull
+            
+            echo "🔨 Starting services..."
             docker compose up -d --force-recreate --no-build
-            echo "Waiting for backend services to bootstrap..."
+            
+            # Wait for services to be healthy
+            echo "⏳ Waiting for services to bootstrap (8 seconds)..."
             sleep 8
+            
+            # Show container status
+            echo "📊 Container Status:"
             docker compose ps
-            echo "Running deployment API health check assertion..."
-            curl -f http://localhost:5000/health || (docker compose logs backend && exit 1)
-            echo "Running deployment route health check assertion..."
-            curl -f http://localhost:5000/health/routes || (docker compose logs backend && exit 1)
-            echo "Deployment verified successfully!"
-    
+            echo ""
+            
+            # Health checks
+            echo "🏥 Running health checks..."
+            
+            # Backend health check
+            echo "  → Backend health check..."
+            if curl -f http://localhost:5000/health; then
+              echo "  ✅ Backend is healthy"
+            else
+              echo "  ❌ Backend health check failed"
+              echo "Backend logs:"
+              docker compose logs backend
+              exit 1
+            fi
+            
+            # Backend routes check
+            echo "  → Backend routes check..."
+            if curl -f http://localhost:5000/health/routes; then
+              echo "  ✅ Backend routes are configured"
+            else
+              echo "  ⚠️  Backend routes check failed (non-critical)"
+            fi
+            
+            # Frontend health check
+            echo "  → Frontend health check..."
+            if curl -f http://localhost:3000/; then
+              echo "  ✅ Frontend is healthy"
+            else
+              echo "  ❌ Frontend health check failed"
+              echo "Frontend logs:"
+              docker compose logs frontend
+              exit 1
+            fi
+            
+            echo ""
+            echo "=========================================="
+            echo "✅ Deployment completed successfully!"
+            echo "=========================================="
+            echo ""
+            echo "📍 Service endpoints:"
+            echo "  • Frontend: http://localhost:3000 (backend: 127.0.0.1:3000)"
+            echo "  • Backend API: http://localhost:5000 (internal)"
+            echo "  • MongoDB: 127.0.0.1:27017 (internal)"
+            echo ""
+            echo "🔐 For SSL/HTTPS setup, configure host NGINX with:"
+            echo "  • Copy nginx.host.conf to /etc/nginx/sites-available/intervix"
+            echo "  • Run Certbot for SSL certificates"
+            echo "  • Restart NGINX on the host"

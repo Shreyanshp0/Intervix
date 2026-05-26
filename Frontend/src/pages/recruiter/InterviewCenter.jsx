@@ -115,19 +115,9 @@ const InterviewCenter = () => {
 
   const handleCreateInstantRoom = async () => {
     setCreatingRoom(true);
-    try {
-      const response = await api.post('/api/code/room');
-      if (response.data?.success && response.data?.roomId) {
-        navigate(`/room/${response.data.roomId}`);
-      } else {
-        alert('Failed to generate room ID');
-      }
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.error || 'Failed to create instant room');
-    } finally {
-      setCreatingRoom(false);
-    }
+    alert('Secure production rooms must be created from a scheduled candidate application so room access can be authorized.');
+    navigate('/recruiter/pipeline');
+    setCreatingRoom(false);
   };
 
   const submitEvaluation = async () => {
@@ -262,7 +252,7 @@ const InterviewCenter = () => {
             onClick={handleCreateInstantRoom}
             isLoading={creatingRoom}
           >
-            <Video size={16} /> Create Instant Personal Interview Room
+            <Video size={16} /> Create From Candidate Pipeline
           </Button>
         </div>
       </Panel>

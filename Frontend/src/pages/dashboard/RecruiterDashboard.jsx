@@ -3,6 +3,7 @@ import { Activity, Award, Building2, BriefcaseBusiness, Sparkles, Users, UserChe
 import { Link } from 'react-router-dom';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
+import SafeResponsiveChart from '../../components/common/SafeResponsiveChart';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import api from '../../services/api';
 import { API_ROUTES } from '../../constants/apiRoutes';
@@ -140,18 +141,20 @@ const RecruiterDashboard = () => {
         <div className="lg:col-span-2 glass-card p-6">
           <h2 className="text-xl font-semibold mb-6">Hiring Funnel</h2>
           <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={hiringFunnel} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" horizontal={false} />
-                <XAxis type="number" stroke="#888" axisLine={false} tickLine={false} />
-                <YAxis dataKey="name" type="category" stroke="#888" axisLine={false} tickLine={false} width={80} />
-                <Tooltip
-                  cursor={{ fill: '#2A303C' }}
-                  contentStyle={{ backgroundColor: '#1A1F2C', borderColor: '#333', borderRadius: '8px' }}
-                />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#38BDF8" />
-              </BarChart>
-            </ResponsiveContainer>
+            <SafeResponsiveChart minHeight={260}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={hiringFunnel} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" horizontal={false} />
+                  <XAxis type="number" stroke="#888" axisLine={false} tickLine={false} />
+                  <YAxis dataKey="name" type="category" stroke="#888" axisLine={false} tickLine={false} width={80} />
+                  <Tooltip
+                    cursor={{ fill: '#2A303C' }}
+                    contentStyle={{ backgroundColor: '#1A1F2C', borderColor: '#333', borderRadius: '8px' }}
+                  />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#38BDF8" />
+                </BarChart>
+              </ResponsiveContainer>
+            </SafeResponsiveChart>
           </div>
         </div>
 
