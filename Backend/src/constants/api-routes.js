@@ -114,7 +114,7 @@ const buildQualifiedRoutes = () => ROUTE_DEFINITIONS.map((route) => ({
 
 const getAllApiRoutes = () => ROUTE_DEFINITIONS.map((route) => route.path);
 
-module.exports = {
+export {
   API_BASE,
   API_ROUTES,
   ROUTE_DEFINITIONS,

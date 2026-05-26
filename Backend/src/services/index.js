@@ -1,35 +1,37 @@
-const services = {};
-const cache = {};
+import authService from './auth.service.js';
+import candidateService from './candidate.service.js';
+import jobService from './job.service.js';
+import applicationService from './application.service.js';
+import recruiterService from './recruiter.service.js';
+import resumeParserService from './resume-parser.service.js';
+import interviewSessionService from './interview-session.service.js';
+import timerService from './timer.service.js';
+import realtimeService from './realtime.service.js';
+import voiceOrchestratorService from './voice-orchestrator.service.js';
+import copilotService from './copilot.service.js';
+import interviewPlannerService from './interview-planner.service.js';
+import analyticsService from './analytics.service.js';
+import matchingService from './matching.service.js';
+import progressTrackingService from './progress-tracking.service.js';
+import assessmentService from './assessment.service.js';
 
-const defineLazyService = (key, loader) => {
-  Object.defineProperty(services, key, {
-    enumerable: true,
-    configurable: false,
-    get: () => {
-      if (!cache[key]) {
-        cache[key] = loader();
-      }
-
-      return cache[key];
-    }
-  });
+const services = {
+  authService,
+  candidateService,
+  jobService,
+  applicationService,
+  recruiterService,
+  resumeParserService,
+  interviewSessionService,
+  timerService,
+  realtimeService,
+  voiceOrchestratorService,
+  copilotService,
+  interviewPlannerService,
+  analyticsService,
+  matchingService,
+  progressTrackingService,
+  assessmentService,
 };
-
-defineLazyService('authService', async () => (await import('./auth.service.js')).default);
-defineLazyService('candidateService', async () => (await import('./candidate.service.js')).default);
-defineLazyService('jobService', async () => (await import('./job.service.js')).default);
-defineLazyService('applicationService', async () => (await import('./application.service.js')).default);
-defineLazyService('recruiterService', async () => (await import('./recruiter.service.js')).default);
-defineLazyService('resumeParserService', async () => (await import('./resume-parser.service.js')).default);
-defineLazyService('interviewSessionService', async () => (await import('./interview-session.service.js')).default);
-defineLazyService('timerService', async () => (await import('./timer.service.js')).default);
-defineLazyService('realtimeService', async () => (await import('./realtime.service.js')).default);
-defineLazyService('voiceOrchestratorService', async () => (await import('./voice-orchestrator.service.js')).default);
-defineLazyService('copilotService', async () => (await import('./copilot.service.js')).default);
-defineLazyService('interviewPlannerService', async () => (await import('./interview-planner.service.js')).default);
-defineLazyService('analyticsService', async () => (await import('./analytics.service.js')).default);
-defineLazyService('matchingService', async () => (await import('./matching.service.js')).default);
-defineLazyService('progressTrackingService', async () => (await import('./progress-tracking.service.js')).default);
-defineLazyService('assessmentService', async () => (await import('./assessment.service.js')).default);
 
 export default services;

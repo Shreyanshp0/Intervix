@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 import CandidateProfile from '../models/CandidateProfile.js';
 import RecruiterProfile from '../models/RecruiterProfile.js';
@@ -55,7 +56,6 @@ class AuthService {
   }
 
   async loginUserWithEmailAndPassword(emailOrUserId, password) {
-    import mongoose from 'mongoose';
     let query = {};
     if (mongoose.Types.ObjectId.isValid(emailOrUserId)) {
       query = { $or: [{ email: emailOrUserId }, { _id: emailOrUserId }] };

@@ -213,11 +213,8 @@ class ApplicationService {
     // If you have a service to create a code room, you can uncomment this.
     // console.log("Creating code room...");
     // const roomResponse = await createCodeRoom(); // Assuming this function exists and returns { roomId: '...' }
-    // const roomId = roomResponse.roomId;
-    // console.log("Generated roomId:", roomId);
-    
-    // For now, I will generate a random roomId as a placeholder.
-    const roomId = crypto.randomBytes(8).toString('hex');
+    const roomId = crypto.randomUUID();
+    console.log("Generated roomId:", roomId);
 
     if (liveInterview) {
       liveInterview.scheduledAt = scheduledFor;
