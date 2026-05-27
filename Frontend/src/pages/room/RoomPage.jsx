@@ -231,7 +231,6 @@ const RoomPage = () => {
     };
 
     peer.ontrack = (event) => {
-      // Clean, reactive track diagnostic log:
       console.info('[DIAGNOSTICS] RTCPeerConnection track received:', {
         channel,
         kind: event.track.kind,
@@ -244,17 +243,19 @@ const RoomPage = () => {
         signalingState: peer.signalingState
       });
 
-      const stream = event.streams?.[0] || new MediaStream([event.track]);
+      const [stream] = event.streams;
+      if (!stream) {
+        console.warn('[ontrack] received track without media stream, kind=', event.track.kind);
+        return;
+      }
 
       if (channel === 'screen' && event.track.kind === 'video') {
         console.info('[WEBRTC_SCREEN] remote screen track attached');
         remoteScreenStreamRef.current = stream;
         
-        // Force attachment (no early return) to prevent browser freezes
         if (remoteScreenVideoRef.current) {
-          remoteScreenVideoRef.current.srcObject = null;
           remoteScreenVideoRef.current.srcObject = stream;
-          remoteScreenVideoRef.current.play().catch(() => {});
+          remoteScreenVideoRef.current.play().catch(console.error);
         }
         
         event.track.onended = () => {
@@ -265,42 +266,19 @@ const RoomPage = () => {
         return;
       }
       
-      // For main channel (webcam/mic)
-      if (event.track.kind === 'audio') {
-        console.info('[WEBRTC_MAIN] remote audio track attached');
-        if (!remoteCameraStreamRef.current.getAudioTracks().includes(event.track)) {
-          remoteCameraStreamRef.current.addTrack(event.track);
-        }
-      } else if (event.track.kind === 'video') {
-        console.info('[WEBRTC_MAIN] remote webcam track attached');
-        if (!remoteCameraStreamRef.current.getVideoTracks().includes(event.track)) {
-          remoteCameraStreamRef.current.addTrack(event.track);
-        }
-      }
-
-      // Force-reattach the remote webcam stream to ensure video renders even if audio was bound first!
-      if (remoteWebcamVideoRef.current) {
-        const targetStream = remoteCameraStreamRef.current;
-        console.info('[WEBRTC_MAIN] reattaching remote stream to video element', {
-          audioTracks: targetStream.getAudioTracks().length,
-          videoTracks: targetStream.getVideoTracks().length
-        });
-        remoteWebcamVideoRef.current.srcObject = null; // Reset first
-        remoteWebcamVideoRef.current.srcObject = targetStream;
-        remoteWebcamVideoRef.current.play().catch(() => {});
-      }
-
-      event.track.onended = () => {
-        remoteCameraStreamRef.current.removeTrack(event.track);
+      if (channel === 'main') {
+        console.info('[WEBRTC_MAIN] remote main track attached. kind=', event.track.kind, 'streamId=', stream.id);
+        remoteCameraStreamRef.current = stream;
         if (remoteWebcamVideoRef.current) {
-          remoteWebcamVideoRef.current.srcObject = null;
-          remoteWebcamVideoRef.current.srcObject = remoteCameraStreamRef.current;
-          remoteWebcamVideoRef.current.play().catch(() => {});
+          remoteWebcamVideoRef.current.srcObject = stream;
+          remoteWebcamVideoRef.current.play().catch(console.error);
         }
-      };
-      
-      event.track.onmute = () => console.info('[WEBRTC_MAIN] webcam track muted');
-      event.track.onunmute = () => console.info('[WEBRTC_MAIN] webcam track unmuted');
+        
+        event.track.onended = () => {
+          console.info('[WEBRTC_MAIN] remote track ended, kind=', event.track.kind);
+          if (remoteWebcamVideoRef.current) remoteWebcamVideoRef.current.srcObject = null;
+        };
+      }
     };
 
     peer.onconnectionstatechange = async () => {
@@ -326,12 +304,13 @@ const RoomPage = () => {
     
     peer.onnegotiationneeded = async () => {
       const state = negotiationStateRef.current[channel];
-      if (state.makingOffer || !peerRef.current) return;
       try {
         state.makingOffer = true;
-        console.info('[NEGOTIATION]', channel, 'onnegotiationneeded');
-        await peer.setLocalDescription(await peer.createOffer());
+        console.info('[NEGOTIATION]', channel, 'onnegotiationneeded. signalingState=', peer.signalingState);
+        await peer.setLocalDescription();
         emitDescription(channel, peer.localDescription);
+      } catch (err) {
+        console.error('[NEGOTIATION]', channel, 'onnegotiationneeded failed', err);
       } finally {
         state.makingOffer = false;
       }
@@ -342,30 +321,51 @@ const RoomPage = () => {
   const applyRemoteDescription = useCallback(async (channel, description) => {
     const peer = createPeer(channel);
     const state = negotiationStateRef.current[channel];
-    const readyForOffer = isSignalingStable(peer, state);
-    const offerCollision = description.type === 'offer' && (state.makingOffer || !readyForOffer);
+    const readyForOffer =
+      !state.makingOffer &&
+      (peer.signalingState === 'stable' || state.isSettingRemoteAnswerPending);
+
+    const offerCollision = description.type === 'offer' && !readyForOffer;
+
     state.ignoreOffer = !isPolite && offerCollision;
+
     if (state.ignoreOffer) {
       console.warn('[NEGOTIATION]', channel, 'offer ignored due to collision (impolite peer)');
       return;
     }
-    if (description.type === 'offer' && offerCollision && isPolite && peer.signalingState === 'have-local-offer') {
+
+    if (description.type === 'offer' && offerCollision && isPolite) {
       console.warn('[NEGOTIATION]', channel, 'collision detected, rolling back local offer');
       await peer.setLocalDescription({ type: 'rollback' });
     }
-    console.info('[NEGOTIATION]', channel, 'apply remote', description.type);
+
+    console.info('[NEGOTIATION]', channel, 'apply remote description. type=', description.type, 'signalingState=', peer.signalingState);
     state.isSettingRemoteAnswerPending = description.type === 'answer';
     try {
       await peer.setRemoteDescription(new RTCSessionDescription(description));
+      console.info('[NEGOTIATION]', channel, 'remote description successfully set. type=', peer.remoteDescription?.type);
+      
+      // Flush ICE candidates immediately after remote description is set!
+      const queue = pendingCandidatesRef.current[channel];
+      console.info('[ICE]', channel, `flushing ${queue.length} pending candidates`);
+      while (queue.length) {
+        const cand = queue.shift();
+        try {
+          await peer.addIceCandidate(new RTCIceCandidate(cand));
+          console.info('[ICE]', channel, 'flushed pending candidate successfully');
+        } catch (err) {
+          console.warn('[ICE]', channel, 'failed to add queued candidate', err);
+        }
+      }
     } finally {
       state.isSettingRemoteAnswerPending = false;
     }
-    await flushIceQueue(channel);
+
     if (description.type === 'offer') {
       await peer.setLocalDescription(await peer.createAnswer());
       emitDescription(channel, peer.localDescription);
     }
-  }, [createPeer, emitDescription, flushIceQueue, isPolite, isSignalingStable]);
+  }, [createPeer, emitDescription, isPolite]);
 
   const addIceCandidate = useCallback(async (channel, candidate) => {
     const peer = getPeerRef(channel).current;
