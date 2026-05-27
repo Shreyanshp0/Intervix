@@ -50,13 +50,15 @@ const RoomPage = () => {
     screen: { makingOffer: false, ignoreOffer: false, isSettingRemoteAnswerPending: false }
   });
   const pendingCandidatesRef = useRef({ main: [], screen: [] });
+  const joinedRef = useRef(false);
+  const joinInFlightRef = useRef(false);
 
   const [room, setRoom] = useState(null);
   const [loading, setLoading] = useState(true);
   const [roomReady, setRoomReady] = useState(false);
   const [status, setStatus] = useState('Connecting...');
   const [error, setError] = useState('');
-  const [role, setRole] = useState(user?.role || 'candidate');
+  const [roomRole, setRoomRole] = useState(user?.role || 'candidate');
   const [code, setCode] = useState(DEFAULT_CODE);
   const [language, setLanguage] = useState('javascript');
   const [output, setOutput] = useState('');
@@ -73,13 +75,14 @@ const RoomPage = () => {
   const [messages, setMessages] = useState([]);
   const [quality, setQuality] = useState('unknown');
 
-  const isRecruiter = role === 'recruiter' || role === 'admin';
+  const effectiveUserRole = user?.role || roomRole || 'candidate';
+  const isRecruiter = effectiveUserRole === 'recruiter' || effectiveUserRole === 'admin';
   const isPolite = isRecruiter;
   const canEdit = !editorLocked || isRecruiter;
   const candidate = room?.candidate || {};
   const resume = candidate?.resume || {};
   const analytics = room?.analytics || {};
-  const roomDetailsRoute = useMemo(() => user?.role === 'recruiter' || user?.role === 'admin' ? API_ROUTES.recruiter.liveInterviewDetails(roomId) : API_ROUTES.candidate.liveInterviewDetails(roomId), [roomId, user?.role]);
+  const roomDetailsRoute = useMemo(() => effectiveUserRole === 'recruiter' || effectiveUserRole === 'admin' ? API_ROUTES.recruiter.liveInterviewDetails(roomId) : API_ROUTES.candidate.liveInterviewDetails(roomId), [effectiveUserRole, roomId]);
   const getPeerRef = useCallback((channel) => channel === 'screen' ? screenPeerRef : mainPeerRef, []);
   const isSignalingStable = useCallback((peer, state) => peer.signalingState === 'stable' || state.isSettingRemoteAnswerPending, []);
   const emitSignalWithAck = useCallback(async (eventName, payload) => {
@@ -205,8 +208,11 @@ const RoomPage = () => {
     }
     console.info('[NEGOTIATION]', channel, 'apply remote', description.type);
     state.isSettingRemoteAnswerPending = description.type === 'answer';
-    await peer.setRemoteDescription(new RTCSessionDescription(description));
-    state.isSettingRemoteAnswerPending = false;
+    try {
+      await peer.setRemoteDescription(new RTCSessionDescription(description));
+    } finally {
+      state.isSettingRemoteAnswerPending = false;
+    }
     await flushIceQueue(channel);
     if (description.type === 'offer') {
       await peer.setLocalDescription(await peer.createAnswer());
@@ -257,6 +263,12 @@ const RoomPage = () => {
   }, []);
 
   const startMainMedia = useCallback(async () => {
+    if (!window.isSecureContext) {
+      throw new Error('Media access requires HTTPS secure context.');
+    }
+    if (!navigator?.mediaDevices?.getUserMedia) {
+      throw new Error('mediaDevices.getUserMedia is unavailable in this browser/context.');
+    }
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 24, max: 30 } },
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
@@ -277,7 +289,7 @@ const RoomPage = () => {
       const response = await api.get(roomDetailsRoute);
       const payload = response.data?.room || {};
       setRoom(payload);
-      setRole(payload.role || user?.role || 'candidate');
+      setRoomRole(payload.role || user?.role || 'candidate');
       setCode(payload.codeState?.code || DEFAULT_CODE);
       setLanguage(payload.codeState?.language || 'javascript');
       setRemoteScreenSharing(Boolean(payload.mediaState?.candidateScreenSharing));
@@ -317,7 +329,17 @@ const RoomPage = () => {
         setCameraEnabled(false);
       }
     })();
-    const joinInterview = () => socket.emit('join_interview', { roomId });
+    const joinInterview = () => {
+      if (joinInFlightRef.current || joinedRef.current || !socket.connected) return;
+      joinInFlightRef.current = true;
+      socket.emit('join_interview', { roomId }, (ack) => {
+        joinInFlightRef.current = false;
+        joinedRef.current = Boolean(ack?.success);
+        if (!ack?.success && ack?.message) {
+          setError(ack.message);
+        }
+      });
+    };
     const handleSocketConnect = () => {
       console.info('[SOCKET] connected, rejoining interview room');
       joinInterview();
@@ -327,19 +349,16 @@ const RoomPage = () => {
     const handleSocketConnectError = (err) => {
       console.warn('[SOCKET] connect_error', err?.message || 'unknown');
     };
-    joinInterview();
-    socket.off('interview_state');
-    socket.off('interview_peers');
-    socket.off('webrtc_offer');
-    socket.off('webrtc_answer');
-    socket.off('webrtc_ice_candidate');
+    if (socket.connected) {
+      joinInterview();
+    }
     socket.off('connect', handleSocketConnect);
     socket.off('connect_error', handleSocketConnectError);
     socket.on('connect', handleSocketConnect);
     socket.on('connect_error', handleSocketConnectError);
     socket.on('interview_state', ({ room: nextRoom }) => {
       setRoom(nextRoom);
-      setRole(nextRoom.role || user?.role || 'candidate');
+      setRoomRole(nextRoom.role || user?.role || 'candidate');
       setEditorLocked(Boolean(nextRoom.controls?.editorLocked));
       setPaused(Boolean(nextRoom.controls?.paused));
       setRemoteScreenSharing(Boolean(nextRoom.mediaState?.candidateScreenSharing));
@@ -353,21 +372,21 @@ const RoomPage = () => {
     socket.on('webrtc_offer', async ({ offer, channel = 'main' }) => applyRemoteDescription(channel, offer).catch((error) => console.warn('[NEGOTIATION]', channel, 'offer handling failed', error)));
     socket.on('webrtc_answer', async ({ answer, channel = 'main' }) => applyRemoteDescription(channel, answer).catch((error) => console.warn('[NEGOTIATION]', channel, 'answer handling failed', error)));
     socket.on('webrtc_ice_candidate', async ({ candidate, channel = 'main' }) => addIceCandidate(channel, candidate).catch((error) => console.warn('[ICE]', channel, 'candidate handling failed', error)));
-    socket.on('code_update', ({ code: nextCode, language: nextLanguage, version }) => {
+    const handleCodeUpdate = ({ code: nextCode, language: nextLanguage, version }) => {
       if (version <= codeVersionRef.current) return;
       suppressEditorEventRef.current = true;
       codeVersionRef.current = version;
       setCode(nextCode);
       setLanguage(nextLanguage);
       requestAnimationFrame(() => { suppressEditorEventRef.current = false; });
-    });
-    socket.on('cursor_update', ({ cursor, role: cursorRole }) => setRemoteCursor({ ...cursor, role: cursorRole }));
-    socket.on('language_update', ({ language: nextLanguage }) => setLanguage(nextLanguage));
-    socket.on('execution_status', ({ status: nextStatus }) => setExecutionStatus(nextStatus));
-    socket.on('execution_result', (result) => { setExecutionStatus(result.status || 'completed'); setOutput(`${result.success ? 'Success' : 'Failed'}\n\n${result.output || ''}${result.error ? `\n${result.error}` : ''}`); });
-    socket.on('screen_share_started', () => setRemoteScreenSharing(true));
-    socket.on('screen_share_stopped', () => { setRemoteScreenSharing(false); attachStream(remoteScreenVideoRef, null); });
-    socket.on('webrtc_peer_disconnected', ({ socketId }) => {
+    };
+    const handleCursorUpdate = ({ cursor, role: cursorRole }) => setRemoteCursor({ ...cursor, role: cursorRole });
+    const handleLanguageUpdate = ({ language: nextLanguage }) => setLanguage(nextLanguage);
+    const handleExecutionStatus = ({ status: nextStatus }) => setExecutionStatus(nextStatus);
+    const handleExecutionResult = (result) => { setExecutionStatus(result.status || 'completed'); setOutput(`${result.success ? 'Success' : 'Failed'}\n\n${result.output || ''}${result.error ? `\n${result.error}` : ''}`); };
+    const handleScreenShareStarted = () => setRemoteScreenSharing(true);
+    const handleScreenShareStopped = () => { setRemoteScreenSharing(false); attachStream(remoteScreenVideoRef, null); };
+    const handlePeerDisconnected = ({ socketId }) => {
       console.warn('[WEBRTC] remote peer disconnected', socketId);
       attachStream(remoteWebcamVideoRef, null);
       attachStream(remoteScreenVideoRef, null);
@@ -375,19 +394,35 @@ const RoomPage = () => {
       remoteScreenStreamRef.current = new MediaStream();
       setRemoteScreenSharing(false);
       setStatus('Peer disconnected');
-    });
-    socket.on('screen_share_requested', ({ by }) => setMessages((items) => [...items, `${by} requested screen share.`].slice(-5)));
-    socket.on('audio_toggled', ({ role: mediaRole, enabled }) => mediaRole === role && setMicEnabled(enabled));
-    socket.on('video_toggled', ({ role: mediaRole, enabled }) => mediaRole === role && setCameraEnabled(enabled));
-    socket.on('editor_lock_changed', ({ locked }) => setEditorLocked(locked));
-    socket.on('interview_paused', ({ paused: nextPaused }) => setPaused(nextPaused));
-    socket.on('prompt_received', ({ prompt: nextPrompt, by }) => setMessages((items) => [...items, `${by}: ${nextPrompt}`].slice(-5)));
-    socket.on('interview_ended', () => {
+    };
+    const handleScreenShareRequested = ({ by }) => setMessages((items) => [...items, `${by} requested screen share.`].slice(-5));
+    const handleAudioToggled = ({ role: mediaRole, enabled }) => mediaRole === roomRole && setMicEnabled(enabled);
+    const handleVideoToggled = ({ role: mediaRole, enabled }) => mediaRole === roomRole && setCameraEnabled(enabled);
+    const handleEditorLockChanged = ({ locked }) => setEditorLocked(locked);
+    const handleInterviewPaused = ({ paused: nextPaused }) => setPaused(nextPaused);
+    const handlePromptReceived = ({ prompt: nextPrompt, by }) => setMessages((items) => [...items, `${by}: ${nextPrompt}`].slice(-5));
+    const handleInterviewEnded = () => {
       cleanupMedia();
       setStatus('Ended');
       navigate(isRecruiter ? '/recruiter/interviews' : '/candidate/dashboard');
-    });
-    socket.on('interview_error', ({ message }) => setError(message));
+    };
+    const handleInterviewError = ({ message }) => setError(message);
+    socket.on('code_update', handleCodeUpdate);
+    socket.on('cursor_update', handleCursorUpdate);
+    socket.on('language_update', handleLanguageUpdate);
+    socket.on('execution_status', handleExecutionStatus);
+    socket.on('execution_result', handleExecutionResult);
+    socket.on('screen_share_started', handleScreenShareStarted);
+    socket.on('screen_share_stopped', handleScreenShareStopped);
+    socket.on('webrtc_peer_disconnected', handlePeerDisconnected);
+    socket.on('screen_share_requested', handleScreenShareRequested);
+    socket.on('audio_toggled', handleAudioToggled);
+    socket.on('video_toggled', handleVideoToggled);
+    socket.on('editor_lock_changed', handleEditorLockChanged);
+    socket.on('interview_paused', handleInterviewPaused);
+    socket.on('prompt_received', handlePromptReceived);
+    socket.on('interview_ended', handleInterviewEnded);
+    socket.on('interview_error', handleInterviewError);
     const qualityInterval = setInterval(async () => {
       const peer = mainPeerRef.current;
       if (!peer) return;
@@ -405,18 +440,37 @@ const RoomPage = () => {
     }, 5000);
     return () => {
       clearInterval(qualityInterval);
-      socket.emit('leave_interview', { roomId });
+      if (joinedRef.current) {
+        socket.emit('leave_interview', { roomId });
+      }
+      joinedRef.current = false;
+      joinInFlightRef.current = false;
       socket.off('interview_state');
       socket.off('interview_peers');
       socket.off('webrtc_offer');
       socket.off('webrtc_answer');
       socket.off('webrtc_ice_candidate');
-      socket.off('webrtc_peer_disconnected');
+      socket.off('code_update', handleCodeUpdate);
+      socket.off('cursor_update', handleCursorUpdate);
+      socket.off('language_update', handleLanguageUpdate);
+      socket.off('execution_status', handleExecutionStatus);
+      socket.off('execution_result', handleExecutionResult);
+      socket.off('screen_share_started', handleScreenShareStarted);
+      socket.off('screen_share_stopped', handleScreenShareStopped);
+      socket.off('webrtc_peer_disconnected', handlePeerDisconnected);
+      socket.off('screen_share_requested', handleScreenShareRequested);
+      socket.off('audio_toggled', handleAudioToggled);
+      socket.off('video_toggled', handleVideoToggled);
+      socket.off('editor_lock_changed', handleEditorLockChanged);
+      socket.off('interview_paused', handleInterviewPaused);
+      socket.off('prompt_received', handlePromptReceived);
+      socket.off('interview_ended', handleInterviewEnded);
+      socket.off('interview_error', handleInterviewError);
       socket.off('connect', handleSocketConnect);
       socket.off('connect_error', handleSocketConnectError);
       cleanupMedia();
     };
-  }, [addIceCandidate, applyRemoteDescription, cleanupMedia, emitDescription, fetchRtcConfig, isAuthenticated, isRecruiter, loading, navigate, role, roomId, roomReady, startMainMedia, user?.role]);
+  }, [addIceCandidate, applyRemoteDescription, cleanupMedia, emitDescription, fetchRtcConfig, isAuthenticated, isRecruiter, loading, navigate, roomId, roomReady, roomRole, startMainMedia, user?.role]);
 
   const handleEditorChange = (value = '') => {
     if (suppressEditorEventRef.current || !canEdit) return;
@@ -440,6 +494,12 @@ const RoomPage = () => {
   const startScreenShare = async () => {
     try {
       if (screenPeerRef.current) return;
+      if (!window.isSecureContext) {
+        throw new Error('Screen share requires HTTPS secure context.');
+      }
+      if (!navigator?.mediaDevices?.getDisplayMedia) {
+        throw new Error('mediaDevices.getDisplayMedia is unavailable in this browser/context.');
+      }
       const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 15, max: 24 }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
       const [screenTrack] = stream.getVideoTracks();
       if (!screenTrack) throw new Error('No screen track returned');

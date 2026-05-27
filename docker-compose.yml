@@ -27,9 +27,9 @@ services:
       - DOCKER_CONTAINER=true
       - PORT=5000
       - APP_DOMAIN=${APP_DOMAIN:-localhost}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
-      - PUBLIC_APP_URL=${PUBLIC_APP_URL:-http://localhost:3000}
-      - TRUSTED_ORIGINS=${TRUSTED_ORIGINS:-http://localhost:3000,http://localhost:5173,http://localhost:5000}
+      - FRONTEND_URL=${FRONTEND_URL:-https://intervix.duckdns.org}
+      - PUBLIC_APP_URL=${PUBLIC_APP_URL:-https://intervix.duckdns.org}
+      - TRUSTED_ORIGINS=${TRUSTED_ORIGINS:-https://intervix.duckdns.org}
 
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5000/health"]

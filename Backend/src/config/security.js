@@ -10,24 +10,37 @@ const uniq = (items) => [...new Set(items.filter(Boolean))];
 const getTrustedOrigins = () => {
   const configured = splitCsv(process.env.TRUSTED_ORIGINS || process.env.CORS_ORIGINS || '');
   const appDomain = process.env.APP_DOMAIN || process.env.DOMAIN || '';
+  const isProduction = process.env.NODE_ENV === 'production';
   const domainOrigins = appDomain && appDomain !== 'localhost'
-    ? [`https://${appDomain}`, `http://${appDomain}`]
+    ? isProduction ? [`https://${appDomain}`] : [`https://${appDomain}`, `http://${appDomain}`]
     : [];
 
-  return uniq([
-    process.env.FRONTEND_URL,
-    process.env.PUBLIC_APP_URL,
-    process.env.APP_PUBLIC_URL,
-    process.env.VITE_APP_URL,
-    ...domainOrigins,
+  const localDevOrigins = isProduction ? [] : [
     'http://localhost:5173',
     'http://localhost:3000',
     'http://localhost:5000',
     'http://127.0.0.1:5173',
     'http://127.0.0.1:3000',
-    'http://127.0.0.1:5000',
+    'http://127.0.0.1:5000'
+  ];
+
+  const baseOrigins = uniq([
+    process.env.FRONTEND_URL,
+    process.env.PUBLIC_APP_URL,
+    process.env.APP_PUBLIC_URL,
+    process.env.VITE_APP_URL,
+    ...domainOrigins,
+    ...localDevOrigins,
     ...configured
   ]);
+
+  if (!isProduction) {
+    return baseOrigins;
+  }
+
+  return baseOrigins
+    .filter((origin) => origin.startsWith('https://'))
+    .filter((origin) => !origin.includes('localhost') && !origin.includes('127.0.0.1'));
 };
 
 const getHelmetOptions = () => {
@@ -63,15 +76,9 @@ const getHelmetOptions = () => {
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
         imgSrc: ["'self'", 'data:', 'blob:', 'https:', ...trustedOrigins],
-        connectSrc: [
-          "'self'",
-          'http:',
-          'https:',
-          'ws:',
-          'wss:',
-          'blob:',
-          ...trustedOrigins
-        ],
+        connectSrc: isProduction
+          ? ["'self'", 'https:', 'wss:', 'blob:', ...trustedOrigins]
+          : ["'self'", 'http:', 'https:', 'ws:', 'wss:', 'blob:', ...trustedOrigins],
         mediaSrc: ["'self'", 'blob:', 'data:', 'mediastream:', ...trustedOrigins],
         workerSrc: ["'self'", 'blob:'],
         objectSrc: ["'none'"],
