@@ -33,6 +33,7 @@ export const API_ROUTES = {
     analytics: `${API_PREFIX}/recruiter/advanced/analytics`,
     liveInterviews: `${API_PREFIX}/recruiter/advanced/live`,
     liveInterviewDetails: (roomId) => `${API_PREFIX}/recruiter/advanced/live/${roomId}`,
+    liveInterviewSession: (roomId) => `${API_PREFIX}/recruiter/advanced/live/${roomId}/session`,
     liveInterviewNotepad: (roomId) => `${API_PREFIX}/recruiter/advanced/live/${roomId}/notepad`,
     liveInterviewEvaluate: (roomId) => `${API_PREFIX}/recruiter/advanced/live/${roomId}/evaluate`
   },
@@ -49,6 +50,7 @@ export const API_ROUTES = {
     dashboard: `${API_PREFIX}/interviews/dashboard`,
     active: `${API_PREFIX}/interviews/active`,
     start: `${API_PREFIX}/interviews/start`,
+    session: (token) => `${API_PREFIX}/interviews/session/${token}`,
     report: (sessionId) => `${API_PREFIX}/interviews/${sessionId}/report`,
     autosave: (sessionId) => `${API_PREFIX}/interviews/${sessionId}/autosave`,
     end: (sessionId) => `${API_PREFIX}/interviews/${sessionId}/end`,

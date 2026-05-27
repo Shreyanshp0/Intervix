@@ -11,6 +11,29 @@ import { getTrustedOrigins } from '../config/security.js';
 import liveInterviewService from '../services/live-interview.service.js';
 
 let io;
+const activeUserSockets = new Map();
+
+export const getActiveSocketsForUser = (userId) => {
+  const uid = String(userId);
+  return activeUserSockets.get(uid) || new Set();
+};
+
+export const sendNotificationToUser = (userId, notification) => {
+  const uid = String(userId);
+  const sockets = activeUserSockets.get(uid);
+  if (sockets && sockets.size > 0) {
+    if (!io) {
+      logger.warn('[Sockets] Cannot send notification, socket server io not initialized');
+      return false;
+    }
+    for (const socketId of sockets) {
+      io.to(socketId).emit('notification', notification);
+    }
+    return true;
+  }
+  return false;
+};
+
 const timerIntervals = new Map();
 const normalizeOrigin = (value = '') => {
   const raw = String(value || '').trim();
@@ -121,6 +144,13 @@ const initSocket = (server) => {
 
   io.on('connection', (socket) => {
     logger.info(`New client connected: ${socket.id}`);
+    const userId = String(socket.user._id);
+    if (!activeUserSockets.has(userId)) {
+      activeUserSockets.set(userId, new Set());
+    }
+    activeUserSockets.get(userId).add(socket.id);
+    logger.info(`[SOCKET_REGISTRY] Registered socket ${socket.id} for user ${userId}`);
+
     registerInterviewHandlers(io, socket);
 
     socket.on('interview:join', async ({ sessionId, tabId }) => {
@@ -252,7 +282,13 @@ const initSocket = (server) => {
 
     socket.on('disconnect', async () => {
       stopSocketFeeds(socket);
-      logger.info(`Client disconnected: ${socket.id}`);
+      if (activeUserSockets.has(userId)) {
+        activeUserSockets.get(userId).delete(socket.id);
+        if (activeUserSockets.get(userId).size === 0) {
+          activeUserSockets.delete(userId);
+        }
+      }
+      logger.info(`Client disconnected: ${socket.id} for user ${userId}`);
     });
   });
 };

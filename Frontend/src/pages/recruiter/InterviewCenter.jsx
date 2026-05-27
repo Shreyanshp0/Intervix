@@ -114,13 +114,22 @@ const InterviewCenter = () => {
     return () => clearInterval(interval);
   }, [activeRoom, saveRoomNotepad]);
 
-  const handleLaunchRoom = (interview) => {
+  const handleLaunchRoom = async (interview) => {
     if (!interview?.roomId) {
-      setError('Missing roomId for this interview.');
+      setError('Missing room ID for this interview.');
       return;
     }
 
-    navigate(`/room/${interview.roomId}`);
+    try {
+      const response = await api.get(API_ROUTES.recruiter.liveInterviewSession(interview.roomId));
+      const sessionUrl = response.data?.sessionUrl || (response.data?.sessionToken ? `/interview/session?token=${encodeURIComponent(response.data.sessionToken)}` : '');
+      if (!sessionUrl) {
+        throw new Error('Failed to create a secure interview session link.');
+      }
+      navigate(sessionUrl);
+    } catch (error) {
+      setError(error.response?.data?.message || error.message || 'Failed to create a secure interview session link.');
+    }
   };
 
   const handleCreateInstantRoom = async () => {

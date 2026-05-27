@@ -1,12 +1,25 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Geist:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-primary: #070A13;
+  --bg-secondary: #0B0F19;
+  --surface-card: rgba(26, 31, 44, 0.45);
+  --surface-highlight: rgba(255, 255, 255, 0.03);
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-glow: rgba(99, 102, 241, 0.15);
+  --accent-primary: #6366F1;
+  --accent-secondary: #A855F7;
+  --accent-cyan: #22D3EE;
+}
+
 @layer base {
   body {
-    @apply bg-background text-gray-100 font-sans antialiased overflow-x-hidden;
+    @apply bg-[#070A13] text-gray-100 font-sans antialiased overflow-x-hidden tracking-normal;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }
 

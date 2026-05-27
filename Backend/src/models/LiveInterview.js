@@ -35,6 +35,17 @@ const liveInterviewSchema = new mongoose.Schema({
     default: 'scheduled',
     index: true
   },
+  lifecycleState: {
+    type: String,
+    enum: ['created', 'active', 'ended', 'expired'],
+    default: 'created',
+    index: true
+  },
+  expiresAt: {
+    type: Date,
+    default: null,
+    index: true
+  },
   roomId: {
     type: String,
     required: true,
@@ -135,10 +146,8 @@ const liveInterviewSchema = new mongoose.Schema({
 
 liveInterviewSchema.pre('validate', function ensureRoomId() {
   if (!this.roomId) {
-    return next(new Error('roomId is required'));
+    throw new Error('roomId is required');
   }
-
-  
 });
 
 export default mongoose.models.LiveInterview || mongoose.model('LiveInterview', liveInterviewSchema);

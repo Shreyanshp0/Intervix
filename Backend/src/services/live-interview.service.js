@@ -7,6 +7,18 @@ const roomName = (roomId) => `interview_${roomId}`;
 
 const roomLookup = (roomId) => ({ roomId: String(roomId).trim() });
 
+const ensureActiveLifecycle = (room) => {
+  if (!room) {
+    throw new ApiError(404, 'Live interview room not found');
+  }
+
+  if (room.lifecycleState === 'ended' || room.lifecycleState === 'expired' || room.status === 'completed' || room.status === 'cancelled') {
+    throw new ApiError(410, 'Live interview room is no longer available');
+  }
+
+  return room;
+};
+
 const getRoleProfile = async (user) => {
   if (user.role === 'candidate') {
     const profile = await CandidateProfile.findOne({ user: user._id }).populate('resume');
@@ -40,11 +52,7 @@ const findRoomById = async (roomId) => {
   const lookup = roomLookup(roomId);
   const room = await populateRoom(LiveInterview.findOne(lookup));
 
-  if (!room) {
-    throw new ApiError(404, 'Live interview room not found');
-  }
-
-  return room;
+  return ensureActiveLifecycle(room);
 };
 
 const assertRoomAccess = async (roomId, user, requiredAction = 'join') => {
@@ -94,6 +102,8 @@ const markParticipantJoined = async ({ roomId, user, role, socketId }) => {
     throw new ApiError(404, 'Live interview room not found');
   }
 
+  ensureActiveLifecycle(room);
+
   const now = new Date();
   const existing = room.participants.find((p) => String(p.user) === String(user._id));
   if (existing) {
@@ -118,12 +128,51 @@ const markParticipantJoined = async ({ roomId, user, role, socketId }) => {
     room.status = 'active';
   }
 
+  room.lifecycleState = 'active';
+
   if (!room.analytics.startedAt) {
     room.analytics.startedAt = now;
   }
 
   await room.save();
   return findRoomById(roomId);
+};
+
+const markRoomEnded = async ({ roomId, endedByUserId = null } = {}) => {
+  const room = await LiveInterview.findOne(roomLookup(roomId));
+  if (!room) {
+    return null;
+  }
+
+  room.lifecycleState = 'ended';
+  room.status = 'completed';
+  room.controls.endedBy = endedByUserId || room.controls.endedBy;
+  room.controls.endedAt = new Date();
+  room.analytics.endedAt = new Date();
+  room.analytics.durationSeconds = room.analytics.startedAt
+    ? Math.max(0, Math.round((room.analytics.endedAt.getTime() - room.analytics.startedAt.getTime()) / 1000))
+    : room.analytics.durationSeconds;
+
+  await room.save();
+  return room;
+};
+
+const expireStaleRooms = async () => {
+  const now = new Date();
+  const staleRooms = await LiveInterview.find({
+    lifecycleState: { $in: ['created', 'active'] },
+    expiresAt: { $lte: now }
+  });
+
+  for (const room of staleRooms) {
+    room.lifecycleState = 'expired';
+    room.status = 'completed';
+    room.controls.endedAt = now;
+    room.analytics.endedAt = now;
+    await room.save();
+  }
+
+  return staleRooms.length;
 };
 
 const markParticipantLeft = async ({ roomIds, user, socketId }) => {
@@ -147,6 +196,8 @@ export default {
   buildRoomPayload,
   findRoomById,
   markParticipantJoined,
+  markRoomEnded,
   markParticipantLeft,
+  expireStaleRooms,
   roomLookup,
 };

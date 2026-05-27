@@ -215,7 +215,9 @@ const CandidateDashboard = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {liveInterviews.slice(0, 1).map((item) => {
-          const roomId = item.roomId;
+          const status = item.application?.interviewSchedule?.status || 'scheduled';
+          const sessionLink = item.application?.interviewSchedule?.sessionUrl
+            || (item.application?.interviewSchedule?.sessionToken ? `/interview/session?token=${encodeURIComponent(item.application.interviewSchedule.sessionToken)}` : '');
 
           return (
             <div key={item._id} className="glass-card p-6 flex flex-col justify-between group cursor-pointer hover:border-cyan-400/50 transition-colors">
@@ -230,12 +232,18 @@ const CandidateDashboard = () => {
               <p className="text-sm text-gray-400">{item.job?.roleTitle || 'Technical interview'} / {new Date(item.scheduledAt).toLocaleString()}</p>
             </div>
             <div className="mt-4">
-              {roomId ? (
-                <Link to={`/room/${roomId}`}>
-                  <Button variant="outline" className="w-full">Join Interview</Button>
+              {status === 'active' && sessionLink ? (
+                <Link to={sessionLink}>
+                  <Button className="w-full bg-primary hover:bg-indigo-400 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]">Join Live Coding Room</Button>
                 </Link>
+              ) : status === 'scheduled' ? (
+                <Button variant="outline" className="w-full border-white/5 bg-white/5 text-gray-500" disabled>Upcoming interview</Button>
+              ) : status === 'completed' ? (
+                <Button variant="outline" className="w-full border-emerald-500/20 bg-emerald-500/10 text-emerald-400" disabled>Interview Completed</Button>
+              ) : status === 'cancelled' ? (
+                <Button variant="outline" className="w-full border-amber-500/20 bg-amber-500/10 text-amber-400" disabled>Interview Cancelled</Button>
               ) : (
-                <Button variant="outline" className="w-full" disabled>Interview link unavailable</Button>
+                <Button variant="outline" className="w-full border-red-500/20 bg-red-500/10 text-red-400" disabled>Session Expired</Button>
               )}
             </div>
             </div>
@@ -317,39 +325,43 @@ const CandidateDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-        <div className="glass-card p-6 h-[320px]">
-          <h2 className="text-xl font-semibold mb-6">Score Progression</h2>
+        <div className="glass-card p-6 h-[320px] flex flex-col">
+          <h2 className="text-xl font-semibold mb-6 shrink-0">Score Progression</h2>
           {scoreProgression.length ? (
-            <SafeResponsiveChart minHeight={240}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={scoreProgression}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                  <XAxis dataKey="label" stroke="#888" tick={{ fill: '#888' }} axisLine={false} />
-                  <YAxis stroke="#888" tick={{ fill: '#888' }} axisLine={false} tickLine={false} domain={[0, 100]} />
-                  <Tooltip contentStyle={{ backgroundColor: '#1A1F2C', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
-                  <Line type="monotone" dataKey="score" stroke="#6366F1" strokeWidth={3} dot={{ r: 4, fill: '#6366F1' }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </SafeResponsiveChart>
+            <div className="flex-1 w-full relative min-h-0">
+              <div className="absolute inset-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={scoreProgression}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                    <XAxis dataKey="label" stroke="#888" tick={{ fill: '#888' }} axisLine={false} />
+                    <YAxis stroke="#888" tick={{ fill: '#888' }} axisLine={false} tickLine={false} domain={[0, 100]} />
+                    <Tooltip contentStyle={{ backgroundColor: '#1A1F2C', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
+                    <Line type="monotone" dataKey="score" stroke="#6366F1" strokeWidth={3} dot={{ r: 4, fill: '#6366F1' }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           ) : (
             <EmptyState title="No interview scores yet" description="Run a first mock interview to populate your progression chart." />
           )}
         </div>
 
-        <div className="glass-card p-6 h-[320px]">
-          <h2 className="text-xl font-semibold mb-6">Topic-wise Performance</h2>
+        <div className="glass-card p-6 h-[320px] flex flex-col">
+          <h2 className="text-xl font-semibold mb-6 shrink-0">Topic-wise Performance</h2>
           {topicPerformance.length ? (
-            <SafeResponsiveChart minHeight={240}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topicPerformance}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                  <XAxis dataKey="topic" stroke="#888" tick={{ fill: '#888', fontSize: 12 }} axisLine={false} />
-                  <YAxis stroke="#888" tick={{ fill: '#888' }} axisLine={false} tickLine={false} domain={[0, 100]} />
-                  <Tooltip contentStyle={{ backgroundColor: '#1A1F2C', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
-                  <Bar dataKey="averageScore" fill="#14B8A6" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </SafeResponsiveChart>
+            <div className="flex-1 w-full relative min-h-0">
+              <div className="absolute inset-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={topicPerformance}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                    <XAxis dataKey="topic" stroke="#888" tick={{ fill: '#888', fontSize: 12 }} axisLine={false} />
+                    <YAxis stroke="#888" tick={{ fill: '#888' }} axisLine={false} tickLine={false} domain={[0, 100]} />
+                    <Tooltip contentStyle={{ backgroundColor: '#1A1F2C', borderColor: '#333', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
+                    <Bar dataKey="averageScore" fill="#14B8A6" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           ) : (
             <EmptyState title="No topic data yet" description="Topic performance will appear after you complete a few assessments." />
           )}

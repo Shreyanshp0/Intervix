@@ -3,6 +3,7 @@ import interviewSessionService from '../services/interview-session.service.js';
 import jobService from '../services/job.service.js';
 import LiveInterview from '../models/LiveInterview.js';
 import liveInterviewService from '../services/live-interview.service.js';
+import applicationService from '../services/application.service.js';
 import handleControllerError from '../utils/controller-error.js';
 
 const getProfile = async (req, res, next) => {
@@ -77,7 +78,20 @@ const listLiveInterviews = async (req, res, next) => {
       ])
       .sort({ scheduledAt: -1 });
 
-    res.status(200).json({ success: true, interviews });
+    const hydratedInterviews = await Promise.all(
+      interviews.map(async (interview) => {
+        const interviewObj = interview.toObject ? interview.toObject() : interview;
+        if (interviewObj.application) {
+          interviewObj.application = await applicationService.hydrateApplicationInterviewStatus(
+            interviewObj.application,
+            req.user._id
+          );
+        }
+        return interviewObj;
+      })
+    );
+
+    res.status(200).json({ success: true, interviews: hydratedInterviews });
   } catch (error) {
     return handleControllerError('candidate.controller.listLiveInterviews', res, next, error);
   }

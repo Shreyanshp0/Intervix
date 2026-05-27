@@ -32,6 +32,9 @@ const interviewScheduleSchema = new mongoose.Schema({
   },
   roomId: { type: String, trim: true, default: '' },
   meetingLink: { type: String, trim: true, default: '' },
+  sessionToken: { type: String, trim: true, default: '' },
+  sessionUrl: { type: String, trim: true, default: '' },
+  sessionTokenExpiresAt: { type: Date, default: null },
   notes: { type: String, trim: true, default: '' }
 }, { _id: false });
 

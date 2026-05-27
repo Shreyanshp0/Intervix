@@ -10,6 +10,7 @@ import resumeRoutes from './resume.routes.js';
 import recruiterAdvancedRoutes from './recruiter-advanced.routes.js';
 import codeRoutes from './code.routes.js';
 import webrtcRoutes from './webrtc.routes.js';
+import notificationRoutes from './notification.routes.js';
 import { buildRouteHealthReport } from '../utils/route-diagnostics.js';
 import { buildValidationReport } from '../utils/route-validator.js';
 import { generateDeploymentHealthReport } from '../utils/deployment-health.js';
@@ -149,5 +150,6 @@ router.use('/resume', resumeRoutes);
 router.use('/recruiter/advanced', recruiterAdvancedRoutes);
 router.use('/code', codeRoutes);
 router.use('/webrtc', webrtcRoutes);
+router.use('/notifications', notificationRoutes);
 
 export default router;

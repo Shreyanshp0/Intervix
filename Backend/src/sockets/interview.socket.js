@@ -1,6 +1,7 @@
 import logger from '../config/logger.js';
 import LiveInterview from '../models/LiveInterview.js';
 import liveInterviewService from '../services/live-interview.service.js';
+import * as liveInterviewSessionService from '../services/live-interview-session.service.js';
 import codeExecutionService from '../services/code-execution.service.js';
 
 const logSocketError = (socket, event, error) => {
@@ -158,9 +159,6 @@ const registerInterviewHandlers = (io, socket) => {
   socket.on('code_change', async ({ roomId, code, language, version } = {}) => {
     try {
       const access = await liveInterviewService.assertRoomAccess(roomId, socket.user, 'edit code');
-      if (access.room.controls?.editorLocked && access.role === 'candidate') {
-        throw new Error('Editor is locked by the recruiter');
-      }
 
       const room = await touchRoom(roomId, {
         $set: {
@@ -181,6 +179,21 @@ const registerInterviewHandlers = (io, socket) => {
       logger.info(`[CODE_SYNC] code_change ${roomId}`);
     } catch (error) {
       logSocketError(socket, 'code_change', error);
+    }
+  });
+
+  socket.on('typing_state', async ({ roomId, isTyping, cursor } = {}) => {
+    try {
+      const access = await liveInterviewService.assertRoomAccess(roomId, socket.user, 'sync typing state');
+      socket.to(liveInterviewService.roomName(roomId)).emit('typing_state', {
+        roomId,
+        isTyping: Boolean(isTyping),
+        cursor: cursor || null,
+        role: access.role,
+        socketId: socket.id
+      });
+    } catch (error) {
+      logSocketError(socket, 'typing_state', error);
     }
   });
 
@@ -343,6 +356,49 @@ const registerInterviewHandlers = (io, socket) => {
     }
   });
 
+  socket.on('media_state_changed', async ({ roomId, role, cameraEnabled, micEnabled, screenSharing, handRaised }) => {
+    try {
+      if (!roomId) return;
+      const access = await liveInterviewService.assertRoomAccess(roomId, socket.user, 'update media state');
+      
+      const updateFields = {};
+      const targetRole = role || access.role;
+      
+      if (cameraEnabled !== undefined) {
+        const key = targetRole === 'candidate' ? 'mediaState.candidateVideoEnabled' : 'mediaState.recruiterVideoEnabled';
+        updateFields[key] = Boolean(cameraEnabled);
+      }
+      if (micEnabled !== undefined) {
+        const key = targetRole === 'candidate' ? 'mediaState.candidateAudioEnabled' : 'mediaState.recruiterAudioEnabled';
+        updateFields[key] = Boolean(micEnabled);
+      }
+      if (screenSharing !== undefined) {
+        const key = 'mediaState.candidateScreenSharing';
+        updateFields[key] = Boolean(screenSharing);
+      }
+      
+      let room = access.room;
+      if (Object.keys(updateFields).length > 0) {
+        room = await touchRoom(roomId, { $set: updateFields });
+      }
+      
+      const mediaStatePayload = {
+        role: targetRole,
+        mediaState: {
+          cameraEnabled: cameraEnabled !== undefined ? Boolean(cameraEnabled) : undefined,
+          micEnabled: micEnabled !== undefined ? Boolean(micEnabled) : undefined,
+          screenSharing: screenSharing !== undefined ? Boolean(screenSharing) : undefined,
+          handRaised: handRaised !== undefined ? Boolean(handRaised) : undefined
+        }
+      };
+      
+      socket.to(liveInterviewService.roomName(roomId)).emit('participant_media_state', mediaStatePayload);
+      logger.info(`[MEDIA_SYNC] media_state_changed in room ${roomId} by role ${targetRole}`);
+    } catch (error) {
+      logSocketError(socket, 'media_state_changed', error);
+    }
+  });
+
   socket.on('lock_editor', async ({ roomId, locked } = {}) => {
     try {
       const access = await liveInterviewService.assertRoomAccess(roomId, socket.user, 'lock editor');
@@ -396,13 +452,11 @@ const registerInterviewHandlers = (io, socket) => {
       const now = new Date();
       const room = await LiveInterview.findOne(liveInterviewService.roomLookup(roomId));
       if (!room) throw new Error('Live interview room not found');
-      room.status = 'completed';
-      room.controls.endedBy = socket.user._id;
-      room.controls.endedAt = now;
-      room.analytics.endedAt = now;
-      room.analytics.durationSeconds = room.analytics.startedAt ? Math.max(0, Math.round((now - room.analytics.startedAt) / 1000)) : 0;
-      await room.save();
+      await liveInterviewService.markRoomEnded({ roomId, endedByUserId: socket.user._id });
+      liveInterviewSessionService.revokeRoomSessions(roomId, 'ended');
       io.to(getRoomName(room)).emit('interview_ended', { endedBy: access.role, endedAt: now.toISOString() });
+      io.in(getRoomName(room)).disconnectSockets(true);
+      await LiveInterview.deleteOne(liveInterviewService.roomLookup(roomId));
       respondToSocketAck(ack, { success: true, roomId });
       logger.info(`[INTERVIEW_ROOM] ended ${roomId}`);
     } catch (error) {

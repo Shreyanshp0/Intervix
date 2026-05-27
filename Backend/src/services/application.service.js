@@ -7,6 +7,8 @@ import crypto from 'crypto';
 import matchingService from './matching.service.js';
 import candidateService from './candidate.service.js';
 import recruiterService from './recruiter.service.js';
+import { issueJoinToken } from './live-interview-session.service.js';
+import notificationService from './notification.service.js';
 import ApiError from '../utils/api-error.js';
 import logger from '../config/logger.js';
 
@@ -89,6 +91,61 @@ class ApplicationService {
     return Application.findById(application._id).populate(applicationPopulate);
   }
 
+  async hydrateApplicationInterviewStatus(application, userId) {
+    if (!application) return application;
+    
+    // Convert to plain JS object so we can mutate freely
+    const appObj = application.toObject ? application.toObject() : application;
+    
+    if (!appObj.interviewSchedule || !appObj.interviewSchedule.roomId) {
+      return appObj;
+    }
+    
+    try {
+      const liveInterview = await LiveInterview.findOne({ application: appObj._id });
+      if (liveInterview) {
+        const now = Date.now();
+        const startTime = new Date(liveInterview.scheduledAt).getTime();
+        const endTime = startTime + (60 * 60 * 1000); // 60 minutes window
+        
+        let status = 'scheduled';
+        
+        if (liveInterview.status === 'completed' || liveInterview.lifecycleState === 'ended') {
+          status = 'completed';
+        } else if (liveInterview.status === 'cancelled') {
+          status = 'cancelled';
+        } else if (now >= startTime && now <= endTime) {
+          status = 'active';
+        } else if (now > endTime) {
+          status = 'expired';
+        }
+        
+        appObj.interviewSchedule.status = status;
+        
+        // Auto-generate candidate join token if active
+        if (status === 'active') {
+          const tokenData = issueJoinToken({
+            roomId: liveInterview.roomId,
+            role: 'candidate',
+            userId: userId,
+            ttlMinutes: 60
+          });
+          
+          appObj.interviewSchedule.sessionToken = tokenData.token;
+          appObj.interviewSchedule.sessionUrl = tokenData.sessionUrl;
+          appObj.interviewSchedule.sessionTokenExpiresAt = new Date(tokenData.expiresAt);
+        }
+      } else {
+        // Fallback if LiveInterview record is missing
+        appObj.interviewSchedule.status = 'scheduled';
+      }
+    } catch (err) {
+      console.error('[ApplicationService] Error hydrating interview status:', err);
+    }
+    
+    return appObj;
+  }
+
   async listCandidateApplications(userId, query = {}) {
     const filter = { candidateUser: userId };
     if (query.stage) {
@@ -99,12 +156,15 @@ class ApplicationService {
       .populate(applicationPopulate)
       .sort({ updatedAt: -1 });
 
-    return applications
-      .filter((application) => application.job)
-      .map((application) => {
-        application.recruiterFeedback = (application.recruiterFeedback || []).filter((item) => item.visibility === 'candidate');
-        return application;
-      });
+    const filtered = applications.filter((application) => application.job);
+    const hydrated = await Promise.all(
+      filtered.map((app) => this.hydrateApplicationInterviewStatus(app, userId))
+    );
+
+    return hydrated.map((application) => {
+      application.recruiterFeedback = (application.recruiterFeedback || []).filter((item) => item.visibility === 'candidate');
+      return application;
+    });
   }
 
   async getCandidateApplicationById(userId, applicationId) {
@@ -117,8 +177,9 @@ class ApplicationService {
       throw new ApiError(404, 'Application not found');
     }
 
-    application.recruiterFeedback = (application.recruiterFeedback || []).filter((item) => item.visibility === 'candidate');
-    return application;
+    const hydrated = await this.hydrateApplicationInterviewStatus(application, userId);
+    hydrated.recruiterFeedback = (hydrated.recruiterFeedback || []).filter((item) => item.visibility === 'candidate');
+    return hydrated;
   }
 
   async getJobApplicants(userId, jobId, query = {}) {
@@ -197,6 +258,25 @@ class ApplicationService {
     application.stage = payload.stage;
     application.stageHistory.push(this.buildStageHistory(payload.stage, userId, payload.note || 'Stage updated'));
     await application.save();
+
+    try {
+      const candidateUserId = application.candidateUser?._id || application.candidateUser;
+      if (candidateUserId) {
+        await notificationService.createNotification({
+          userId: candidateUserId,
+          type: 'INTERVIEW_UPDATED',
+          title: 'Application Updated',
+          message: `Your application stage for ${application.job?.title || 'the job'} has been updated to "${payload.stage}".`,
+          metadata: {
+            applicationId: String(application._id),
+            stage: payload.stage
+          }
+        });
+      }
+    } catch (err) {
+      logger.error(`[ApplicationService] Notification trigger in updateApplicationStage failed: ${err.message}`);
+    }
+
     return Application.findById(applicationId).populate(applicationPopulate);
   }
 
@@ -313,6 +393,25 @@ class ApplicationService {
       roomId: roomIdentifier,
       status: updatedApplication?.stage || 'Interview Scheduled'
     });
+
+    try {
+      const candidateUserId = application.candidateUser?._id || application.candidateUser;
+      if (candidateUserId) {
+        await notificationService.createNotification({
+          userId: candidateUserId,
+          type: 'INTERVIEW_SCHEDULED',
+          title: 'Interview Scheduled',
+          message: `You have an upcoming interview scheduled for ${job.title || 'the job'} on ${scheduledFor.toLocaleDateString()} at ${scheduledFor.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}.`,
+          metadata: {
+            roomId: roomIdentifier,
+            applicationId: String(application._id)
+          }
+        });
+      }
+    } catch (err) {
+      logger.error(`[ApplicationService] Notification trigger in scheduleInterview failed: ${err.message}`);
+    }
+
     return {
       application: updatedApplication,
       liveInterview
@@ -327,6 +426,26 @@ class ApplicationService {
       visibility: payload.visibility
     });
     await application.save();
+
+    if (payload.visibility === 'candidate') {
+      try {
+        const candidateUserId = application.candidateUser?._id || application.candidateUser;
+        if (candidateUserId) {
+          await notificationService.createNotification({
+            userId: candidateUserId,
+            type: 'FEEDBACK_RECEIVED',
+            title: 'New Recruiter Feedback',
+            message: `A recruiter left feedback on your application for ${application.job?.title || 'the job'}.`,
+            metadata: {
+              applicationId: String(application._id)
+            }
+          });
+        }
+      } catch (err) {
+        logger.error(`[ApplicationService] Notification trigger in addRecruiterFeedback failed: ${err.message}`);
+      }
+    }
+
     return Application.findById(applicationId).populate(applicationPopulate);
   }
 }

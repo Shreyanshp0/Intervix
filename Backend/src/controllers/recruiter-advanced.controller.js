@@ -11,8 +11,12 @@ import logger from '../config/logger.js';
 import liveInterviewService from '../services/live-interview.service.js';
 import candidateService from '../services/candidate.service.js';
 import recruiterService from '../services/recruiter.service.js';
+import * as liveInterviewSessionServiceModule from '../services/live-interview-session.service.js';
 import crypto from 'crypto';
 import handleControllerError from '../utils/controller-error.js';
+
+// Safely extract the service whether it uses named exports, an exported object, or a default export
+const liveInterviewSessionService = liveInterviewSessionServiceModule.default || liveInterviewSessionServiceModule.liveInterviewSessionService || liveInterviewSessionServiceModule;
 
 class RecruiterAdvancedController {
   async queryCopilot(req, res, next) {
@@ -215,6 +219,8 @@ class RecruiterAdvancedController {
           roomId,
           scheduledAt: scheduledDate,
           status: 'scheduled',
+          lifecycleState: 'created',
+          expiresAt: new Date(scheduledDate.getTime() + (2 * 60 * 60 * 1000)),
           problem: {
             title: `${application.job.roleTitle || 'Technical'} Live Challenge`,
             description: plan.plannerDirective || 'Evaluate problem solving, coding fluency, communication, and debugging tradeoffs.',
@@ -249,6 +255,13 @@ class RecruiterAdvancedController {
         });
       }
 
+      const candidateSession = liveInterviewSessionService.issueJoinToken({
+        roomId,
+        role: 'candidate',
+        userId: application.candidateUser?._id || candidateProfile.user || req.user._id,
+        ttlMinutes: 120
+      });
+
       // Update Application Schedule
       application.stage = 'Interview Scheduled';
       application.interviewSchedule = {
@@ -256,7 +269,10 @@ class RecruiterAdvancedController {
         timezone: 'GMT',
         mode: 'video',
         roomId,
-        meetingLink: `/room/${roomId}`,
+        meetingLink: candidateSession.sessionUrl,
+        sessionToken: candidateSession.token,
+        sessionUrl: candidateSession.sessionUrl,
+        sessionTokenExpiresAt: candidateSession.expiresAt,
         notes: plan.plannerDirective || 'Technical notepad assessments scheduled.'
       };
       await application.save();
@@ -272,6 +288,30 @@ class RecruiterAdvancedController {
     }
   }
 
+  async getLiveInterviewSession(req, res, next) {
+    try {
+      const { roomId } = req.params;
+      const access = await liveInterviewService.assertRoomAccess(roomId, req.user, 'open');
+      const tokenRole = access.role === 'admin' ? 'recruiter' : access.role;
+      const session = liveInterviewSessionService.issueJoinToken({
+        roomId,
+        role: tokenRole,
+        userId: req.user._id,
+        ttlMinutes: 120
+      });
+
+      res.status(200).json({
+        success: true,
+        roomId,
+        sessionToken: session.token,
+        sessionUrl: session.sessionUrl,
+        expiresAt: session.expiresAt
+      });
+    } catch (error) {
+      return handleControllerError('recruiter-advanced.controller.getLiveInterviewSession', res, next, error);
+    }
+  }
+
   async listLiveInterviews(req, res, next) {
     try {
       const recruiter = await RecruiterProfile.findOne({ user: req.user._id });
@@ -282,7 +322,8 @@ class RecruiterAdvancedController {
       const list = await LiveInterview.find({ recruiter: recruiter._id })
         .populate([
           { path: 'candidate', select: 'name email phone location profilePhoto' },
-          { path: 'job', select: 'roleTitle requiredSkills' }
+          { path: 'job', select: 'roleTitle requiredSkills' },
+          { path: 'application', select: 'stage interviewSchedule' }
         ])
         .sort({ scheduledAt: -1 });
 

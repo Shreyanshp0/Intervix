@@ -60,19 +60,26 @@ const ApplicationsPage = () => {
         </div>
       </Panel>
 
-      <Panel>
-        <label className="block text-sm font-medium text-gray-400 mb-1.5 ml-1">Stage filter</label>
-        <select
-          value={stage}
-          onChange={(event) => setStage(event.target.value)}
-          className="h-10 w-full max-w-xs rounded-xl border border-white/10 bg-surface/50 px-3 text-sm text-gray-100 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
-        >
-          {STAGES.map((item) => (
-            <option key={item || 'all'} value={item} className="bg-slate-950">
-              {item || 'All stages'}
-            </option>
-          ))}
-        </select>
+      <Panel className="p-5">
+        <div className="max-w-xs">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5 ml-1">Stage filter</label>
+          <div className="relative group">
+            <select
+              value={stage}
+              onChange={(event) => setStage(event.target.value)}
+              className="flex w-full h-10 rounded-xl border border-white/10 bg-[#1A1F2C]/50 px-3.5 py-2 text-sm text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary focus:bg-[#1A1F2C]/80 transition-all duration-300 appearance-none cursor-pointer pr-10"
+            >
+              {STAGES.map((item) => (
+                <option key={item || 'all'} value={item} className="bg-[#0E1424] text-gray-200">
+                  {item || 'All stages'}
+                </option>
+              ))}
+            </select>
+            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 text-[10px]">
+              ▼
+            </div>
+          </div>
+        </div>
       </Panel>
 
       {loading ? <Panel><div className="text-sm text-gray-400">Loading applications...</div></Panel> : null}
@@ -98,29 +105,64 @@ const ApplicationsPage = () => {
               </div>
 
               <div className="w-full xl:max-w-md space-y-4">
-                <div className="rounded-[24px] border border-white/10 bg-slate-950/50 p-5">
-                  <div className="inline-flex items-center gap-2 text-sm font-medium text-white"><CalendarClock size={16} /> Interview schedule</div>
-                  {application.interviewSchedule?.scheduledFor ? (
-                    <div className="mt-3 space-y-3">
-                      <div className="text-sm text-gray-300">
-                        {new Date(application.interviewSchedule.scheduledFor).toLocaleString()} ({application.interviewSchedule.timezone})<br />
-                        <span className="capitalize font-semibold text-primary">{application.interviewSchedule.mode} Interview</span>
-                      </div>
-                      {application.interviewSchedule.roomId ? (
-                        <Link 
-                          to={`/room/${application.interviewSchedule.roomId}`}
-                          className="mt-2 w-full flex items-center justify-center gap-1.5 rounded-xl bg-primary hover:bg-primary/80 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-primary/25 transition-all text-center"
-                        >
-                          <Video size={14} /> Join Live Coding Room
-                        </Link>
+                {(() => {
+                  const sessionLink = application.interviewSchedule?.sessionUrl
+                    || (application.interviewSchedule?.sessionToken ? `/interview/session?token=${encodeURIComponent(application.interviewSchedule.sessionToken)}` : '');
+                  const status = application.interviewSchedule?.status || (sessionLink ? 'active' : 'scheduled');
+
+                  return (
+                    <div className="rounded-2xl border border-white/5 bg-slate-950/30 p-5">
+                      <div className="inline-flex items-center gap-2 text-xs font-bold text-white uppercase tracking-wider"><CalendarClock size={14} /> Interview schedule</div>
+                      {application.interviewSchedule?.scheduledFor ? (
+                        <div className="mt-3 space-y-3">
+                          <div className="text-xs text-gray-300">
+                            {new Date(application.interviewSchedule.scheduledFor).toLocaleString()} ({application.interviewSchedule.timezone})<br />
+                            <span className="capitalize font-semibold text-primary">{application.interviewSchedule.mode} Interview</span>
+                          </div>
+                          
+                          {status === 'active' && sessionLink ? (
+                            <Link 
+                              to={sessionLink}
+                              className="mt-2 w-full flex items-center justify-center gap-1.5 rounded-xl bg-primary hover:bg-indigo-400 px-4 py-2.5 text-xs font-bold text-white shadow-[0_0_15px_rgba(99,102,241,0.4)] transition-all text-center active:scale-95"
+                            >
+                              <Video size={14} /> Join Live Coding Room
+                            </Link>
+                          ) : status === 'scheduled' ? (
+                            <button
+                              disabled
+                              className="mt-2 w-full flex items-center justify-center gap-1.5 rounded-xl bg-white/5 border border-white/5 px-4 py-2.5 text-xs font-bold text-gray-500 cursor-not-allowed text-center select-none"
+                            >
+                              Upcoming interview
+                            </button>
+                          ) : status === 'ended' || status === 'completed' ? (
+                            <button
+                              disabled
+                              className="mt-2 w-full flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 text-xs font-bold text-emerald-400 cursor-not-allowed text-center select-none"
+                            >
+                              Interview Completed
+                            </button>
+                          ) : status === 'cancelled' ? (
+                            <button
+                              disabled
+                              className="mt-2 w-full flex items-center justify-center gap-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-2.5 text-xs font-bold text-amber-400 cursor-not-allowed text-center select-none"
+                            >
+                              Interview Cancelled
+                            </button>
+                          ) : (
+                            <button
+                              disabled
+                              className="mt-2 w-full flex items-center justify-center gap-1.5 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-2.5 text-xs font-bold text-red-400 cursor-not-allowed text-center select-none"
+                            >
+                              Session Expired
+                            </button>
+                          )}
+                        </div>
                       ) : (
-                        <div className="mt-2 text-xs text-gray-500">Interview link unavailable.</div>
+                        <div className="mt-3 text-sm text-gray-400">No interview scheduled yet.</div>
                       )}
                     </div>
-                  ) : (
-                    <div className="mt-3 text-sm text-gray-400">No interview scheduled yet.</div>
-                  )}
-                </div>
+                  );
+                })()}
 
                 <div className="rounded-[24px] border border-white/10 bg-slate-950/50 p-5">
                   <div className="inline-flex items-center gap-2 text-sm font-medium text-white"><MessageSquareText size={16} /> Recruiter feedback</div>

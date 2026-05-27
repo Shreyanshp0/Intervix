@@ -2,6 +2,8 @@ import interviewEngine from '../ai/interview.engine.js';
 import interviewSessionService from '../services/interview-session.service.js';
 import timerService from '../services/timer.service.js';
 import realtimeService from '../services/realtime.service.js';
+import liveInterviewService from '../services/live-interview.service.js';
+import { verifyJoinToken } from '../services/live-interview-session.service.js';
 import { SessionExpiredError } from '../utils/interview-errors.js';
 import handleControllerError from '../utils/controller-error.js';
 
@@ -203,6 +205,31 @@ const getDashboard = async (req, res, next) => {
   }
 };
 
+const resolveLiveSession = async (req, res, next) => {
+  try {
+    const sessionToken = req.params.token;
+    const tokenPayload = verifyJoinToken(sessionToken, req.user);
+    const room = await liveInterviewService.findRoomById(tokenPayload.roomId);
+
+    if (tokenPayload.role !== 'admin' && tokenPayload.role !== req.user.role) {
+      return res.status(403).json({ message: 'This session token is not valid for your role.' });
+    }
+
+    const access = await liveInterviewService.assertRoomAccess(room.roomId, req.user, 'open');
+    const payload = liveInterviewService.buildRoomPayload(access.room, access.role);
+
+    res.status(200).json({
+      ...payload,
+      token: sessionToken,
+      tokenExpiresAt: tokenPayload.exp ? new Date(tokenPayload.exp * 1000).toISOString() : null,
+      sessionRole: tokenPayload.role
+    });
+  } catch (error) {
+    logControllerError('resolveLiveSession', error, { token: req.params.token });
+    return handleControllerError('interview.controller.resolveLiveSession', res, next, error);
+  }
+};
+
 export {
   startSession,
   getActiveSession,
@@ -213,4 +240,5 @@ export {
   endSession,
   getFinalReport,
   getDashboard,
+  resolveLiveSession,
 };

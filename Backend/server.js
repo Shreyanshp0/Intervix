@@ -10,6 +10,7 @@ import { buildValidationReport } from './src/utils/route-validator.js';
 import { generateDeploymentHealthReport } from './src/utils/deployment-health.js';
 import { buildModuleHealthReport } from './src/utils/module-health.js';
 import { printRegisteredRoutes } from './src/utils/routes-printer.js';
+import liveInterviewService from './src/services/live-interview.service.js';
 
 const PORT = process.env.PORT || 5000;
 
@@ -43,6 +44,7 @@ const validateStartupConfiguration = () => {
 
 // Create HTTP server
 const server = http.createServer(app);
+let roomLifecycleSweepTimer = null;
 
 server.on('error', (error) => {
   logger.error(`HTTP server failed to start: ${error.message}`);
@@ -55,6 +57,10 @@ initSocket(server);
 const gracefulShutdown = async (signal) => {
   logger.info(`Received ${signal}. Shutting down gracefully.`);
   try {
+    if (roomLifecycleSweepTimer) {
+      clearInterval(roomLifecycleSweepTimer);
+      roomLifecycleSweepTimer = null;
+    }
     server.close(() => {
       logger.info('HTTP server closed');
     });
@@ -113,6 +119,12 @@ connectDB().then(() => {
     } catch (e) {
       logger.error(`Failed to log endpoints: ${e.message}`);
     }
+
+    roomLifecycleSweepTimer = setInterval(() => {
+      liveInterviewService.expireStaleRooms().catch((error) => {
+        logger.warn(`Live interview lifecycle sweep failed: ${error.message}`);
+      });
+    }, 5 * 60 * 1000);
   });
 }).catch((err) => {
   logger.error(`Database connection failed: ${err.message}`);

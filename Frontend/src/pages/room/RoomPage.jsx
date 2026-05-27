@@ -1,12 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import Editor from '@monaco-editor/react';
-import { Camera, CameraOff, ChevronRight, FileText, Lock, Mic, MicOff, MonitorUp, Pause, Play, Radio, ScreenShareOff, Send, Terminal, Unlock, Video, X } from 'lucide-react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { 
+  Video, 
+  Radio, 
+  Unlock, 
+  Lock, 
+  Pause, 
+  X, 
+  SidebarOpen, 
+  SidebarClose,
+  Laptop
+} from 'lucide-react';
 import api from '../../services/api';
 import { connectSocket } from '../../services/socket';
 import { API_ROUTES } from '../../constants/apiRoutes';
 import Button from '../../components/common/Button';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useRoomStore } from '../../store/useRoomStore';
+
+// Subcomponents
+import ProblemPanel from '../../components/room/ProblemPanel';
+import CodeEditorPanel from '../../components/room/CodeEditorPanel';
+import VideoInsightsPanel from '../../components/room/VideoInsightsPanel';
+import ControlDock from '../../components/room/ControlDock';
 
 const DEFAULT_CODE = `function solution(input) {
   return input;
@@ -14,21 +30,29 @@ const DEFAULT_CODE = `function solution(input) {
 
 console.log(solution('hello interview'));`;
 
-const LANGUAGES = [
-  { value: 'javascript', label: 'JavaScript' },
-  { value: 'python', label: 'Python' },
-  { value: 'cpp', label: 'C++' },
-  { value: 'c', label: 'C' },
-  { value: 'java', label: 'Java' }
-];
-
 const stopStream = (stream) => stream?.getTracks?.().forEach((track) => track.stop());
-const attachStream = (videoRef, stream) => { if (videoRef.current && videoRef.current.srcObject !== stream) videoRef.current.srcObject = stream || null; };
+const attachStream = (videoRef, stream) => {
+  if (!videoRef.current || videoRef.current.srcObject === stream) return;
+  videoRef.current.srcObject = stream || null;
+  if (stream && typeof videoRef.current.play === 'function') {
+    videoRef.current.play().catch(() => {});
+  }
+};
 
 const RoomPage = () => {
   const { roomId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
+  
+  // Custom Room Visual Store
+  const { resetRoomUi, setParticipantMedia } = useRoomStore();
+
+  // Sidemenu layout toggles for advanced flexibility
+  const [leftPanelOpen, setLeftPanelOpen] = useState(true);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+
+  // Sockets, WebRTC, Media Refs
   const socketRef = useRef(null);
   const mainPeerRef = useRef(null);
   const screenPeerRef = useRef(null);
@@ -37,12 +61,20 @@ const RoomPage = () => {
   const cameraVideoSenderRef = useRef(null);
   const audioSenderRef = useRef(null);
   const screenSenderRef = useRef(null);
+  const editorRef = useRef(null);
+  const editorContentDisposableRef = useRef(null);
+  const editorCursorDisposableRef = useRef(null);
+  const editorSelectionDisposableRef = useRef(null);
+  const codeSyncTimerRef = useRef(null);
+  const cursorSyncTimerRef = useRef(null);
+  const typingStateTimerRef = useRef(null);
+  const remoteCodeUpdateRef = useRef(false);
+  const currentRoomRoleRef = useRef(user?.role || 'candidate');
   const remoteCameraStreamRef = useRef(new MediaStream());
   const remoteScreenStreamRef = useRef(new MediaStream());
   const localVideoRef = useRef(null);
   const remoteWebcamVideoRef = useRef(null);
   const remoteScreenVideoRef = useRef(null);
-  const suppressEditorEventRef = useRef(false);
   const codeVersionRef = useRef(0);
   const rtcConfigRef = useRef({ iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }] });
   const negotiationStateRef = useRef({
@@ -53,6 +85,7 @@ const RoomPage = () => {
   const joinedRef = useRef(false);
   const joinInFlightRef = useRef(false);
 
+  // Local State Synchronizations
   const [room, setRoom] = useState(null);
   const [loading, setLoading] = useState(true);
   const [roomReady, setRoomReady] = useState(false);
@@ -69,8 +102,8 @@ const RoomPage = () => {
   const [remoteScreenSharing, setRemoteScreenSharing] = useState(false);
   const [editorLocked, setEditorLocked] = useState(false);
   const [paused, setPaused] = useState(false);
-  const [resumeOpen, setResumeOpen] = useState(true);
   const [remoteCursor, setRemoteCursor] = useState(null);
+  const [remoteTyping, setRemoteTyping] = useState(null);
   const [prompt, setPrompt] = useState('');
   const [messages, setMessages] = useState([]);
   const [quality, setQuality] = useState('unknown');
@@ -78,13 +111,53 @@ const RoomPage = () => {
   const effectiveUserRole = user?.role || roomRole || 'candidate';
   const isRecruiter = effectiveUserRole === 'recruiter' || effectiveUserRole === 'admin';
   const isPolite = isRecruiter;
-  const canEdit = !editorLocked || isRecruiter;
+  const sessionToken = searchParams.get('token');
+  const activeRoomId = room?.roomId || roomId || '';
   const candidate = room?.candidate || {};
   const resume = candidate?.resume || {};
-  const analytics = room?.analytics || {};
-  const roomDetailsRoute = useMemo(() => effectiveUserRole === 'recruiter' || effectiveUserRole === 'admin' ? API_ROUTES.recruiter.liveInterviewDetails(roomId) : API_ROUTES.candidate.liveInterviewDetails(roomId), [effectiveUserRole, roomId]);
+  
+  const roomDetailsRoute = useMemo(() => {
+    if (sessionToken) {
+      return API_ROUTES.interviews.session(sessionToken);
+    }
+    return effectiveUserRole === 'recruiter' || effectiveUserRole === 'admin'
+      ? API_ROUTES.recruiter.liveInterviewDetails(roomId)
+      : API_ROUTES.candidate.liveInterviewDetails(roomId);
+  }, [effectiveUserRole, roomId, sessionToken]);
+
   const getPeerRef = useCallback((channel) => channel === 'screen' ? screenPeerRef : mainPeerRef, []);
   const isSignalingStable = useCallback((peer, state) => peer.signalingState === 'stable' || state.isSettingRemoteAnswerPending, []);
+  
+  const syncEditorValue = useCallback((nextCode, nextLanguage, version) => {
+    const editor = editorRef.current;
+    remoteCodeUpdateRef.current = true;
+    codeVersionRef.current = Number(version || 0);
+    setCode(nextCode || '');
+    if (nextLanguage) {
+      setLanguage(nextLanguage);
+    }
+
+    if (editor) {
+      const position = editor.getPosition();
+      const selection = editor.getSelection();
+      editor.setValue(nextCode || '');
+      if (selection) {
+        editor.setSelection(selection);
+      } else if (position) {
+        editor.setPosition(position);
+      }
+      editor.focus();
+    }
+
+    window.requestAnimationFrame(() => {
+      remoteCodeUpdateRef.current = false;
+    });
+  }, []);
+
+  useEffect(() => {
+    currentRoomRoleRef.current = roomRole;
+  }, [roomRole]);
+
   const emitSignalWithAck = useCallback(async (eventName, payload) => {
     const socket = socketRef.current;
     if (!socket?.connected) return false;
@@ -100,10 +173,10 @@ const RoomPage = () => {
     if (!socketRef.current || !description) return;
     console.info('[NEGOTIATION]', channel, 'emit', description.type, 'state', getPeerRef(channel).current?.signalingState);
     const event = description.type === 'offer' ? 'webrtc_offer' : 'webrtc_answer';
-    void emitSignalWithAck(event, { roomId, channel, [description.type]: description }).then((ok) => {
+    void emitSignalWithAck(event, { roomId: activeRoomId, channel, [description.type]: description }).then((ok) => {
       if (!ok) console.warn('[NEGOTIATION]', channel, event, 'ack failed');
     });
-  }, [emitSignalWithAck, getPeerRef, roomId]);
+  }, [activeRoomId, emitSignalWithAck, getPeerRef]);
 
   const flushIceQueue = useCallback(async (channel) => {
     const peer = getPeerRef(channel).current;
@@ -132,19 +205,35 @@ const RoomPage = () => {
     const peer = new RTCPeerConnection(rtcConfigRef.current);
     peerRef.current = peer;
     console.info(channel === 'screen' ? '[WEBRTC_SCREEN] peer created' : '[WEBRTC_MAIN] peer created');
+    
     peer.onicecandidate = (event) => {
       if (!event.candidate) return;
       console.info('[ICE]', channel, 'local candidate generated');
-      void emitSignalWithAck('webrtc_ice_candidate', { roomId, channel, candidate: event.candidate }).then((ok) => {
+      void emitSignalWithAck('webrtc_ice_candidate', { roomId: activeRoomId, channel, candidate: event.candidate }).then((ok) => {
         if (!ok) console.warn('[ICE]', channel, 'candidate ack failed');
       });
     };
+
     peer.ontrack = (event) => {
-      const [stream] = event.streams;
+      const stream = event.streams?.[0] || new MediaStream([event.track]);
+      console.info('[WEBRTC_TRACK]', {
+        channel,
+        kind: event.track.kind,
+        label: event.track.label,
+        readyState: event.track.readyState,
+        enabled: event.track.enabled
+      });
+
       if (channel === 'screen' && event.track.kind === 'video') {
         console.info('[WEBRTC_SCREEN] remote screen track attached');
-        remoteScreenStreamRef.current = stream || new MediaStream([event.track]);
+        remoteScreenStreamRef.current = stream;
         attachStream(remoteScreenVideoRef, remoteScreenStreamRef.current);
+        event.track.onended = () => {
+          attachStream(remoteScreenVideoRef, null);
+          setRemoteScreenSharing(false);
+        };
+        event.track.onmute = () => console.info('[WEBRTC_SCREEN] screen track muted');
+        event.track.onunmute = () => console.info('[WEBRTC_SCREEN] screen track unmuted');
         setRemoteScreenSharing(true);
         return;
       }
@@ -156,8 +245,15 @@ const RoomPage = () => {
       }
       if (!remoteCameraStreamRef.current.getVideoTracks().includes(event.track)) remoteCameraStreamRef.current.addTrack(event.track);
       console.info('[WEBRTC_MAIN] remote webcam track attached');
-      attachStream(remoteWebcamVideoRef, stream || remoteCameraStreamRef.current);
+      attachStream(remoteWebcamVideoRef, remoteCameraStreamRef.current);
+      event.track.onended = () => {
+        remoteCameraStreamRef.current = new MediaStream(remoteCameraStreamRef.current.getAudioTracks());
+        attachStream(remoteWebcamVideoRef, remoteCameraStreamRef.current);
+      };
+      event.track.onmute = () => console.info('[WEBRTC_MAIN] webcam track muted');
+      event.track.onunmute = () => console.info('[WEBRTC_MAIN] webcam track unmuted');
     };
+
     peer.onconnectionstatechange = async () => {
       const state = peer.connectionState;
       console.info('[WEBRTC]', channel, 'connectionState=', state);
@@ -171,12 +267,14 @@ const RoomPage = () => {
       }
       if (['disconnected', 'closed'].includes(state) && channel === 'screen') setRemoteScreenSharing(false);
     };
+
     peer.onsignalingstatechange = () => {
       console.info('[NEGOTIATION]', channel, 'signalingState=', peer.signalingState);
     };
     peer.oniceconnectionstatechange = () => {
       console.info('[ICE]', channel, 'iceConnectionState=', peer.iceConnectionState);
     };
+    
     peer.onnegotiationneeded = async () => {
       const state = negotiationStateRef.current[channel];
       if (state.makingOffer || !peerRef.current) return;
@@ -190,7 +288,7 @@ const RoomPage = () => {
       }
     };
     return peer;
-  }, [emitDescription, emitSignalWithAck, getPeerRef, roomId]);
+  }, [activeRoomId, emitDescription, emitSignalWithAck, getPeerRef]);
 
   const applyRemoteDescription = useCallback(async (channel, description) => {
     const peer = createPeer(channel);
@@ -232,6 +330,12 @@ const RoomPage = () => {
   }, [getPeerRef]);
 
   const cleanupMedia = useCallback(() => {
+    window.clearTimeout(codeSyncTimerRef.current);
+    window.clearTimeout(cursorSyncTimerRef.current);
+    window.clearTimeout(typingStateTimerRef.current);
+    editorContentDisposableRef.current?.dispose?.();
+    editorCursorDisposableRef.current?.dispose?.();
+    editorSelectionDisposableRef.current?.dispose?.();
     stopStream(cameraStreamRef.current);
     stopStream(screenStreamRef.current);
     cameraStreamRef.current = null;
@@ -246,6 +350,8 @@ const RoomPage = () => {
     attachStream(localVideoRef, null);
     attachStream(remoteWebcamVideoRef, null);
     remoteCameraStreamRef.current = new MediaStream();
+    remoteScreenStreamRef.current = new MediaStream();
+    setRemoteTyping(null);
     setScreenSharing(false);
   }, [destroyScreenPeer]);
 
@@ -259,7 +365,9 @@ const RoomPage = () => {
           iceCandidatePoolSize: Number(response.data.iceCandidatePoolSize || 8)
         };
       }
-    } catch {}
+    } catch (error) {
+      console.warn('[RTC] Failed to load ICE config', error?.message || error);
+    }
   }, []);
 
   const startMainMedia = useCallback(async () => {
@@ -299,26 +407,38 @@ const RoomPage = () => {
       setRoomReady(true);
       setError('');
     } catch (fetchError) {
+      if (fetchError.response?.status === 410) {
+        navigate('/interview/ended', { replace: true });
+        return;
+      }
       setError(fetchError.response?.data?.message || 'You do not have access to this interview room.');
       setRoomReady(false);
     } finally {
       setLoading(false);
     }
-  }, [roomDetailsRoute, user?.role]);
+  }, [roomDetailsRoute, user]);
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setLoading(false);
-      setError('Please log in to join this interview room.');
-      return;
+      const fallbackTimer = window.setTimeout(() => {
+        setLoading(false);
+        setError('Please log in to join this interview room.');
+      }, 0);
+      return () => window.clearTimeout(fallbackTimer);
     }
-    void fetchRoom();
+
+    const fetchTimer = window.setTimeout(() => {
+      void fetchRoom();
+    }, 0);
+
+    return () => window.clearTimeout(fetchTimer);
   }, [fetchRoom, isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated || loading || !roomReady) return undefined;
     const socket = connectSocket();
     socketRef.current = socket;
+    
     void (async () => {
       try {
         await fetchRtcConfig();
@@ -329,10 +449,11 @@ const RoomPage = () => {
         setCameraEnabled(false);
       }
     })();
+
     const joinInterview = () => {
       if (joinInFlightRef.current || joinedRef.current || !socket.connected) return;
       joinInFlightRef.current = true;
-      socket.emit('join_interview', { roomId }, (ack) => {
+      socket.emit('join_interview', { roomId: activeRoomId }, (ack) => {
         joinInFlightRef.current = false;
         joinedRef.current = Boolean(ack?.success);
         if (!ack?.success && ack?.message) {
@@ -340,52 +461,87 @@ const RoomPage = () => {
         }
       });
     };
+
     const handleSocketConnect = () => {
       console.info('[SOCKET] connected, rejoining interview room');
       joinInterview();
       mainPeerRef.current?.restartIce();
       screenPeerRef.current?.restartIce();
     };
+
     const handleSocketConnectError = (err) => {
       console.warn('[SOCKET] connect_error', err?.message || 'unknown');
     };
+
     if (socket.connected) {
       joinInterview();
     }
+
     socket.off('connect', handleSocketConnect);
     socket.off('connect_error', handleSocketConnectError);
     socket.on('connect', handleSocketConnect);
     socket.on('connect_error', handleSocketConnectError);
+
     socket.on('interview_state', ({ room: nextRoom }) => {
       setRoom(nextRoom);
       setRoomRole(nextRoom.role || user?.role || 'candidate');
       setEditorLocked(Boolean(nextRoom.controls?.editorLocked));
       setPaused(Boolean(nextRoom.controls?.paused));
       setRemoteScreenSharing(Boolean(nextRoom.mediaState?.candidateScreenSharing));
+      
+      // Hydrate active participant media states from DB!
+      if (nextRoom.mediaState) {
+        setParticipantMedia('candidate', {
+          cameraEnabled: nextRoom.mediaState.candidateVideoEnabled ?? true,
+          micEnabled: nextRoom.mediaState.candidateAudioEnabled ?? true,
+          screenSharing: nextRoom.mediaState.candidateScreenSharing ?? false
+        });
+        setParticipantMedia('recruiter', {
+          cameraEnabled: nextRoom.mediaState.recruiterVideoEnabled ?? true,
+          micEnabled: nextRoom.mediaState.recruiterAudioEnabled ?? true
+        });
+      }
       setStatus('Joined');
     });
+
     socket.on('interview_peers', ({ peers }) => {
       if (peers?.length && mainPeerRef.current && mainPeerRef.current.signalingState === 'stable') {
         void mainPeerRef.current.setLocalDescription(mainPeerRef.current.createOffer()).then(() => emitDescription('main', mainPeerRef.current.localDescription));
       }
     });
+
     socket.on('webrtc_offer', async ({ offer, channel = 'main' }) => applyRemoteDescription(channel, offer).catch((error) => console.warn('[NEGOTIATION]', channel, 'offer handling failed', error)));
     socket.on('webrtc_answer', async ({ answer, channel = 'main' }) => applyRemoteDescription(channel, answer).catch((error) => console.warn('[NEGOTIATION]', channel, 'answer handling failed', error)));
     socket.on('webrtc_ice_candidate', async ({ candidate, channel = 'main' }) => addIceCandidate(channel, candidate).catch((error) => console.warn('[ICE]', channel, 'candidate handling failed', error)));
+
     const handleCodeUpdate = ({ code: nextCode, language: nextLanguage, version }) => {
       if (version <= codeVersionRef.current) return;
-      suppressEditorEventRef.current = true;
-      codeVersionRef.current = version;
-      setCode(nextCode);
-      setLanguage(nextLanguage);
-      requestAnimationFrame(() => { suppressEditorEventRef.current = false; });
+      syncEditorValue(nextCode, nextLanguage, version);
     };
+
     const handleCursorUpdate = ({ cursor, role: cursorRole }) => setRemoteCursor({ ...cursor, role: cursorRole });
+    
+    const handleTypingState = ({ isTyping, cursor, role: typingRole }) => {
+      const localRole = user?.role || currentRoomRoleRef.current || 'candidate';
+      if (typingRole && typingRole === localRole) {
+        return;
+      }
+      setRemoteTyping(isTyping ? {
+        role: typingRole,
+        cursor: cursor || null
+      } : null);
+    };
+
     const handleLanguageUpdate = ({ language: nextLanguage }) => setLanguage(nextLanguage);
     const handleExecutionStatus = ({ status: nextStatus }) => setExecutionStatus(nextStatus);
-    const handleExecutionResult = (result) => { setExecutionStatus(result.status || 'completed'); setOutput(`${result.success ? 'Success' : 'Failed'}\n\n${result.output || ''}${result.error ? `\n${result.error}` : ''}`); };
+    const handleExecutionResult = (result) => { 
+      setExecutionStatus(result.status || 'completed'); 
+      setOutput(`${result.success ? 'Success' : 'Failed'}\n\n${result.output || ''}${result.error ? `\n${result.error}` : ''}`); 
+    };
+    
     const handleScreenShareStarted = () => setRemoteScreenSharing(true);
     const handleScreenShareStopped = () => { setRemoteScreenSharing(false); attachStream(remoteScreenVideoRef, null); };
+    
     const handlePeerDisconnected = ({ socketId }) => {
       console.warn('[WEBRTC] remote peer disconnected', socketId);
       attachStream(remoteWebcamVideoRef, null);
@@ -395,20 +551,47 @@ const RoomPage = () => {
       setRemoteScreenSharing(false);
       setStatus('Peer disconnected');
     };
+
     const handleScreenShareRequested = ({ by }) => setMessages((items) => [...items, `${by} requested screen share.`].slice(-5));
-    const handleAudioToggled = ({ role: mediaRole, enabled }) => mediaRole === roomRole && setMicEnabled(enabled);
-    const handleVideoToggled = ({ role: mediaRole, enabled }) => mediaRole === roomRole && setCameraEnabled(enabled);
+    const handleAudioToggled = ({ role: mediaRole, enabled }) => mediaRole === (user?.role || currentRoomRoleRef.current) && setMicEnabled(enabled);
+    const handleVideoToggled = ({ role: mediaRole, enabled }) => mediaRole === (user?.role || currentRoomRoleRef.current) && setCameraEnabled(enabled);
+
+    const handleParticipantMediaState = ({ role: mediaRole, mediaState }) => {
+      if (mediaRole) {
+        setParticipantMedia(mediaRole, mediaState);
+        
+        // Remote triggers support (if recruiter mutesthe candidate remotely)
+        const localRole = user?.role || currentRoomRoleRef.current || 'candidate';
+        if (mediaRole === localRole) {
+          if (mediaState.cameraEnabled !== undefined) {
+            setCameraEnabled(mediaState.cameraEnabled);
+            cameraStreamRef.current?.getVideoTracks().forEach((track) => { track.enabled = mediaState.cameraEnabled; });
+          }
+          if (mediaState.micEnabled !== undefined) {
+            setMicEnabled(mediaState.micEnabled);
+            cameraStreamRef.current?.getAudioTracks().forEach((track) => { track.enabled = mediaState.micEnabled; });
+          }
+        }
+      }
+    };
+
     const handleEditorLockChanged = ({ locked }) => setEditorLocked(locked);
     const handleInterviewPaused = ({ paused: nextPaused }) => setPaused(nextPaused);
     const handlePromptReceived = ({ prompt: nextPrompt, by }) => setMessages((items) => [...items, `${by}: ${nextPrompt}`].slice(-5));
+    
     const handleInterviewEnded = () => {
       cleanupMedia();
       setStatus('Ended');
-      navigate(isRecruiter ? '/recruiter/interviews' : '/candidate/dashboard');
+      resetRoomUi(); // Wipe custom store UI variables on unmount
+      const localRole = user?.role || currentRoomRoleRef.current || 'candidate';
+      navigate(localRole === 'recruiter' || localRole === 'admin' ? '/recruiter/interviews' : '/interview/ended', { replace: true });
     };
+
     const handleInterviewError = ({ message }) => setError(message);
+
     socket.on('code_update', handleCodeUpdate);
     socket.on('cursor_update', handleCursorUpdate);
+    socket.on('typing_state', handleTypingState);
     socket.on('language_update', handleLanguageUpdate);
     socket.on('execution_status', handleExecutionStatus);
     socket.on('execution_result', handleExecutionResult);
@@ -418,11 +601,13 @@ const RoomPage = () => {
     socket.on('screen_share_requested', handleScreenShareRequested);
     socket.on('audio_toggled', handleAudioToggled);
     socket.on('video_toggled', handleVideoToggled);
+    socket.on('participant_media_state', handleParticipantMediaState);
     socket.on('editor_lock_changed', handleEditorLockChanged);
     socket.on('interview_paused', handleInterviewPaused);
     socket.on('prompt_received', handlePromptReceived);
     socket.on('interview_ended', handleInterviewEnded);
     socket.on('interview_error', handleInterviewError);
+
     const qualityInterval = setInterval(async () => {
       const peer = mainPeerRef.current;
       if (!peer) return;
@@ -438,13 +623,15 @@ const RoomPage = () => {
       const loss = packetsReceived ? packetsLost / packetsReceived : 0;
       setQuality(loss > 0.08 ? 'poor' : loss > 0.03 ? 'fair' : 'good');
     }, 5000);
+
     return () => {
       clearInterval(qualityInterval);
       if (joinedRef.current) {
-        socket.emit('leave_interview', { roomId });
+        socket.emit('leave_interview', { roomId: activeRoomId });
       }
       joinedRef.current = false;
       joinInFlightRef.current = false;
+      
       socket.off('interview_state');
       socket.off('interview_peers');
       socket.off('webrtc_offer');
@@ -452,6 +639,7 @@ const RoomPage = () => {
       socket.off('webrtc_ice_candidate');
       socket.off('code_update', handleCodeUpdate);
       socket.off('cursor_update', handleCursorUpdate);
+      socket.off('typing_state', handleTypingState);
       socket.off('language_update', handleLanguageUpdate);
       socket.off('execution_status', handleExecutionStatus);
       socket.off('execution_result', handleExecutionResult);
@@ -461,6 +649,7 @@ const RoomPage = () => {
       socket.off('screen_share_requested', handleScreenShareRequested);
       socket.off('audio_toggled', handleAudioToggled);
       socket.off('video_toggled', handleVideoToggled);
+      socket.off('participant_media_state', handleParticipantMediaState);
       socket.off('editor_lock_changed', handleEditorLockChanged);
       socket.off('interview_paused', handleInterviewPaused);
       socket.off('prompt_received', handlePromptReceived);
@@ -468,29 +657,115 @@ const RoomPage = () => {
       socket.off('interview_error', handleInterviewError);
       socket.off('connect', handleSocketConnect);
       socket.off('connect_error', handleSocketConnectError);
+      
       cleanupMedia();
+      resetRoomUi(); // Clean up store UI variables on unmount
     };
-  }, [addIceCandidate, applyRemoteDescription, cleanupMedia, emitDescription, fetchRtcConfig, isAuthenticated, isRecruiter, loading, navigate, roomId, roomReady, roomRole, startMainMedia, user?.role]);
+  }, [activeRoomId, addIceCandidate, applyRemoteDescription, cleanupMedia, emitDescription, fetchRtcConfig, isAuthenticated, loading, navigate, roomReady, startMainMedia, syncEditorValue, user?.role, resetRoomUi]);
 
-  const handleEditorChange = (value = '') => {
-    if (suppressEditorEventRef.current || !canEdit) return;
-    const version = codeVersionRef.current + 1;
-    codeVersionRef.current = version;
+  const queueCodeSync = useCallback((value = '', nextLanguage = language) => {
+    if (remoteCodeUpdateRef.current) return;
     setCode(value);
-    socketRef.current?.emit('code_change', { roomId, code: value, language, version });
+    codeVersionRef.current += 1;
+    const version = codeVersionRef.current;
+    window.clearTimeout(codeSyncTimerRef.current);
+    window.clearTimeout(typingStateTimerRef.current);
+    codeSyncTimerRef.current = window.setTimeout(() => {
+      socketRef.current?.emit('code_change', { roomId: activeRoomId, code: value, language: nextLanguage, version });
+      socketRef.current?.emit('typing_state', {
+        roomId: activeRoomId,
+        isTyping: true,
+        cursor: editorRef.current?.getPosition() || null
+      });
+      typingStateTimerRef.current = window.setTimeout(() => {
+        socketRef.current?.emit('typing_state', {
+          roomId: activeRoomId,
+          isTyping: false,
+          cursor: editorRef.current?.getPosition() || null
+        });
+      }, 900);
+    }, 90);
+  }, [activeRoomId, language]);
+
+  const queueCursorSync = useCallback((cursor) => {
+    window.clearTimeout(cursorSyncTimerRef.current);
+    cursorSyncTimerRef.current = window.setTimeout(() => {
+      socketRef.current?.emit('cursor_change', { roomId: activeRoomId, cursor });
+      socketRef.current?.emit('typing_state', {
+        roomId: activeRoomId,
+        isTyping: Boolean(cursor),
+        cursor
+      });
+    }, 50);
+  }, [activeRoomId]);
+
+  const handleEditorMount = useCallback((editor) => {
+    editorRef.current = editor;
+    editorContentDisposableRef.current?.dispose?.();
+    editorCursorDisposableRef.current?.dispose?.();
+    editorSelectionDisposableRef.current?.dispose?.();
+
+    editorContentDisposableRef.current = editor.onDidChangeModelContent(() => {
+      if (remoteCodeUpdateRef.current) return;
+      queueCodeSync(editor.getValue(), editor.getModel()?.getLanguageId?.() || language);
+    });
+
+    editorCursorDisposableRef.current = editor.onDidChangeCursorPosition((event) => {
+      queueCursorSync(event.position);
+    });
+
+    editorSelectionDisposableRef.current = editor.onDidChangeCursorSelection((event) => {
+      queueCursorSync({
+        lineNumber: event.selection.positionLineNumber,
+        column: event.selection.positionColumn,
+        selection: {
+          startLineNumber: event.selection.startLineNumber,
+          startColumn: event.selection.startColumn,
+          endLineNumber: event.selection.endLineNumber,
+          endColumn: event.selection.endColumn
+        }
+      });
+    });
+  }, [language, queueCodeSync, queueCursorSync]);
+
+  const handleLanguageChange = (nextLanguage) => {
+    setLanguage(nextLanguage);
+    queueCodeSync(code, nextLanguage);
+    socketRef.current?.emit('language_change', { roomId: activeRoomId, language: nextLanguage });
   };
-  const handleEditorMount = (editor) => editor.onDidChangeCursorPosition((event) => socketRef.current?.emit('cursor_change', { roomId, cursor: event.position }));
-  const handleLanguageChange = (nextLanguage) => { setLanguage(nextLanguage); socketRef.current?.emit('language_change', { roomId, language: nextLanguage }); };
-  const toggleMic = () => { const next = !micEnabled; cameraStreamRef.current?.getAudioTracks().forEach((track) => { track.enabled = next; }); setMicEnabled(next); socketRef.current?.emit('toggle_audio', { roomId, enabled: next }); };
-  const toggleCamera = () => { const next = !cameraEnabled; cameraStreamRef.current?.getVideoTracks().forEach((track) => { track.enabled = next; }); setCameraEnabled(next); socketRef.current?.emit('toggle_video', { roomId, enabled: next }); };
+
+  const toggleMic = () => { 
+    const next = !micEnabled; 
+    cameraStreamRef.current?.getAudioTracks().forEach((track) => { track.enabled = next; }); 
+    setMicEnabled(next); 
+    
+    const localRole = user?.role || currentRoomRoleRef.current || 'candidate';
+    setParticipantMedia(localRole, { micEnabled: next });
+    socketRef.current?.emit('media_state_changed', { roomId: activeRoomId, role: localRole, micEnabled: next }); 
+  };
+
+  const toggleCamera = () => { 
+    const next = !cameraEnabled; 
+    cameraStreamRef.current?.getVideoTracks().forEach((track) => { track.enabled = next; }); 
+    setCameraEnabled(next); 
+    
+    const localRole = user?.role || currentRoomRoleRef.current || 'candidate';
+    setParticipantMedia(localRole, { cameraEnabled: next });
+    socketRef.current?.emit('media_state_changed', { roomId: activeRoomId, role: localRole, cameraEnabled: next }); 
+  };
+
   const stopScreenShare = useCallback(async (fromBrowserStop = false) => {
     if (!screenStreamRef.current) return;
     stopStream(screenStreamRef.current);
     screenStreamRef.current = null;
     setScreenSharing(false);
     destroyScreenPeer();
-    socketRef.current?.emit('stop_screen_share', { roomId, fromBrowserStop });
-  }, [destroyScreenPeer, roomId]);
+    
+    setParticipantMedia('candidate', { screenSharing: false });
+    socketRef.current?.emit('media_state_changed', { roomId: activeRoomId, role: 'candidate', screenSharing: false });
+    socketRef.current?.emit('stop_screen_share', { roomId: activeRoomId, fromBrowserStop });
+  }, [activeRoomId, destroyScreenPeer, setParticipantMedia]);
+
   const startScreenShare = async () => {
     try {
       if (screenPeerRef.current) return;
@@ -500,7 +775,10 @@ const RoomPage = () => {
       if (!navigator?.mediaDevices?.getDisplayMedia) {
         throw new Error('mediaDevices.getDisplayMedia is unavailable in this browser/context.');
       }
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 15, max: 24 }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+      const stream = await navigator.mediaDevices.getDisplayMedia({ 
+        video: { frameRate: { ideal: 15, max: 24 }, width: { ideal: 1920 }, height: { ideal: 1080 } }, 
+        audio: false 
+      });
       const [screenTrack] = stream.getVideoTracks();
       if (!screenTrack) throw new Error('No screen track returned');
       const peer = createPeer('screen');
@@ -508,40 +786,232 @@ const RoomPage = () => {
       screenStreamRef.current = stream;
       screenTrack.onended = () => { void stopScreenShare(true); };
       setScreenSharing(true);
-      socketRef.current?.emit('start_screen_share', { roomId });
+      
+      setParticipantMedia('candidate', { screenSharing: true });
+      socketRef.current?.emit('media_state_changed', { roomId: activeRoomId, role: 'candidate', screenSharing: true });
+      socketRef.current?.emit('start_screen_share', { roomId: activeRoomId });
     } catch (shareError) {
       setError(`Screen share failed: ${shareError.message}`);
     }
   };
-  const runCode = () => { setExecutionStatus('running'); setOutput('Running...'); socketRef.current?.emit('run_code', { roomId, code, language }); };
-  const recruiterAction = (event, payload = {}) => socketRef.current?.emit(event, { roomId, ...payload });
-  const leaveRoom = () => { socketRef.current?.emit('leave_interview', { roomId }); cleanupMedia(); navigate(isRecruiter ? '/recruiter/interviews' : '/candidate/dashboard'); };
 
-  if (loading) return <div className="min-h-screen bg-[#070A12] flex items-center justify-center text-sm text-slate-400">Preparing secure interview room...</div>;
-  if (error && !room) return <div className="min-h-screen bg-[#070A12] flex items-center justify-center p-6"><div className="max-w-md w-full rounded-lg border border-red-500/20 bg-red-500/10 p-5 text-center"><div className="text-red-200 font-semibold">Unable to join room</div><p className="mt-2 text-sm text-red-100/80">{error}</p><Button className="mt-4" onClick={() => navigate('/login')}>Go to login</Button></div></div>;
+  const toggleHandRaised = () => {
+    const { handRaised, setHandRaised } = useRoomStore.getState();
+    const next = !handRaised;
+    setHandRaised(next);
+    const localRole = user?.role || currentRoomRoleRef.current || 'candidate';
+    setParticipantMedia(localRole, { handRaised: next });
+    socketRef.current?.emit('media_state_changed', { roomId: activeRoomId, role: localRole, handRaised: next });
+  };
+
+  const runCode = () => { 
+    setExecutionStatus('running'); 
+    setOutput('Running...'); 
+    socketRef.current?.emit('run_code', { roomId: activeRoomId, code, language }); 
+  };
+
+  const recruiterAction = (event, payload = {}) => socketRef.current?.emit(event, { roomId: activeRoomId, ...payload });
+
+  const leaveRoom = () => { 
+    socketRef.current?.emit('leave_interview', { roomId: activeRoomId }); 
+    cleanupMedia(); 
+    navigate(isRecruiter ? '/recruiter/interviews' : '/candidate/dashboard'); 
+  };
+
+  const sendPromptMessage = () => {
+    if (!prompt.trim()) return;
+    recruiterAction('send_prompt', { prompt });
+    setPrompt('');
+  };
+
+  // Screen/Track binders to DOM elements
+  useEffect(() => {
+    if (roomReady) {
+      if (cameraStreamRef.current) attachStream(localVideoRef, cameraStreamRef.current);
+      if (remoteCameraStreamRef.current) attachStream(remoteWebcamVideoRef, remoteCameraStreamRef.current);
+      if (remoteScreenStreamRef.current && remoteScreenSharing) attachStream(remoteScreenVideoRef, remoteScreenStreamRef.current);
+    }
+  }, [roomReady, remoteScreenSharing]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#070A12] flex flex-col items-center justify-center gap-3.5 text-sm text-gray-400 select-none">
+        <div className="h-10 w-10 border-2 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
+        <span className="font-medium tracking-wide">Preparing secure collaborative room...</span>
+      </div>
+    );
+  }
+
+  if (error && !room) {
+    return (
+      <div className="min-h-screen bg-[#070A12] flex items-center justify-center p-6 select-none">
+        <div className="max-w-md w-full rounded-3xl border border-red-500/20 bg-red-500/[0.02] p-6 text-center shadow-2xl backdrop-blur-xl">
+          <div className="text-red-200 font-bold text-base mb-1.5">Security Context Failure</div>
+          <p className="text-xs text-red-100/60 leading-relaxed mb-6">{error}</p>
+          <Button className="w-full h-10" onClick={() => navigate('/login')}>Return to Login</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="h-screen overflow-hidden bg-[#070A12] text-slate-100">
-      <header className="h-14 border-b border-white/10 bg-[#0D1322] px-4 flex items-center justify-between">
-        <div className="flex items-center gap-3 min-w-0"><div className="h-9 w-9 rounded-md bg-cyan-500/15 text-cyan-300 flex items-center justify-center"><Video size={18} /></div><div className="min-w-0"><div className="text-sm font-semibold truncate">{room?.job?.roleTitle || room?.problem?.title || 'Live Interview'}</div><div className="text-[11px] text-slate-400 flex items-center gap-2"><span className="capitalize">{role}</span><span>Room {roomId}</span><span className="flex items-center gap-1"><Radio size={11} /> {status} / {quality}</span>{remoteScreenSharing && <span className="text-emerald-300">Candidate is sharing screen</span>}</div></div></div>
-        <div className="flex items-center gap-2">{isRecruiter && <><Button size="sm" variant="secondary" onClick={() => recruiterAction('request_screen_share')}>Request Share</Button><Button size="sm" variant="secondary" onClick={() => recruiterAction('lock_editor', { locked: !editorLocked })}>{editorLocked ? <Unlock size={14} /> : <Lock size={14} />}</Button><Button size="sm" variant="secondary" onClick={() => recruiterAction('pause_interview', { paused: !paused })}><Pause size={14} /></Button><Button size="sm" variant="danger" onClick={() => recruiterAction('end_interview')}>End</Button></>}<Button size="sm" variant="secondary" onClick={leaveRoom}><X size={14} /> Leave</Button></div>
-      </header>
-      {error && <div className="bg-red-500/15 border-b border-red-500/20 px-4 py-2 text-xs text-red-100">{error}</div>}
-      {paused && <div className="bg-amber-500/15 border-b border-amber-500/20 px-4 py-2 text-xs text-amber-100">Interview is paused by recruiter.</div>}
-      <main className="h-[calc(100vh-56px)] grid grid-cols-[280px_minmax(0,1fr)_320px] max-lg:grid-cols-1">
-        <aside className="border-r border-white/10 bg-[#0A0F1C] p-4 overflow-y-auto max-lg:hidden"><div className="text-[11px] uppercase tracking-widest text-slate-500">Problem</div><h1 className="mt-3 text-xl font-semibold">{room?.problem?.title}</h1><div className="mt-2 text-xs text-cyan-300">{room?.problem?.difficulty || 'Medium'}</div><p className="mt-4 text-sm leading-6 text-slate-300 whitespace-pre-wrap">{room?.problem?.description}</p></aside>
-        <section className="min-w-0 flex flex-col"><div className="h-11 border-b border-white/10 bg-[#101728] px-3 flex items-center justify-between"><div className="flex items-center gap-2"><select value={language} onChange={(event) => handleLanguageChange(event.target.value)} disabled={!canEdit} className="h-8 rounded-md border border-white/10 bg-[#080C16] px-2 text-xs outline-none">{LANGUAGES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>{remoteCursor && <span className="text-[11px] text-slate-400">Remote cursor: L{remoteCursor.lineNumber}:C{remoteCursor.column}</span>}</div><Button size="sm" onClick={runCode} disabled={executionStatus === 'running'}><Play size={14} /> Run Code</Button></div><div className="flex-1 min-h-0 relative"><Editor height="100%" language={language === 'cpp' ? 'cpp' : language} theme="vs-dark" value={code} onChange={handleEditorChange} onMount={handleEditorMount} options={{ readOnly: !canEdit, minimap: { enabled: false }, fontSize: 14, lineHeight: 22, scrollBeyondLastLine: false, automaticLayout: true }} /></div><div className="h-40 border-t border-white/10 bg-[#050812]"><div className="h-9 px-3 border-b border-white/10 flex items-center gap-2 text-xs text-slate-300"><Terminal size={14} /> Shared execution output <span className="text-slate-500">({executionStatus})</span></div><pre className="h-[calc(100%-36px)] overflow-auto p-3 text-xs text-slate-300 whitespace-pre-wrap">{output || 'Run code to share stdout/stderr with both participants.'}</pre></div></section>
-        <aside className="border-l border-white/10 bg-[#0A0F1C] flex flex-col min-h-0 max-lg:hidden">
-          <div className="p-3 border-b border-white/10 space-y-3">
-            <div className="relative aspect-video overflow-hidden rounded-md bg-black"><video ref={remoteWebcamVideoRef} autoPlay playsInline className="h-full w-full object-contain" /><div className="absolute bottom-2 left-2 rounded bg-black/70 px-2 py-1 text-[11px]">Remote webcam</div></div>
-            <div className="relative aspect-video overflow-hidden rounded-md bg-black"><video ref={remoteScreenVideoRef} autoPlay playsInline className="h-full w-full object-contain" /><div className="absolute bottom-2 left-2 rounded bg-black/70 px-2 py-1 text-[11px]">Candidate screen</div></div>
-            <div className="relative aspect-video overflow-hidden rounded-md bg-black"><video ref={localVideoRef} autoPlay playsInline muted className="h-full w-full object-cover" />{!cameraEnabled && <div className="absolute inset-0 flex items-center justify-center bg-slate-950 text-slate-400"><CameraOff size={24} /></div>}<div className="absolute bottom-2 left-2 rounded bg-black/70 px-2 py-1 text-[11px]">You</div></div>
-            <div className="grid grid-cols-4 gap-2"><button onClick={toggleMic} className={`h-10 rounded-md border flex items-center justify-center ${micEnabled ? 'border-white/10 bg-white/5' : 'border-red-500/30 bg-red-500/20 text-red-200'}`}>{micEnabled ? <Mic size={16} /> : <MicOff size={16} />}</button><button onClick={toggleCamera} className={`h-10 rounded-md border flex items-center justify-center ${cameraEnabled ? 'border-white/10 bg-white/5' : 'border-red-500/30 bg-red-500/20 text-red-200'}`}>{cameraEnabled ? <Camera size={16} /> : <CameraOff size={16} />}</button><button disabled={isRecruiter} onClick={screenSharing ? stopScreenShare : startScreenShare} className={`h-10 rounded-md border flex items-center justify-center ${screenSharing ? 'border-emerald-500/30 bg-emerald-500/20 text-emerald-200' : 'border-white/10 bg-white/5 disabled:opacity-40'}`}>{screenSharing ? <ScreenShareOff size={16} /> : <MonitorUp size={16} />}</button><button onClick={leaveRoom} className="h-10 rounded-md border border-red-500/30 bg-red-500/20 text-red-100 flex items-center justify-center"><X size={16} /></button></div>
+    <div className="h-screen overflow-hidden bg-[#070A12] text-slate-100 flex flex-col font-sans relative">
+      
+      {/* Mobile Observer Mode Restriction Overlay */}
+      <div className="hidden max-md:flex fixed inset-0 bg-[#060910]/95 z-50 flex-col items-center justify-center p-6 text-center select-none">
+        <div className="p-6 rounded-3xl border border-white/5 bg-[#0D1222]/80 shadow-2xl max-w-sm flex flex-col items-center gap-4">
+          <div className="h-12 w-12 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 animate-pulse">
+            <Laptop size={20} />
           </div>
-          {isRecruiter && <div className="border-b border-white/10"><button onClick={() => setResumeOpen((open) => !open)} className="w-full h-10 px-3 flex items-center justify-between text-xs text-slate-300"><span className="flex items-center gap-2"><FileText size={14} /> Resume panel</span><ChevronRight size={14} className={resumeOpen ? 'rotate-90' : ''} /></button>{resumeOpen && <div className="max-h-64 overflow-y-auto px-3 pb-3 text-xs text-slate-300 space-y-3"><div><div className="font-semibold text-white">{candidate.name}</div><div className="text-slate-400">{candidate.email} {candidate.location ? ` / ${candidate.location}` : ''}</div></div><div><div className="text-slate-500 uppercase tracking-wider">AI insights</div><p className="mt-1 leading-5">{resume.aiAnalysis?.recruiterSummary || 'No parsed resume summary yet.'}</p></div></div>}</div>}
-          <div className="flex-1 min-h-0 p-3 space-y-3 overflow-y-auto">{isRecruiter && <div className="space-y-2"><textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="Send prompt or hint..." className="w-full h-20 resize-none rounded-md border border-white/10 bg-[#070A12] p-2 text-xs outline-none" /><Button size="sm" className="w-full" onClick={() => { recruiterAction('send_prompt', { prompt }); setPrompt(''); }}><Send size={14} /> Send Prompt</Button></div>}<div className="space-y-2 text-xs">{messages.map((item, index) => <div key={`${item}-${index}`} className="rounded-md border border-white/10 bg-white/[0.03] p-2 text-slate-300">{item}</div>)}</div></div>
-        </aside>
+          <div className="space-y-1.5">
+            <div className="text-sm font-bold text-white">Observer Mode Active</div>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Mobile viewports are locked to Observer Mode. Please connect from a desktop environment for writing code and full WebRTC video collaboration.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Modern Slick Header */}
+      <header className="h-14 border-b border-white/10 bg-[#0D1322]/80 backdrop-blur px-4 flex items-center justify-between select-none z-10 flex-shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-9 w-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shadow-[0_0_15px_rgba(34,211,238,0.2)]">
+            <Video size={18} />
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs font-bold text-white flex items-center gap-1.5">
+              {room?.job?.roleTitle || room?.problem?.title || 'Live Interview Workspace'}
+            </div>
+            <div className="text-[10px] text-gray-400 flex items-center gap-2 mt-0.5 font-medium">
+              <span className="capitalize">{effectiveUserRole}</span>
+              <span className="text-white/10">•</span>
+              <span>{activeRoomId ? `Session ${activeRoomId.slice(0, 8)}` : 'Secure channel'}</span>
+              <span className="text-white/10">•</span>
+              <span className="flex items-center gap-1">
+                <Radio size={10} className="text-cyan-400 animate-pulse" />
+                {status}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar panel visibility controls */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center bg-white/[0.02] border border-white/5 p-0.5 rounded-lg max-lg:hidden">
+            <button
+              onClick={() => setLeftPanelOpen(!leftPanelOpen)}
+              title={leftPanelOpen ? "Collapse Problem Panel" : "Expand Problem Panel"}
+              className={`p-1.5 rounded-md transition-colors ${
+                leftPanelOpen ? 'bg-white/5 text-white' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              {leftPanelOpen ? <SidebarClose size={14} /> : <SidebarOpen size={14} />}
+            </button>
+            <button
+              onClick={() => setRightTab(activeRightTab === 'ai' ? 'chat' : 'ai')} // toggles focus
+              title="Toggle Insights Panel"
+              className="p-1.5 rounded-md text-gray-400 hover:text-white transition-colors"
+            >
+              <SidebarOpen size={14} className="rotate-180" />
+            </button>
+          </div>
+
+          <div className="h-4 w-px bg-white/10" />
+
+          {/* Quick Header Leave */}
+          <button
+            onClick={leaveRoom}
+            className="h-8 px-3.5 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-bold text-gray-300 hover:text-white border border-white/5 transition-all flex items-center gap-1.5"
+          >
+            <X size={12} />
+            Leave
+          </button>
+        </div>
+      </header>
+
+      {/* Danger/Warning status alerts */}
+      {error && (
+        <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-2 text-xs text-red-200 flex items-center gap-1.5 flex-shrink-0 animate-pulse select-none">
+          <X size={12} className="text-red-400" />
+          <span>{error}</span>
+        </div>
+      )}
+      {paused && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-xs text-amber-200 flex items-center gap-1.5 flex-shrink-0 select-none">
+          <Lock size={12} className="text-amber-400" />
+          <span>The interview is currently paused by the Recruiter. Visual outputs are halted.</span>
+        </div>
+      )}
+
+      {/* Main 3-Column Responsive Workspace Grid */}
+      <main className="flex-1 flex min-h-0 relative overflow-hidden">
+        
+        {/* LEFT PANEL — PROBLEM */}
+        {leftPanelOpen && (
+          <ProblemPanel 
+            problem={room?.problem} 
+            role={effectiveUserRole} 
+            executionHistory={room?.executionHistory || []}
+          />
+        )}
+
+        {/* CENTER PANEL — CODE EDITOR */}
+        <CodeEditorPanel 
+          code={code}
+          language={language}
+          onLanguageChange={handleLanguageChange}
+          executionStatus={executionStatus}
+          output={output}
+          onRunCode={runCode}
+          onEditorMount={handleEditorMount}
+          editorLocked={editorLocked}
+          isRecruiter={isRecruiter}
+          remoteCursor={remoteCursor}
+          remoteTyping={remoteTyping}
+        />
+
+        {/* RIGHT PANEL — VIDEO + AI INSIGHTS */}
+        {rightPanelOpen && (
+          <VideoInsightsPanel 
+            localVideoRef={localVideoRef}
+            remoteWebcamVideoRef={remoteWebcamVideoRef}
+            remoteScreenVideoRef={remoteScreenVideoRef}
+            micEnabled={micEnabled}
+            cameraEnabled={cameraEnabled}
+            screenSharing={screenSharing}
+            remoteScreenSharing={remoteScreenSharing}
+            isRecruiter={isRecruiter}
+            candidate={candidate}
+            resume={resume}
+            messages={messages}
+            prompt={prompt}
+            setPrompt={setPrompt}
+            onSendPrompt={sendPromptMessage}
+            quality={quality}
+            status={status}
+          />
+        )}
+
       </main>
+
+      {/* BOTTOM FLOATING CONTROL BAR */}
+      <ControlDock 
+        micEnabled={micEnabled}
+        toggleMic={toggleMic}
+        cameraEnabled={cameraEnabled}
+        toggleCamera={toggleCamera}
+        screenSharing={screenSharing}
+        startScreenShare={startScreenShare}
+        stopScreenShare={stopScreenShare}
+        isRecruiter={isRecruiter}
+        editorLocked={editorLocked}
+        paused={paused}
+        onRecruiterAction={recruiterAction}
+        onLeaveRoom={leaveRoom}
+        onEndRoom={() => recruiterAction('end_interview')}
+        onToggleHandRaised={toggleHandRaised}
+      />
+
     </div>
   );
 };

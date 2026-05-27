@@ -1,6 +1,8 @@
 import { BriefcaseBusiness, Bot, LayoutDashboard, LogOut, UserRound, Workflow, SearchCheck, TrendingUp, Award } from 'lucide-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
+import Avatar from '../common/Avatar';
+import NotificationDropdown from '../common/NotificationDropdown';
 
 const navItems = [
   { label: 'Overview', to: '/candidate/dashboard', icon: LayoutDashboard },
@@ -18,66 +20,98 @@ const CandidatePortalLayout = () => {
   const { user, logout } = useAuthStore();
 
   return (
-    <div className="min-h-screen bg-background text-gray-100">
-      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.14),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(99,102,241,0.18),transparent_35%)]" />
-      <div className="relative mx-auto flex min-h-screen max-w-[1600px]">
-        <aside className="hidden w-80 border-r border-white/10 bg-slate-950/70 px-6 py-8 backdrop-blur-xl lg:block">
-          <Link to="/candidate/dashboard" className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/20 text-primary">
-              <BriefcaseBusiness size={22} />
-            </div>
-            <div>
-              <div className="text-lg font-semibold text-white">Intervix Candidate</div>
-              <div className="text-xs uppercase tracking-[0.28em] text-gray-500">Talent Portal</div>
-            </div>
-          </Link>
+    <div className="min-h-screen bg-[#070A13] text-gray-100 flex overflow-hidden select-none">
+      {/* Ambient glows */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary/5 rounded-full blur-[120px] pointer-events-none" />
 
-          <div className="mt-10 rounded-3xl border border-white/10 bg-white/5 p-5">
-            <div className="text-sm text-gray-400">Signed in as</div>
-            <div className="mt-2 text-lg font-semibold text-white">{user?.name}</div>
-            <div className="text-sm text-primary capitalize">{user?.role}</div>
+      {/* Main Sidebar Wrapper */}
+      <div className="relative mx-auto flex w-full max-w-[1600px] h-screen overflow-hidden">
+        
+        {/* Unified Premium Sidebar */}
+        <aside className="hidden lg:flex w-72 border-r border-white/5 bg-[#090F1C]/80 backdrop-blur-xl px-5 py-6 flex-col justify-between flex-shrink-0 z-10">
+          
+          <div className="space-y-6">
+            {/* Logo */}
+            <Link to="/candidate/dashboard" className="flex items-center gap-3.5 px-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary shadow-[0_0_15px_rgba(99,102,241,0.25)]">
+                <BriefcaseBusiness size={20} />
+              </div>
+              <div>
+                <div className="text-sm font-bold text-white tracking-tight">Intervix</div>
+                <div className="text-[9px] uppercase tracking-[0.25em] font-semibold text-gray-500 mt-0.5">Candidate Hub</div>
+              </div>
+            </Link>
+
+            {/* Navigation items */}
+            <nav className="space-y-1.5 pt-4">
+              <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-gray-500 mb-3 px-3">Ecosystem Menu</div>
+              {navItems.map((item) => {
+                const active = location.pathname.startsWith(item.to);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className={`flex items-center gap-3.5 rounded-xl px-3.5 py-2.5 text-xs font-semibold transition-all duration-200 ${
+                      active 
+                        ? 'bg-primary/10 border border-primary/20 text-white shadow-[0_0_12px_rgba(99,102,241,0.15)]' 
+                        : 'text-gray-400 border border-transparent hover:bg-white/[0.02] hover:text-white'
+                    }`}
+                  >
+                    <Icon size={14} className={active ? 'text-primary' : 'text-gray-500'} />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
 
-          <nav className="mt-8 space-y-2">
-            {navItems.map((item) => {
-              const active = location.pathname.startsWith(item.to);
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${active ? 'bg-primary text-white shadow-[0_18px_40px_rgba(99,102,241,0.2)]' : 'text-gray-300 hover:bg-white/5 hover:text-white'}`}
-                >
-                  <Icon size={18} />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
+          {/* User profiles & Logout */}
+          <div className="space-y-4 pt-6 border-t border-white/5">
+            <div className="flex items-center gap-3 p-2 bg-white/[0.01] border border-white/5 rounded-2xl">
+              <Avatar name={user?.name || 'Candidate'} size="sm" />
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-white truncate">{user?.name}</div>
+                <div className="text-[9px] uppercase font-bold text-primary mt-0.5">{user?.role}</div>
+              </div>
+            </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              logout();
-              navigate('/login');
-            }}
-            className="mt-8 flex w-full items-center gap-3 rounded-2xl border border-red-500/20 px-4 py-3 text-red-300 transition hover:bg-red-500/10"
-          >
-            <LogOut size={18} />
-            <span>Log out</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                logout();
+                navigate('/login');
+              }}
+              className="flex w-full items-center gap-3 rounded-xl border border-red-500/20 px-3.5 py-2.5 text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-colors"
+            >
+              <LogOut size={14} />
+              <span>Sign Out</span>
+            </button>
+          </div>
         </aside>
 
-        <main className="flex-1">
-          <header className="border-b border-white/10 bg-slate-950/60 px-5 py-4 backdrop-blur-xl lg:px-10">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <div className="text-xs uppercase tracking-[0.28em] text-gray-500">Candidate ecosystem</div>
-                <h1 className="mt-1 text-2xl font-semibold text-white">Build a recruiter-ready profile and practice with AI</h1>
-              </div>
-              <div className="flex flex-wrap gap-2 lg:hidden">
-                {navItems.map((item) => (
-                  <Link key={item.to} to={item.to} className="rounded-full border border-white/10 px-4 py-2 text-sm text-gray-300">
+        {/* Main Content Area */}
+        <main className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+          {/* Unified Header */}
+          <header className="relative border-b border-white/5 bg-[#090F1C]/40 backdrop-blur-xl px-8 py-5 flex items-center justify-between z-40 flex-shrink-0">
+            <div>
+              <div className="text-[9px] uppercase tracking-[0.2em] font-bold text-gray-500">Candidate Workspace</div>
+              <h1 className="mt-1 text-base font-bold text-white">Refine profiles & practice coding with real-time AI</h1>
+            </div>
+            
+            {/* Header Actions */}
+            <div className="flex items-center gap-4">
+              <NotificationDropdown />
+              
+              {/* Mobile Nav links */}
+              <div className="flex gap-1.5 lg:hidden max-sm:hidden">
+                {navItems.slice(0, 3).map((item) => (
+                  <Link 
+                    key={item.to} 
+                    to={item.to} 
+                    className="rounded-lg border border-white/5 bg-white/[0.02] px-3 py-1.5 text-[11px] font-bold text-gray-300 hover:text-white"
+                  >
                     {item.label}
                   </Link>
                 ))}
@@ -85,7 +119,8 @@ const CandidatePortalLayout = () => {
             </div>
           </header>
 
-          <div className="px-5 py-6 lg:px-10 lg:py-8">
+          {/* Subpages Container */}
+          <div className="flex-1 px-8 py-6 relative z-10 custom-scrollbar">
             <Outlet />
           </div>
         </main>
