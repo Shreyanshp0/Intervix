@@ -113,39 +113,45 @@ const registerInterviewHandlers = (io, socket) => {
     }
   });
 
-  socket.on('webrtc_offer', async ({ roomId, offer, to, channel = 'main' } = {}) => {
+  socket.on('webrtc_offer', async ({ roomId, offer, to, channel = 'main' } = {}, ack) => {
     try {
       await liveInterviewService.assertRoomAccess(roomId, socket.user, 'signal');
       const payload = { roomId, offer, from: socket.id, channel };
       if (to) io.to(to).emit('webrtc_offer', payload);
       else socket.to(liveInterviewService.roomName(roomId)).emit('webrtc_offer', payload);
       logger.info(`[NEGOTIATION] offer relayed for ${roomId} channel=${channel}`);
+      respondToSocketAck(ack, { success: true });
     } catch (error) {
       logSocketError(socket, 'webrtc_offer', error);
+      respondToSocketAck(ack, { success: false, message: error.message });
     }
   });
 
-  socket.on('webrtc_answer', async ({ roomId, answer, to, channel = 'main' } = {}) => {
+  socket.on('webrtc_answer', async ({ roomId, answer, to, channel = 'main' } = {}, ack) => {
     try {
       await liveInterviewService.assertRoomAccess(roomId, socket.user, 'signal');
       const payload = { roomId, answer, from: socket.id, channel };
       if (to) io.to(to).emit('webrtc_answer', payload);
       else socket.to(liveInterviewService.roomName(roomId)).emit('webrtc_answer', payload);
       logger.info(`[NEGOTIATION] answer relayed for ${roomId} channel=${channel}`);
+      respondToSocketAck(ack, { success: true });
     } catch (error) {
       logSocketError(socket, 'webrtc_answer', error);
+      respondToSocketAck(ack, { success: false, message: error.message });
     }
   });
 
-  socket.on('webrtc_ice_candidate', async ({ roomId, candidate, to, channel = 'main' } = {}) => {
+  socket.on('webrtc_ice_candidate', async ({ roomId, candidate, to, channel = 'main' } = {}, ack) => {
     try {
       await liveInterviewService.assertRoomAccess(roomId, socket.user, 'signal');
       const payload = { roomId, candidate, from: socket.id, channel };
       if (to) io.to(to).emit('webrtc_ice_candidate', payload);
       else socket.to(liveInterviewService.roomName(roomId)).emit('webrtc_ice_candidate', payload);
       logger.info(`[ICE] candidate relayed for ${roomId} channel=${channel}`);
+      respondToSocketAck(ack, { success: true });
     } catch (error) {
       logSocketError(socket, 'webrtc_ice_candidate', error);
+      respondToSocketAck(ack, { success: false, message: error.message });
     }
   });
 
@@ -502,6 +508,9 @@ const registerInterviewHandlers = (io, socket) => {
     });
     liveInterviewService.markParticipantLeft({ roomIds: liveRooms, user: socket.user, socketId: socket.id })
       .catch((error) => logger.warn(`[INTERVIEW_ROOM] disconnect cleanup failed: ${error.message}`));
+    liveRooms.forEach((roomName) => {
+      socket.to(roomName).emit('webrtc_peer_disconnected', { socketId: socket.id });
+    });
 
     // Find all interview rooms the socket is currently part of
     const rooms = Array.from(socket.rooms).filter(room => room.startsWith('room-'));

@@ -45,7 +45,10 @@ const RoomPage = () => {
   const suppressEditorEventRef = useRef(false);
   const codeVersionRef = useRef(0);
   const rtcConfigRef = useRef({ iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }] });
-  const negotiationStateRef = useRef({ main: { makingOffer: false, ignoreOffer: false }, screen: { makingOffer: false, ignoreOffer: false } });
+  const negotiationStateRef = useRef({
+    main: { makingOffer: false, ignoreOffer: false, isSettingRemoteAnswerPending: false },
+    screen: { makingOffer: false, ignoreOffer: false, isSettingRemoteAnswerPending: false }
+  });
   const pendingCandidatesRef = useRef({ main: [], screen: [] });
 
   const [room, setRoom] = useState(null);
@@ -78,24 +81,42 @@ const RoomPage = () => {
   const analytics = room?.analytics || {};
   const roomDetailsRoute = useMemo(() => user?.role === 'recruiter' || user?.role === 'admin' ? API_ROUTES.recruiter.liveInterviewDetails(roomId) : API_ROUTES.candidate.liveInterviewDetails(roomId), [roomId, user?.role]);
   const getPeerRef = useCallback((channel) => channel === 'screen' ? screenPeerRef : mainPeerRef, []);
+  const isSignalingStable = useCallback((peer, state) => peer.signalingState === 'stable' || state.isSettingRemoteAnswerPending, []);
+  const emitSignalWithAck = useCallback(async (eventName, payload) => {
+    const socket = socketRef.current;
+    if (!socket?.connected) return false;
+    try {
+      const response = await socket.timeout(5000).emitWithAck(eventName, payload);
+      return Boolean(response?.success);
+    } catch {
+      return false;
+    }
+  }, []);
 
   const emitDescription = useCallback((channel, description) => {
     if (!socketRef.current || !description) return;
-    socketRef.current.emit(description.type === 'offer' ? 'webrtc_offer' : 'webrtc_answer', { roomId, channel, [description.type]: description });
-  }, [roomId]);
+    console.info('[NEGOTIATION]', channel, 'emit', description.type, 'state', getPeerRef(channel).current?.signalingState);
+    const event = description.type === 'offer' ? 'webrtc_offer' : 'webrtc_answer';
+    void emitSignalWithAck(event, { roomId, channel, [description.type]: description }).then((ok) => {
+      if (!ok) console.warn('[NEGOTIATION]', channel, event, 'ack failed');
+    });
+  }, [emitSignalWithAck, getPeerRef, roomId]);
 
   const flushIceQueue = useCallback(async (channel) => {
     const peer = getPeerRef(channel).current;
     if (!peer?.remoteDescription) return;
     const queue = pendingCandidatesRef.current[channel];
-    while (queue.length) await peer.addIceCandidate(new RTCIceCandidate(queue.shift()));
+    while (queue.length) {
+      await peer.addIceCandidate(new RTCIceCandidate(queue.shift()));
+      console.info('[ICE]', channel, 'flushed pending candidate');
+    }
   }, [getPeerRef]);
 
   const destroyScreenPeer = useCallback(() => {
     screenPeerRef.current?.close();
     screenPeerRef.current = null;
     pendingCandidatesRef.current.screen = [];
-    negotiationStateRef.current.screen = { makingOffer: false, ignoreOffer: false };
+    negotiationStateRef.current.screen = { makingOffer: false, ignoreOffer: false, isSettingRemoteAnswerPending: false };
     screenSenderRef.current = null;
     remoteScreenStreamRef.current = new MediaStream();
     attachStream(remoteScreenVideoRef, null);
@@ -107,37 +128,58 @@ const RoomPage = () => {
     if (peerRef.current) return peerRef.current;
     const peer = new RTCPeerConnection(rtcConfigRef.current);
     peerRef.current = peer;
-    peer.onicecandidate = (event) => event.candidate && socketRef.current?.emit('webrtc_ice_candidate', { roomId, channel, candidate: event.candidate });
+    console.info(channel === 'screen' ? '[WEBRTC_SCREEN] peer created' : '[WEBRTC_MAIN] peer created');
+    peer.onicecandidate = (event) => {
+      if (!event.candidate) return;
+      console.info('[ICE]', channel, 'local candidate generated');
+      void emitSignalWithAck('webrtc_ice_candidate', { roomId, channel, candidate: event.candidate }).then((ok) => {
+        if (!ok) console.warn('[ICE]', channel, 'candidate ack failed');
+      });
+    };
     peer.ontrack = (event) => {
       const [stream] = event.streams;
       if (channel === 'screen' && event.track.kind === 'video') {
+        console.info('[WEBRTC_SCREEN] remote screen track attached');
         remoteScreenStreamRef.current = stream || new MediaStream([event.track]);
         attachStream(remoteScreenVideoRef, remoteScreenStreamRef.current);
         setRemoteScreenSharing(true);
         return;
       }
       if (event.track.kind === 'audio') {
+        console.info('[WEBRTC_MAIN] remote audio track attached');
         if (!remoteCameraStreamRef.current.getAudioTracks().includes(event.track)) remoteCameraStreamRef.current.addTrack(event.track);
         attachStream(remoteWebcamVideoRef, remoteCameraStreamRef.current);
         return;
       }
       if (!remoteCameraStreamRef.current.getVideoTracks().includes(event.track)) remoteCameraStreamRef.current.addTrack(event.track);
+      console.info('[WEBRTC_MAIN] remote webcam track attached');
       attachStream(remoteWebcamVideoRef, stream || remoteCameraStreamRef.current);
     };
     peer.onconnectionstatechange = async () => {
       const state = peer.connectionState;
+      console.info('[WEBRTC]', channel, 'connectionState=', state);
       if (channel === 'main') {
         setStatus(state === 'connected' ? 'Live' : state);
         if (state === 'connected') setQuality('good');
       }
-      if (state === 'failed') await peer.restartIce().catch(() => {});
+      if (state === 'failed') {
+        console.warn('[ICE]', channel, 'connection failed, restarting ICE');
+        await peer.restartIce().catch(() => {});
+      }
       if (['disconnected', 'closed'].includes(state) && channel === 'screen') setRemoteScreenSharing(false);
+    };
+    peer.onsignalingstatechange = () => {
+      console.info('[NEGOTIATION]', channel, 'signalingState=', peer.signalingState);
+    };
+    peer.oniceconnectionstatechange = () => {
+      console.info('[ICE]', channel, 'iceConnectionState=', peer.iceConnectionState);
     };
     peer.onnegotiationneeded = async () => {
       const state = negotiationStateRef.current[channel];
       if (state.makingOffer || !peerRef.current) return;
       try {
         state.makingOffer = true;
+        console.info('[NEGOTIATION]', channel, 'onnegotiationneeded');
         await peer.setLocalDescription(await peer.createOffer());
         emitDescription(channel, peer.localDescription);
       } finally {
@@ -145,29 +187,42 @@ const RoomPage = () => {
       }
     };
     return peer;
-  }, [emitDescription, getPeerRef, roomId]);
+  }, [emitDescription, emitSignalWithAck, getPeerRef, roomId]);
 
   const applyRemoteDescription = useCallback(async (channel, description) => {
     const peer = createPeer(channel);
     const state = negotiationStateRef.current[channel];
-    const offerCollision = description.type === 'offer' && (state.makingOffer || peer.signalingState !== 'stable');
+    const readyForOffer = isSignalingStable(peer, state);
+    const offerCollision = description.type === 'offer' && (state.makingOffer || !readyForOffer);
     state.ignoreOffer = !isPolite && offerCollision;
-    if (state.ignoreOffer) return;
+    if (state.ignoreOffer) {
+      console.warn('[NEGOTIATION]', channel, 'offer ignored due to collision (impolite peer)');
+      return;
+    }
+    if (description.type === 'offer' && offerCollision && isPolite && peer.signalingState === 'have-local-offer') {
+      console.warn('[NEGOTIATION]', channel, 'collision detected, rolling back local offer');
+      await peer.setLocalDescription({ type: 'rollback' });
+    }
+    console.info('[NEGOTIATION]', channel, 'apply remote', description.type);
+    state.isSettingRemoteAnswerPending = description.type === 'answer';
     await peer.setRemoteDescription(new RTCSessionDescription(description));
+    state.isSettingRemoteAnswerPending = false;
     await flushIceQueue(channel);
     if (description.type === 'offer') {
       await peer.setLocalDescription(await peer.createAnswer());
       emitDescription(channel, peer.localDescription);
     }
-  }, [createPeer, emitDescription, flushIceQueue, isPolite]);
+  }, [createPeer, emitDescription, flushIceQueue, isPolite, isSignalingStable]);
 
   const addIceCandidate = useCallback(async (channel, candidate) => {
     const peer = getPeerRef(channel).current;
     if (!peer || !peer.remoteDescription) {
       pendingCandidatesRef.current[channel].push(candidate);
+      console.info('[ICE]', channel, 'candidate queued until remoteDescription is set');
       return;
     }
     await peer.addIceCandidate(new RTCIceCandidate(candidate));
+    console.info('[ICE]', channel, 'remote candidate added');
   }, [getPeerRef]);
 
   const cleanupMedia = useCallback(() => {
@@ -181,7 +236,7 @@ const RoomPage = () => {
     cameraVideoSenderRef.current = null;
     audioSenderRef.current = null;
     pendingCandidatesRef.current.main = [];
-    negotiationStateRef.current.main = { makingOffer: false, ignoreOffer: false };
+    negotiationStateRef.current.main = { makingOffer: false, ignoreOffer: false, isSettingRemoteAnswerPending: false };
     attachStream(localVideoRef, null);
     attachStream(remoteWebcamVideoRef, null);
     remoteCameraStreamRef.current = new MediaStream();
@@ -191,7 +246,13 @@ const RoomPage = () => {
   const fetchRtcConfig = useCallback(async () => {
     try {
       const response = await api.get(API_ROUTES.webrtc.config);
-      if (Array.isArray(response.data?.iceServers) && response.data.iceServers.length) rtcConfigRef.current = { iceServers: response.data.iceServers };
+      if (Array.isArray(response.data?.iceServers) && response.data.iceServers.length) {
+        rtcConfigRef.current = {
+          iceServers: response.data.iceServers,
+          iceTransportPolicy: response.data.iceTransportPolicy || 'all',
+          iceCandidatePoolSize: Number(response.data.iceCandidatePoolSize || 8)
+        };
+      }
     } catch {}
   }, []);
 
@@ -256,7 +317,26 @@ const RoomPage = () => {
         setCameraEnabled(false);
       }
     })();
-    socket.emit('join_interview', { roomId });
+    const joinInterview = () => socket.emit('join_interview', { roomId });
+    const handleSocketConnect = () => {
+      console.info('[SOCKET] connected, rejoining interview room');
+      joinInterview();
+      mainPeerRef.current?.restartIce();
+      screenPeerRef.current?.restartIce();
+    };
+    const handleSocketConnectError = (err) => {
+      console.warn('[SOCKET] connect_error', err?.message || 'unknown');
+    };
+    joinInterview();
+    socket.off('interview_state');
+    socket.off('interview_peers');
+    socket.off('webrtc_offer');
+    socket.off('webrtc_answer');
+    socket.off('webrtc_ice_candidate');
+    socket.off('connect', handleSocketConnect);
+    socket.off('connect_error', handleSocketConnectError);
+    socket.on('connect', handleSocketConnect);
+    socket.on('connect_error', handleSocketConnectError);
     socket.on('interview_state', ({ room: nextRoom }) => {
       setRoom(nextRoom);
       setRole(nextRoom.role || user?.role || 'candidate');
@@ -270,9 +350,9 @@ const RoomPage = () => {
         void mainPeerRef.current.setLocalDescription(mainPeerRef.current.createOffer()).then(() => emitDescription('main', mainPeerRef.current.localDescription));
       }
     });
-    socket.on('webrtc_offer', async ({ offer, channel = 'main' }) => applyRemoteDescription(channel, offer).catch(() => {}));
-    socket.on('webrtc_answer', async ({ answer, channel = 'main' }) => applyRemoteDescription(channel, answer).catch(() => {}));
-    socket.on('webrtc_ice_candidate', async ({ candidate, channel = 'main' }) => addIceCandidate(channel, candidate).catch(() => {}));
+    socket.on('webrtc_offer', async ({ offer, channel = 'main' }) => applyRemoteDescription(channel, offer).catch((error) => console.warn('[NEGOTIATION]', channel, 'offer handling failed', error)));
+    socket.on('webrtc_answer', async ({ answer, channel = 'main' }) => applyRemoteDescription(channel, answer).catch((error) => console.warn('[NEGOTIATION]', channel, 'answer handling failed', error)));
+    socket.on('webrtc_ice_candidate', async ({ candidate, channel = 'main' }) => addIceCandidate(channel, candidate).catch((error) => console.warn('[ICE]', channel, 'candidate handling failed', error)));
     socket.on('code_update', ({ code: nextCode, language: nextLanguage, version }) => {
       if (version <= codeVersionRef.current) return;
       suppressEditorEventRef.current = true;
@@ -287,6 +367,15 @@ const RoomPage = () => {
     socket.on('execution_result', (result) => { setExecutionStatus(result.status || 'completed'); setOutput(`${result.success ? 'Success' : 'Failed'}\n\n${result.output || ''}${result.error ? `\n${result.error}` : ''}`); });
     socket.on('screen_share_started', () => setRemoteScreenSharing(true));
     socket.on('screen_share_stopped', () => { setRemoteScreenSharing(false); attachStream(remoteScreenVideoRef, null); });
+    socket.on('webrtc_peer_disconnected', ({ socketId }) => {
+      console.warn('[WEBRTC] remote peer disconnected', socketId);
+      attachStream(remoteWebcamVideoRef, null);
+      attachStream(remoteScreenVideoRef, null);
+      remoteCameraStreamRef.current = new MediaStream();
+      remoteScreenStreamRef.current = new MediaStream();
+      setRemoteScreenSharing(false);
+      setStatus('Peer disconnected');
+    });
     socket.on('screen_share_requested', ({ by }) => setMessages((items) => [...items, `${by} requested screen share.`].slice(-5)));
     socket.on('audio_toggled', ({ role: mediaRole, enabled }) => mediaRole === role && setMicEnabled(enabled));
     socket.on('video_toggled', ({ role: mediaRole, enabled }) => mediaRole === role && setCameraEnabled(enabled));
@@ -322,6 +411,9 @@ const RoomPage = () => {
       socket.off('webrtc_offer');
       socket.off('webrtc_answer');
       socket.off('webrtc_ice_candidate');
+      socket.off('webrtc_peer_disconnected');
+      socket.off('connect', handleSocketConnect);
+      socket.off('connect_error', handleSocketConnectError);
       cleanupMedia();
     };
   }, [addIceCandidate, applyRemoteDescription, cleanupMedia, emitDescription, fetchRtcConfig, isAuthenticated, isRecruiter, loading, navigate, role, roomId, roomReady, startMainMedia, user?.role]);

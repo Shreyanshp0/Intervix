@@ -8,15 +8,22 @@ export const getSocket = () => {
     return socket;
   }
 
-  const origin = getApiOrigin() || window.location.origin;
+  const configuredSocketOrigin = import.meta.env.VITE_SOCKET_URL || '';
+  const origin = configuredSocketOrigin || getApiOrigin() || window.location.origin;
+  const isHttps = window.location.protocol === 'https:';
+  const transports = isHttps ? ['websocket'] : ['websocket', 'polling'];
 
   socket = io(origin, {
     autoConnect: false,
-    transports: ['websocket', 'polling'],
+    transports,
+    upgrade: true,
+    secure: isHttps,
+    path: '/socket.io',
     reconnection: true,
-    reconnectionAttempts: 8,
-    reconnectionDelay: 500,
-    reconnectionDelayMax: 5000,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 800,
+    reconnectionDelayMax: 8000,
+    randomizationFactor: 0.5,
     timeout: 20000,
     auth: {
       token: localStorage.getItem('token'),
@@ -24,7 +31,15 @@ export const getSocket = () => {
   });
 
   socket.on('connect_error', (error) => {
-    console.warn('[SOCKET] connect_error', error.message);
+    console.warn('[SOCKET] connect_error', error.message, { origin, secure: isHttps });
+  });
+
+  socket.on('disconnect', (reason) => {
+    console.warn('[SOCKET] disconnect', reason);
+  });
+
+  socket.on('reconnect', (attempt) => {
+    console.info('[SOCKET] reconnect', attempt);
   });
 
   socket.io.on('reconnect_attempt', (attempt) => {

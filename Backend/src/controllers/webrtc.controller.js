@@ -1,6 +1,10 @@
 const buildIceServers = () => {
-  const servers = [{ urls: ['stun:stun.l.google.com:19302'] }];
-  const turnUrls = (process.env.TURN_URL || '')
+  const stunUrls = (process.env.STUN_URLS || 'stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const servers = [{ urls: stunUrls }];
+  const turnUrls = (process.env.TURN_URL || process.env.TURN_URLS || '')
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
@@ -19,7 +23,8 @@ const buildIceServers = () => {
 export const getRtcConfig = (req, res) => {
   const iceServers = buildIceServers();
   res.status(200).json({
-    iceServers
+    iceServers,
+    iceTransportPolicy: process.env.ICE_TRANSPORT_POLICY || 'all',
+    iceCandidatePoolSize: Number(process.env.ICE_CANDIDATE_POOL_SIZE || 8)
   });
 };
-
