@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import logger from '../config/logger.js';
 import handleControllerError from '../utils/controller-error.js';
 
 /**
@@ -7,6 +8,13 @@ import handleControllerError from '../utils/controller-error.js';
 const createRoom = async (req, res, next) => {
   try {
     const roomId = crypto.randomBytes(8).toString('hex');
+    logger.info({
+      tag: 'ROOM_CREATE',
+      roomId,
+      origin: req.get('origin') || req.get('referer') || 'unknown',
+      forwardedProto: req.get('x-forwarded-proto') || req.protocol,
+      userId: req.user?._id || 'anonymous'
+    });
     return res.status(201).json({
       success: true,
       roomId,
@@ -26,6 +34,13 @@ const validateRoom = async (req, res, next) => {
     if (!roomId) {
       return res.status(400).json({ error: 'Room ID is required' });
     }
+    logger.info({
+      tag: 'ROOM_VALIDATE',
+      roomId,
+      origin: req.get('origin') || req.get('referer') || 'unknown',
+      forwardedProto: req.get('x-forwarded-proto') || req.protocol,
+      userId: req.user?._id || 'anonymous'
+    });
     // Rooms are created dynamically; in production, you could verify in MongoDB
     return res.status(200).json({
       success: true,

@@ -10,8 +10,9 @@ export const getSocket = () => {
 
   const configuredSocketOrigin = String(import.meta.env.VITE_SOCKET_URL || '').trim().replace(/\/+$/, '');
   const socketOrigin = configuredSocketOrigin || getApiOrigin() || window.location.origin;
-  const origin = window.location.protocol === 'https:' ? socketOrigin.replace(/^http:\/\//i, 'https://') : socketOrigin;
-  const isHttps = window.location.protocol === 'https:';
+  const forceHttps = window.location.protocol === 'https:' || window.location.hostname === 'intervix.duckdns.org';
+  const origin = forceHttps ? socketOrigin.replace(/^http:\/\//i, 'https://') : socketOrigin;
+  const isHttps = forceHttps;
   const transports = isHttps ? ['websocket'] : ['websocket', 'polling'];
 
   socket = io(origin, {

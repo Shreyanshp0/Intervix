@@ -1,4 +1,7 @@
 import logger from './logger.js';
+import ApiError from '../utils/api-error.js';
+
+const PRODUCTION_APP_DOMAINS = new Set(['intervix.duckdns.org']);
 
 const splitCsv = (value = '') => String(value)
   .split(',')
@@ -17,12 +20,44 @@ const normalizeOrigin = (value = '') => {
   }
 };
 
+const expandOriginVariants = (value = '') => {
+  const normalized = normalizeOrigin(value);
+  if (!normalized) return [];
+
+  if (
+    normalized.startsWith('http://localhost') ||
+    normalized.startsWith('https://localhost') ||
+    normalized.startsWith('http://127.0.0.1') ||
+    normalized.startsWith('https://127.0.0.1')
+  ) {
+    return [normalized];
+  }
+
+  try {
+    const url = new URL(normalized);
+    if (!url.hostname) {
+      return [normalized];
+    }
+
+    if (PRODUCTION_APP_DOMAINS.has(url.hostname.toLowerCase()) || url.hostname.includes('.')) {
+      return uniq([
+        `http://${url.host}`,
+        `https://${url.host}`
+      ].map(normalizeOrigin));
+    }
+  } catch {
+    return [normalized];
+  }
+
+  return [normalized];
+};
+
 const getTrustedOrigins = () => {
   const configured = splitCsv(process.env.TRUSTED_ORIGINS || process.env.CORS_ORIGINS || '');
   const appDomain = process.env.APP_DOMAIN || process.env.DOMAIN || '';
   const isProduction = process.env.NODE_ENV === 'production';
   const domainOrigins = appDomain && appDomain !== 'localhost'
-    ? isProduction ? [`https://${appDomain}`] : [`https://${appDomain}`, `http://${appDomain}`]
+    ? expandOriginVariants(appDomain.includes('://') ? appDomain : `https://${appDomain}`)
     : [];
 
   const localDevOrigins = isProduction ? [] : [
@@ -42,14 +77,13 @@ const getTrustedOrigins = () => {
     ...domainOrigins,
     ...localDevOrigins,
     ...configured
-  ]).map(normalizeOrigin).filter(Boolean);
+  ].flatMap(expandOriginVariants)).map(normalizeOrigin).filter(Boolean);
 
   if (!isProduction) {
     return baseOrigins;
   }
 
-  return baseOrigins
-    .filter((origin) => origin.startsWith('https://'))
+  return uniq(baseOrigins)
     .filter((origin) => !origin.includes('localhost') && !origin.includes('127.0.0.1'));
 };
 
@@ -105,12 +139,19 @@ const corsOptions = {
       return callback(null, true);
     }
 
-    logger.warn({ tag: 'CSP', message: 'Blocked untrusted CORS origin', origin });
-    return callback(new Error('Not allowed by CORS'));
+    logger.warn({
+      tag: 'CORS',
+      message: 'Blocked untrusted CORS origin',
+      origin,
+      trustedOrigins
+    });
+    return callback(new ApiError(403, `Blocked untrusted CORS origin: ${origin}`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept'],
+  optionsSuccessStatus: 204,
+  preflightContinue: false
 };
 
 export {

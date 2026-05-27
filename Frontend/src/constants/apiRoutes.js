@@ -68,13 +68,17 @@ export const API_ROUTES = {
 
 const trimTrailingSegment = (value = '', pattern) => value.replace(pattern, '');
 const normalizeOrigin = (value = '') => String(value || '').trim().replace(/\/+$/, '');
+const shouldForceHttps = () => {
+  if (typeof window === 'undefined') return false;
+  return window.location.protocol === 'https:' || window.location.hostname === 'intervix.duckdns.org';
+};
 
 export const getApiOrigin = () => {
   const configured = normalizeOrigin(import.meta.env.VITE_API_URL || '/api');
   if (configured.startsWith('/')) {
     return '';
   }
-  if (window.location.protocol === 'https:' && configured.startsWith('http://')) {
+  if (shouldForceHttps() && configured.startsWith('http://')) {
     return configured.replace(/^http:\/\//i, 'https://');
   }
   const withoutVersion = trimTrailingSegment(configured, /\/api\/v\d+\/?$/i);

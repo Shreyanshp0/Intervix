@@ -8,6 +8,7 @@ import matchingService from './matching.service.js';
 import candidateService from './candidate.service.js';
 import recruiterService from './recruiter.service.js';
 import ApiError from '../utils/api-error.js';
+import logger from '../config/logger.js';
 
 const applicationPopulate = [
   {
@@ -226,23 +227,22 @@ class ApplicationService {
     }
 
     let liveInterview = await LiveInterview.findOne({ application: application._id });
+    const roomId = liveInterview?.roomId || crypto.randomUUID();
 
-    const roomId = crypto.randomUUID();
-    console.log('APPLICATION:', application?._id);
-    console.log('JOB:', application?.job);
-    console.log('CANDIDATE:', candidateProfile?._id);
-    console.log('RECRUITER:', recruiterProfile?._id);
-    console.log('SCHEDULED AT:', scheduledFor);
-    console.log('ROOM ID:', roomId);
-
-    if (!roomId) {
-      throw new ApiError(500, 'Failed to generate room ID');
-    }
+    logger.info({
+      tag: 'INTERVIEW_SCHEDULE_REQUEST',
+      applicationId: String(application._id),
+      jobId: String(job._id || job),
+      candidateProfileId: String(candidateProfile._id),
+      recruiterProfileId: String(recruiterProfile._id),
+      scheduledFor: scheduledFor.toISOString(),
+      roomId
+    });
 
     if (liveInterview) {
       liveInterview.scheduledAt = scheduledFor;
       liveInterview.status = 'scheduled';
-      liveInterview.roomId = liveInterview.roomId || roomId;
+      liveInterview.roomId = roomId;
       liveInterview.application = application._id;
       liveInterview.job = job._id || job;
       liveInterview.candidate = candidateProfile._id;
@@ -251,13 +251,12 @@ class ApplicationService {
         await liveInterview.save();
       } catch (error) {
         if (error?.name === 'ValidationError') {
-          console.error('LiveInterview validation failed while updating existing record:', error.errors);
-          throw new ApiError(422, 'LiveInterview validation failed');
+          logger.error({ tag: 'LIVE_INTERVIEW_VALIDATION_FAILED', action: 'update', roomId, errors: error.errors });
+          throw new ApiError(422, 'LiveInterview validation failed', true, error.stack);
         }
-        throw error;
+        throw new ApiError(error?.statusCode || 500, error?.message || 'Failed to update LiveInterview', false, error.stack);
       }
     } else {
-      console.log("Persisting LiveInterview...");
       try {
         liveInterview = new LiveInterview({
           application: application._id,
@@ -269,27 +268,24 @@ class ApplicationService {
           roomId
         });
         await liveInterview.save();
-        console.log('LiveInterview saved successfully');
       } catch (error) {
-        console.error('LIVE INTERVIEW SAVE ERROR:');
-        console.error(error);
+        if (error?.name === 'ValidationError') {
+          logger.error({ tag: 'LIVE_INTERVIEW_VALIDATION_FAILED', action: 'create', roomId, errors: error.errors });
+          throw new ApiError(422, 'LiveInterview validation failed', true, error.stack);
+        }
 
-        const saveError = new Error(error.message);
-        saveError.name = 'LiveInterviewSaveError';
-        saveError.stack = error.stack;
-        saveError.details = error.errors;
-        throw saveError;
-      }
-      console.log("LiveInterview created:", liveInterview);
+        if (error?.code === 11000) {
+          logger.warn({ tag: 'LIVE_INTERVIEW_DUPLICATE_ROOM', roomId, applicationId: String(application._id) });
+          throw new ApiError(409, 'An interview room already exists for this application', true, error.stack);
+        }
 
-      if (!liveInterview) {
-        throw new ApiError(500, "Failed to persist LiveInterview");
+        logger.error({ tag: 'LIVE_INTERVIEW_SAVE_FAILED', action: 'create', roomId, message: error?.message, stack: error?.stack });
+        throw new ApiError(500, error?.message || 'Failed to persist LiveInterview', false, error.stack);
       }
     }
 
     const roomIdentifier = liveInterview.roomId;
 
-    console.log("Updating application...");
     application.interviewSchedule = {
       scheduledFor,
       timezone: payload.timezone,
@@ -300,8 +296,23 @@ class ApplicationService {
     };
     application.stage = 'Interview Scheduled';
     application.stageHistory.push(this.buildStageHistory('Interview Scheduled', userId, payload.notes || 'Interview scheduled'));
-    await application.save();
+    try {
+      await application.save();
+    } catch (error) {
+      if (error?.name === 'ValidationError') {
+        logger.error({ tag: 'APPLICATION_SAVE_VALIDATION_FAILED', applicationId: String(application._id), errors: error.errors });
+        throw new ApiError(422, 'Application validation failed', true, error.stack);
+      }
+
+      throw new ApiError(error?.statusCode || 500, error?.message || 'Failed to update application', false, error.stack);
+    }
     const updatedApplication = await Application.findById(applicationId).populate(applicationPopulate);
+    logger.info({
+      tag: 'INTERVIEW_SCHEDULED',
+      applicationId: String(application._id),
+      roomId: roomIdentifier,
+      status: updatedApplication?.stage || 'Interview Scheduled'
+    });
     return {
       application: updatedApplication,
       liveInterview

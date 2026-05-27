@@ -29,7 +29,7 @@ services:
       - APP_DOMAIN=${APP_DOMAIN:-intervix.duckdns.org}
       - FRONTEND_URL=${FRONTEND_URL:-https://intervix.duckdns.org}
       - PUBLIC_APP_URL=${PUBLIC_APP_URL:-https://intervix.duckdns.org}
-      - TRUSTED_ORIGINS=${TRUSTED_ORIGINS:-https://intervix.duckdns.org}
+      - TRUSTED_ORIGINS=${TRUSTED_ORIGINS:-https://intervix.duckdns.org,http://intervix.duckdns.org}
 
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5000/health"]
@@ -54,7 +54,8 @@ services:
       context: ./Frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_API_URL: ${VITE_API_URL:-https://intervix.duckdns.org/api}
+        VITE_SOCKET_URL: ${VITE_SOCKET_URL:-https://intervix.duckdns.org}
 
     image: ${FRONTEND_IMAGE:-intervix-frontend:local}
 
@@ -68,7 +69,8 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - DOCKER_CONTAINER=true
-      - VITE_API_URL=${VITE_API_URL:-/api}
+      - VITE_API_URL=${VITE_API_URL:-https://intervix.duckdns.org/api}
+      - VITE_SOCKET_URL=${VITE_SOCKET_URL:-https://intervix.duckdns.org}
 
     depends_on:
       backend:
