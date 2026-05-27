@@ -67,11 +67,15 @@ export const API_ROUTES = {
 };
 
 const trimTrailingSegment = (value = '', pattern) => value.replace(pattern, '');
+const normalizeOrigin = (value = '') => String(value || '').trim().replace(/\/+$/, '');
 
 export const getApiOrigin = () => {
-  const configured = import.meta.env.VITE_API_URL || '/api';
+  const configured = normalizeOrigin(import.meta.env.VITE_API_URL || '/api');
   if (configured.startsWith('/')) {
     return '';
+  }
+  if (window.location.protocol === 'https:' && configured.startsWith('http://')) {
+    return configured.replace(/^http:\/\//i, 'https://');
   }
   const withoutVersion = trimTrailingSegment(configured, /\/api\/v\d+\/?$/i);
   return trimTrailingSegment(withoutVersion, /\/api\/?$/i);

@@ -6,6 +6,16 @@ const splitCsv = (value = '') => String(value)
   .filter(Boolean);
 
 const uniq = (items) => [...new Set(items.filter(Boolean))];
+const normalizeOrigin = (value = '') => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const url = new URL(raw);
+    return `${url.protocol}//${url.host}`.toLowerCase();
+  } catch {
+    return raw.replace(/\/+$/, '').toLowerCase();
+  }
+};
 
 const getTrustedOrigins = () => {
   const configured = splitCsv(process.env.TRUSTED_ORIGINS || process.env.CORS_ORIGINS || '');
@@ -32,7 +42,7 @@ const getTrustedOrigins = () => {
     ...domainOrigins,
     ...localDevOrigins,
     ...configured
-  ]);
+  ]).map(normalizeOrigin).filter(Boolean);
 
   if (!isProduction) {
     return baseOrigins;

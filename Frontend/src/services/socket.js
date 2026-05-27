@@ -8,8 +8,9 @@ export const getSocket = () => {
     return socket;
   }
 
-  const configuredSocketOrigin = import.meta.env.VITE_SOCKET_URL || '';
-  const origin = configuredSocketOrigin || getApiOrigin() || window.location.origin;
+  const configuredSocketOrigin = String(import.meta.env.VITE_SOCKET_URL || '').trim().replace(/\/+$/, '');
+  const socketOrigin = configuredSocketOrigin || getApiOrigin() || window.location.origin;
+  const origin = window.location.protocol === 'https:' ? socketOrigin.replace(/^http:\/\//i, 'https://') : socketOrigin;
   const isHttps = window.location.protocol === 'https:';
   const transports = isHttps ? ['websocket'] : ['websocket', 'polling'];
 

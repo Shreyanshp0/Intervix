@@ -12,6 +12,16 @@ import liveInterviewService from '../services/live-interview.service.js';
 
 let io;
 const timerIntervals = new Map();
+const normalizeOrigin = (value = '') => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const url = new URL(raw);
+    return `${url.protocol}//${url.host}`.toLowerCase();
+  } catch {
+    return raw.replace(/\/+$/, '').toLowerCase();
+  }
+};
 
 const startTimerFeed = (socket, session) => {
   const key = `${socket.id}:${session._id}`;
@@ -96,8 +106,8 @@ const initSocket = (server) => {
     maxHttpBufferSize: 1e6,
     transports: ['websocket', 'polling'],
     allowRequest: (req, callback) => {
-      const origin = req.headers.origin;
-      const trustedOrigins = getTrustedOrigins();
+      const origin = normalizeOrigin(req.headers.origin);
+      const trustedOrigins = getTrustedOrigins().map(normalizeOrigin);
       const allowed = !origin || trustedOrigins.includes(origin);
       if (!allowed) {
         logger.warn({ tag: 'SOCKET', message: 'Blocked untrusted socket origin', origin });
