@@ -24,7 +24,8 @@ import {
   User,
   Shield,
   Clock,
-  Radio
+  Radio,
+  Activity
 } from 'lucide-react';
 import { useRoomStore } from '../../store/useRoomStore';
 
@@ -44,7 +45,8 @@ const VideoInsightsPanel = ({
   setPrompt,
   onSendPrompt,
   quality = 'good',
-  status = 'Connected'
+  status = 'Connected',
+  webrtcDiagnostics = {}
 }) => {
   const { 
     activeRightTab, 
@@ -55,6 +57,7 @@ const VideoInsightsPanel = ({
   } = useRoomStore();
 
   const [activeSpeaker, setActiveSpeaker] = useState('candidate'); // 'candidate' | 'recruiter'
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   // Toggle active speaker mock for UI dynamic feel
   useEffect(() => {
@@ -97,11 +100,93 @@ const VideoInsightsPanel = ({
             <Radio size={12} className="text-cyan-400 animate-pulse" />
             Collaboration Feed
           </span>
-          <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${conn.color}`}>
-            <Wifi size={10} />
-            {conn.label}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowDiagnostics(!showDiagnostics)}
+              className={`px-2 py-0.5 rounded-lg border text-[9px] font-bold tracking-wider uppercase transition-all duration-200 ${
+                showDiagnostics 
+                  ? 'bg-cyan-500/10 border-cyan-400 text-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.2)]'
+                  : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              Telemetry
+            </button>
+            <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${conn.color}`}>
+              <Wifi size={10} />
+              {conn.label}
+            </div>
           </div>
         </div>
+
+        {/* Expandable WebRTC Telemetry Panel */}
+        <AnimatePresence>
+          {showDiagnostics && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden glass-panel border border-cyan-500/10 bg-[#070b15]/95 rounded-xl p-3 text-[10px] space-y-2 select-none shadow-lg text-slate-300 font-mono"
+            >
+              <div className="text-[10px] font-bold text-cyan-400 flex items-center gap-1 border-b border-cyan-500/10 pb-1.5 uppercase">
+                <Activity size={12} className="animate-pulse" />
+                Live WebRTC Telemetry
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                <div>
+                  <span className="text-gray-500 font-semibold block text-[8px] uppercase tracking-wider">Main ICE State</span>
+                  <span className={`font-bold capitalize ${
+                    webrtcDiagnostics.mainIceState === 'connected' ? 'text-emerald-400' : 'text-cyan-400'
+                  }`}>{webrtcDiagnostics.mainIceState || 'new'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 font-semibold block text-[8px] uppercase tracking-wider">Main Signaling</span>
+                  <span className="text-gray-300 font-bold capitalize">{webrtcDiagnostics.mainSignalingState || 'stable'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 font-semibold block text-[8px] uppercase tracking-wider">Screen ICE State</span>
+                  <span className={`font-bold capitalize ${
+                    webrtcDiagnostics.screenIceState === 'connected' ? 'text-emerald-400' : 'text-cyan-400'
+                  }`}>{webrtcDiagnostics.screenIceState || 'closed'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 font-semibold block text-[8px] uppercase tracking-wider">Screen Signaling</span>
+                  <span className="text-gray-300 font-bold capitalize">{webrtcDiagnostics.screenSignalingState || 'closed'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 font-semibold block text-[8px] uppercase tracking-wider">Latency (RTT)</span>
+                  <span className="text-cyan-400 font-bold">{webrtcDiagnostics.rtt || 0} ms</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 font-semibold block text-[8px] uppercase tracking-wider">Packet Loss</span>
+                  <span className={`font-bold ${
+                    webrtcDiagnostics.packetLoss > 5 ? 'text-red-400' : webrtcDiagnostics.packetLoss > 2 ? 'text-amber-400' : 'text-emerald-400'
+                  }`}>{webrtcDiagnostics.packetLoss || 0}%</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-gray-500 font-semibold block text-[8px] uppercase tracking-wider">Webcam Bitrate</span>
+                  <span className="text-white font-bold">{webrtcDiagnostics.bitrate || 0} kbps</span>
+                </div>
+                <div className="col-span-2 border-t border-white/5 pt-1.5">
+                  <span className="text-gray-500 font-semibold block text-[8px] uppercase tracking-wider">Active Network Path</span>
+                  <span className="text-gray-400 font-bold break-all text-[8.5px] leading-tight block mt-0.5">
+                    {webrtcDiagnostics.candidatePair || 'Resolving ICE candidates...'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-500 font-semibold block text-[8px] uppercase tracking-wider">ICE Protocol</span>
+                  <span className="text-gray-300 font-bold font-mono">{webrtcDiagnostics.protocol || 'UDP'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 font-semibold block text-[8px] uppercase tracking-wider">Relay Type</span>
+                  <span className="text-purple-400 font-bold font-mono uppercase">
+                    {webrtcDiagnostics.localType || 'Host'}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Video Feeds Grid */}
         <div className="grid grid-cols-2 gap-3.5">

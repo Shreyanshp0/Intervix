@@ -108,6 +108,22 @@ const RoomPage = () => {
   const [messages, setMessages] = useState([]);
   const [quality, setQuality] = useState('unknown');
 
+  const lastBytesReceivedRef = useRef(0);
+  const lastStatsTimeRef = useRef(Date.now());
+  const [webrtcDiagnostics, setWebrtcDiagnostics] = useState({
+    mainIceState: 'new',
+    mainSignalingState: 'stable',
+    screenIceState: 'new',
+    screenSignalingState: 'stable',
+    rtt: 0,
+    packetLoss: 0,
+    bitrate: 0,
+    candidatePair: 'Pending connection...',
+    localType: 'Unknown',
+    remoteType: 'Unknown',
+    protocol: 'UDP'
+  });
+
   const effectiveUserRole = user?.role || roomRole || 'candidate';
   const isRecruiter = effectiveUserRole === 'recruiter' || effectiveUserRole === 'admin';
   const isPolite = isRecruiter;
@@ -215,41 +231,74 @@ const RoomPage = () => {
     };
 
     peer.ontrack = (event) => {
-      const stream = event.streams?.[0] || new MediaStream([event.track]);
-      console.info('[WEBRTC_TRACK]', {
+      // Clean, reactive track diagnostic log:
+      console.info('[DIAGNOSTICS] RTCPeerConnection track received:', {
         channel,
         kind: event.track.kind,
-        label: event.track.label,
         readyState: event.track.readyState,
-        enabled: event.track.enabled
+        enabled: event.track.enabled,
+        streamId: event.streams?.[0]?.id,
+        transceiverMid: event.transceiver?.mid,
+        connectionState: peer.connectionState,
+        iceConnectionState: peer.iceConnectionState,
+        signalingState: peer.signalingState
       });
+
+      const stream = event.streams?.[0] || new MediaStream([event.track]);
 
       if (channel === 'screen' && event.track.kind === 'video') {
         console.info('[WEBRTC_SCREEN] remote screen track attached');
         remoteScreenStreamRef.current = stream;
-        attachStream(remoteScreenVideoRef, remoteScreenStreamRef.current);
+        
+        // Force attachment (no early return) to prevent browser freezes
+        if (remoteScreenVideoRef.current) {
+          remoteScreenVideoRef.current.srcObject = null;
+          remoteScreenVideoRef.current.srcObject = stream;
+          remoteScreenVideoRef.current.play().catch(() => {});
+        }
+        
         event.track.onended = () => {
-          attachStream(remoteScreenVideoRef, null);
+          if (remoteScreenVideoRef.current) remoteScreenVideoRef.current.srcObject = null;
           setRemoteScreenSharing(false);
         };
-        event.track.onmute = () => console.info('[WEBRTC_SCREEN] screen track muted');
-        event.track.onunmute = () => console.info('[WEBRTC_SCREEN] screen track unmuted');
         setRemoteScreenSharing(true);
         return;
       }
+      
+      // For main channel (webcam/mic)
       if (event.track.kind === 'audio') {
         console.info('[WEBRTC_MAIN] remote audio track attached');
-        if (!remoteCameraStreamRef.current.getAudioTracks().includes(event.track)) remoteCameraStreamRef.current.addTrack(event.track);
-        attachStream(remoteWebcamVideoRef, remoteCameraStreamRef.current);
-        return;
+        if (!remoteCameraStreamRef.current.getAudioTracks().includes(event.track)) {
+          remoteCameraStreamRef.current.addTrack(event.track);
+        }
+      } else if (event.track.kind === 'video') {
+        console.info('[WEBRTC_MAIN] remote webcam track attached');
+        if (!remoteCameraStreamRef.current.getVideoTracks().includes(event.track)) {
+          remoteCameraStreamRef.current.addTrack(event.track);
+        }
       }
-      if (!remoteCameraStreamRef.current.getVideoTracks().includes(event.track)) remoteCameraStreamRef.current.addTrack(event.track);
-      console.info('[WEBRTC_MAIN] remote webcam track attached');
-      attachStream(remoteWebcamVideoRef, remoteCameraStreamRef.current);
+
+      // Force-reattach the remote webcam stream to ensure video renders even if audio was bound first!
+      if (remoteWebcamVideoRef.current) {
+        const targetStream = remoteCameraStreamRef.current;
+        console.info('[WEBRTC_MAIN] reattaching remote stream to video element', {
+          audioTracks: targetStream.getAudioTracks().length,
+          videoTracks: targetStream.getVideoTracks().length
+        });
+        remoteWebcamVideoRef.current.srcObject = null; // Reset first
+        remoteWebcamVideoRef.current.srcObject = targetStream;
+        remoteWebcamVideoRef.current.play().catch(() => {});
+      }
+
       event.track.onended = () => {
-        remoteCameraStreamRef.current = new MediaStream(remoteCameraStreamRef.current.getAudioTracks());
-        attachStream(remoteWebcamVideoRef, remoteCameraStreamRef.current);
+        remoteCameraStreamRef.current.removeTrack(event.track);
+        if (remoteWebcamVideoRef.current) {
+          remoteWebcamVideoRef.current.srcObject = null;
+          remoteWebcamVideoRef.current.srcObject = remoteCameraStreamRef.current;
+          remoteWebcamVideoRef.current.play().catch(() => {});
+        }
       };
+      
       event.track.onmute = () => console.info('[WEBRTC_MAIN] webcam track muted');
       event.track.onunmute = () => console.info('[WEBRTC_MAIN] webcam track unmuted');
     };
@@ -386,8 +435,18 @@ const RoomPage = () => {
     const peer = createPeer('main');
     const [videoTrack] = stream.getVideoTracks();
     const [audioTrack] = stream.getAudioTracks();
-    if (videoTrack) cameraVideoSenderRef.current = peer.addTrack(videoTrack, stream);
-    if (audioTrack) audioSenderRef.current = peer.addTrack(audioTrack, stream);
+    
+    if (audioTrack) {
+      audioSenderRef.current = peer.addTransceiver(audioTrack, { direction: 'sendrecv', streams: [stream] }).sender;
+    } else {
+      peer.addTransceiver('audio', { direction: 'recvonly' });
+    }
+    
+    if (videoTrack) {
+      cameraVideoSenderRef.current = peer.addTransceiver(videoTrack, { direction: 'sendrecv', streams: [stream] }).sender;
+    } else {
+      peer.addTransceiver('video', { direction: 'recvonly' });
+    }
   }, [createPeer]);
 
   const fetchRoom = useCallback(async () => {
@@ -608,24 +667,78 @@ const RoomPage = () => {
     socket.on('interview_ended', handleInterviewEnded);
     socket.on('interview_error', handleInterviewError);
 
-    const qualityInterval = setInterval(async () => {
-      const peer = mainPeerRef.current;
-      if (!peer) return;
-      const stats = await peer.getStats();
-      let packetsLost = 0;
-      let packetsReceived = 0;
-      stats.forEach((report) => {
-        if (report.type === 'inbound-rtp' && !report.isRemote) {
-          packetsLost += report.packetsLost || 0;
-          packetsReceived += report.packetsReceived || 0;
+    const diagnosticsInterval = setInterval(async () => {
+      const mainPeer = mainPeerRef.current;
+      const screenPeer = screenPeerRef.current;
+
+      const newDiag = {
+        mainIceState: mainPeer ? mainPeer.iceConnectionState : 'closed',
+        mainSignalingState: mainPeer ? mainPeer.signalingState : 'closed',
+        screenIceState: screenPeer ? screenPeer.iceConnectionState : 'closed',
+        screenSignalingState: screenPeer ? screenPeer.signalingState : 'closed',
+        rtt: 0,
+        packetLoss: 0,
+        bitrate: 0,
+        candidatePair: 'No active pair',
+        localType: 'Unknown',
+        remoteType: 'Unknown',
+        protocol: 'UDP'
+      };
+
+      if (!mainPeer) {
+        setWebrtcDiagnostics(newDiag);
+        return;
+      }
+
+      try {
+        const stats = await mainPeer.getStats();
+        let packetsLost = 0;
+        let packetsReceived = 0;
+        let bytesReceived = 0;
+        let now = Date.now();
+
+        stats.forEach((report) => {
+          if (report.type === 'inbound-rtp') {
+            packetsLost += report.packetsLost || 0;
+            packetsReceived += report.packetsReceived || 0;
+            bytesReceived += report.bytesReceived || 0;
+          }
+          if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+            newDiag.rtt = Math.round((report.currentRoundTripTime || 0) * 1000);
+            const localCand = stats.get(report.localCandidateId);
+            const remoteCand = stats.get(report.remoteCandidateId);
+            if (localCand && remoteCand) {
+              newDiag.localType = localCand.candidateType || 'Unknown';
+              newDiag.remoteType = remoteCand.candidateType || 'Unknown';
+              newDiag.protocol = (localCand.protocol || 'UDP').toUpperCase();
+              newDiag.candidatePair = `${localCand.ip || localCand.ipAddress || 'Local'}:${localCand.port} ↔ ${remoteCand.ip || remoteCand.ipAddress || 'Remote'}:${remoteCand.port}`;
+            }
+          }
+        });
+
+        // Calculate packet loss
+        const loss = (packetsReceived + packetsLost) ? packetsLost / (packetsReceived + packetsLost) : 0;
+        newDiag.packetLoss = Math.round(loss * 1000) / 10; // e.g. 1.2%
+
+        // Calculate bitrate
+        const timeDiff = (now - lastStatsTimeRef.current) / 1000; // seconds
+        if (timeDiff > 0 && lastBytesReceivedRef.current > 0) {
+          const byteDiff = bytesReceived - lastBytesReceivedRef.current;
+          newDiag.bitrate = Math.round((byteDiff * 8) / timeDiff / 1000); // kbps
         }
-      });
-      const loss = packetsReceived ? packetsLost / packetsReceived : 0;
-      setQuality(loss > 0.08 ? 'poor' : loss > 0.03 ? 'fair' : 'good');
-    }, 5000);
+
+        lastBytesReceivedRef.current = bytesReceived;
+        lastStatsTimeRef.current = now;
+
+        setWebrtcDiagnostics(newDiag);
+        setQuality(loss > 0.08 ? 'poor' : loss > 0.03 ? 'fair' : 'good');
+      } catch (err) {
+        console.warn('[RTC] Failed to collect stats', err);
+      }
+    }, 2000);
 
     return () => {
-      clearInterval(qualityInterval);
+      clearInterval(diagnosticsInterval);
       if (joinedRef.current) {
         socket.emit('leave_interview', { roomId: activeRoomId });
       }
@@ -782,7 +895,7 @@ const RoomPage = () => {
       const [screenTrack] = stream.getVideoTracks();
       if (!screenTrack) throw new Error('No screen track returned');
       const peer = createPeer('screen');
-      screenSenderRef.current = peer.addTrack(screenTrack, stream);
+      screenSenderRef.current = peer.addTransceiver(screenTrack, { direction: 'sendonly', streams: [stream] }).sender;
       screenStreamRef.current = stream;
       screenTrack.onended = () => { void stopScreenShare(true); };
       setScreenSharing(true);
@@ -989,6 +1102,7 @@ const RoomPage = () => {
             onSendPrompt={sendPromptMessage}
             quality={quality}
             status={status}
+            webrtcDiagnostics={webrtcDiagnostics}
           />
         )}
 
