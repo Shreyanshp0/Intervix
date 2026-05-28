@@ -6,6 +6,9 @@ import liveInterviewService from '../services/live-interview.service.js';
 import { verifyJoinToken } from '../services/live-interview-session.service.js';
 import { SessionExpiredError } from '../utils/interview-errors.js';
 import handleControllerError from '../utils/controller-error.js';
+import { acquireLock, releaseLock } from '../utils/processing-lock.js';
+import { normalizeInterviewSession } from '../models/InterviewSession.js';
+import logger from '../config/logger.js';
 
 const logControllerError = (scope, error, extras = {}) => {
   const details = {
@@ -20,13 +23,69 @@ const logControllerError = (scope, error, extras = {}) => {
 };
 
 const startSession = async (req, res, next) => {
+  const lockKey = String(req.user._id);
+  logger.info({
+    tag: 'INTERVIEW_START_REQUEST',
+    message: 'POST /api/interviews/start request received',
+    userId: req.user._id,
+    body: req.body
+  });
+
+  if (!acquireLock(lockKey, 'start-interview')) {
+    logger.warn({
+      tag: 'INTERVIEW_START_LOCK_BLOCKED',
+      message: 'Blocked double interview start attempt',
+      userId: req.user._id
+    });
+    return res.status(409).json({
+      success: false,
+      message: 'An interview session initialization is already in progress.',
+    });
+  }
+
   try {
+    logger.info({
+      tag: 'INTERVIEW_START_CONTROLLER',
+      message: 'Acquired startup lock; commencing session database creation...',
+      userId: req.user._id
+    });
+
     const session = await interviewSessionService.createSession(req.user._id, req.body);
+    logger.info({
+      tag: 'INTERVIEW_START_SESSION_CREATED',
+      message: 'Session record successfully created in MongoDB',
+      sessionId: session._id,
+      userId: req.user._id
+    });
+
+    logger.info({
+      tag: 'INTERVIEW_START_AI_GENERATION',
+      message: 'Requesting Groq LLM engine to synthesize the initial question...',
+      sessionId: session._id
+    });
     const initialAiResponse = await interviewEngine.startInterview(session._id);
+    logger.info({
+      tag: 'INTERVIEW_START_AI_COMPLETED',
+      message: 'Initial AI question successfully generated',
+      sessionId: session._id,
+      question: initialAiResponse.question
+    });
+
     const freshSession = await interviewSessionService.getOwnedSession(session._id, req.user._id);
 
     const payload = interviewSessionService.buildRecoveryPayload(freshSession);
+    logger.info({
+      tag: 'INTERVIEW_START_SOCKET_JOIN',
+      message: 'Emitting initial state payload via realtime Socket.IO channel...',
+      sessionId: session._id
+    });
     realtimeService.emitToSession(freshSession._id, 'interview:state', payload);
+
+    logger.info({
+      tag: 'INTERVIEW_START_RESPONSE_COMPLETED',
+      message: 'Realtime session initialization complete. Returning payload.',
+      sessionId: session._id
+    });
 
     res.status(201).json({
       ...payload,
@@ -34,8 +93,16 @@ const startSession = async (req, res, next) => {
       fallback: Boolean(initialAiResponse.fallback),
     });
   } catch (error) {
+    logger.error({
+      tag: 'INTERVIEW_START_CRITICAL_FAILURE',
+      message: 'Realtime interview start failed in request pipeline',
+      error: error.message,
+      stack: error.stack
+    });
     logControllerError('startSession', error);
     return handleControllerError('interview.controller.startSession', res, next, error);
+  } finally {
+    releaseLock(lockKey);
   }
 };
 
@@ -44,6 +111,12 @@ const getActiveSession = async (req, res, next) => {
     const session = await interviewSessionService.getActiveSessionForUser(req.user._id);
     if (!session) {
       return res.status(200).json({ session: null, recoverable: false });
+    }
+
+    // Auto-repair malformed fields on load
+    normalizeInterviewSession(session);
+    if (session.isModified()) {
+      await session.save();
     }
 
     if (timerService.hasExpired(session) && !session.reportGeneratedAt) {
@@ -109,8 +182,15 @@ const recoverSession = async (req, res, next) => {
 };
 
 const respondToQuestion = async (req, res, next) => {
+  const { sessionId } = req.params;
+  if (!acquireLock(sessionId, 'text-respond')) {
+    return res.status(409).json({
+      success: false,
+      message: 'AI is already processing a response for this session.',
+    });
+  }
+
   try {
-    const { sessionId } = req.params;
     const session = await interviewSessionService.getOwnedSession(sessionId, req.user._id);
 
     try {
@@ -165,12 +245,15 @@ const respondToQuestion = async (req, res, next) => {
   } catch (error) {
     logControllerError('respondToQuestion', error, { sessionId: req.params.sessionId });
     return handleControllerError('interview.controller.respondToQuestion', res, next, error);
+  } finally {
+    releaseLock(sessionId);
   }
 };
 
 const endSession = async (req, res, next) => {
   try {
     const session = await interviewSessionService.getOwnedSession(req.params.sessionId, req.user._id);
+    normalizeInterviewSession(session);
     const finalized = await interviewSessionService.endInterview(session, { autoEnded: false });
     const payload = interviewSessionService.buildRecoveryPayload(finalized);
     realtimeService.emitToSession(finalized._id, 'interview:state', payload);

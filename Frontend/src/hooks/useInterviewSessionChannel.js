@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { connectSocket } from '../services/socket';
 import { useInterviewRuntimeStore } from '../store/useInterviewRuntimeStore';
 
-export const useInterviewSessionChannel = ({ sessionId, tabId, onCompleted, onAudioReady, onAudioInterrupted }) => {
+export const useInterviewSessionChannel = ({ sessionId, tabId, onCompleted, onAudioReady, onAudioInterrupted, onAudioFailed }) => {
   const hydrateFromSession = useInterviewRuntimeStore((state) => state.hydrateFromSession);
   const setTimerSeconds = useInterviewRuntimeStore((state) => state.setTimerSeconds);
   const setAiState = useInterviewRuntimeStore((state) => state.setAiState);
@@ -15,11 +15,13 @@ export const useInterviewSessionChannel = ({ sessionId, tabId, onCompleted, onAu
   const onCompletedRef = useRef(onCompleted);
   const onAudioReadyRef = useRef(onAudioReady);
   const onAudioInterruptedRef = useRef(onAudioInterrupted);
+  const onAudioFailedRef = useRef(onAudioFailed);
 
   useEffect(() => {
     onCompletedRef.current = onCompleted;
     onAudioReadyRef.current = onAudioReady;
     onAudioInterruptedRef.current = onAudioInterrupted;
+    onAudioFailedRef.current = onAudioFailed;
   });
 
   const socket = useMemo(() => connectSocket(), []);
@@ -107,16 +109,43 @@ export const useInterviewSessionChannel = ({ sessionId, tabId, onCompleted, onAu
       onAudioInterruptedRef.current?.(payload);
     };
 
+    const handleAudioFailed = (payload) => {
+      onAudioFailedRef.current?.(payload);
+    };
+
+    // Reconnect-safe socket subscriptions (preventing duplicate listeners)
+    socket.off('connect', handleConnect);
     socket.on('connect', handleConnect);
+
+    socket.off('disconnect', handleDisconnect);
     socket.on('disconnect', handleDisconnect);
+
+    socket.off('interview:state', handleState);
     socket.on('interview:state', handleState);
+
+    socket.off('interview:recovered', handleRecovered);
     socket.on('interview:recovered', handleRecovered);
+
+    socket.off('interview:timer', handleTimer);
     socket.on('interview:timer', handleTimer);
+
+    socket.off('interview:phase', handlePhase);
     socket.on('interview:phase', handlePhase);
+
+    socket.off('interview:autosaved', handleAutosaved);
     socket.on('interview:autosaved', handleAutosaved);
+
+    socket.off('interview:completed', handleCompleted);
     socket.on('interview:completed', handleCompleted);
+
+    socket.off('interview:audio_ready', handleAudioReady);
     socket.on('interview:audio_ready', handleAudioReady);
+
+    socket.off('interview:audio_interrupted', handleAudioInterrupted);
     socket.on('interview:audio_interrupted', handleAudioInterrupted);
+
+    socket.off('interview:audio_failed', handleAudioFailed);
+    socket.on('interview:audio_failed', handleAudioFailed);
 
     if (socket.connected) {
       handleConnect();
@@ -140,6 +169,7 @@ export const useInterviewSessionChannel = ({ sessionId, tabId, onCompleted, onAu
       socket.off('interview:completed', handleCompleted);
       socket.off('interview:audio_ready', handleAudioReady);
       socket.off('interview:audio_interrupted', handleAudioInterrupted);
+      socket.off('interview:audio_failed', handleAudioFailed);
     };
   }, [
     sessionId,

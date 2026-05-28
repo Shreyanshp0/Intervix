@@ -5,6 +5,7 @@ import ApiError from '../utils/api-error.js';
 import * as interviewController from '../controllers/interview.controller.js';
 import { protect, authorize } from '../middleware/auth.middleware.js';
 import { validateStartSession, validateInterviewResponse } from '../validators/index.js';
+import { asyncHandler } from '../utils/async-handler.js';
 
 const router = express.Router();
 
@@ -34,18 +35,18 @@ const protectSession = async (req, res, next) => {
   }
 };
 
-router.get('/session/:token', protectSession, authorize('candidate', 'recruiter', 'admin'), interviewController.resolveLiveSession);
+router.get('/session/:token', protectSession, authorize('candidate', 'recruiter', 'admin'), asyncHandler(interviewController.resolveLiveSession));
 
 router.use(protect);
 
-router.get('/dashboard', interviewController.getDashboard);
-router.get('/active', interviewController.getActiveSession);
-router.post('/start', validateStartSession, interviewController.startSession);
-router.get('/:sessionId', interviewController.getSessionStatus);
-router.get('/:sessionId/report', interviewController.getFinalReport);
-router.post('/:sessionId/autosave', interviewController.autosaveSession);
-router.post('/:sessionId/recover', interviewController.recoverSession);
-router.post('/:sessionId/respond', validateInterviewResponse, interviewController.respondToQuestion);
-router.post('/:sessionId/end', interviewController.endSession);
+router.get('/dashboard', asyncHandler(interviewController.getDashboard));
+router.get('/active', asyncHandler(interviewController.getActiveSession));
+router.post('/start', validateStartSession, asyncHandler(interviewController.startSession));
+router.get('/:sessionId', asyncHandler(interviewController.getSessionStatus));
+router.get('/:sessionId/report', asyncHandler(interviewController.getFinalReport));
+router.post('/:sessionId/autosave', asyncHandler(interviewController.autosaveSession));
+router.post('/:sessionId/recover', asyncHandler(interviewController.recoverSession));
+router.post('/:sessionId/respond', validateInterviewResponse, asyncHandler(interviewController.respondToQuestion));
+router.post('/:sessionId/end', asyncHandler(interviewController.endSession));
 
 export default router;

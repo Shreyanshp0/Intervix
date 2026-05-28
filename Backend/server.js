@@ -11,6 +11,7 @@ import { generateDeploymentHealthReport } from './src/utils/deployment-health.js
 import { buildModuleHealthReport } from './src/utils/module-health.js';
 import { printRegisteredRoutes } from './src/utils/routes-printer.js';
 import liveInterviewService from './src/services/live-interview.service.js';
+import { cleanupDatabaseSessions } from './src/utils/mongo-cleanup.js';
 
 const PORT = process.env.PORT || 5000;
 
@@ -73,7 +74,12 @@ const gracefulShutdown = async (signal) => {
 };
 
 // Connect to Database and start server
-connectDB().then(() => {
+connectDB().then(async () => {
+  // Run self-healing database session cleanup on startup
+  await cleanupDatabaseSessions().catch((err) => {
+    logger.error(`[Startup Cleanup] Failed: ${err.message}`);
+  });
+
   server.listen(PORT, () => {
     logger.info(`Server running on port ${PORT}`);
 

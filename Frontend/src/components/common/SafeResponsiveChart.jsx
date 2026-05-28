@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { recordDiagnostic } from '../../utils/diagnostics';
 
-const SafeResponsiveChart = ({ children, minHeight = 260, minWidth = 280, className = '' }) => {
+const SafeResponsiveChart = ({ children, minHeight = 260, minWidth = 0, className = '' }) => {
   const containerRef = useRef(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
 
@@ -31,12 +31,23 @@ const SafeResponsiveChart = ({ children, minHeight = 260, minWidth = 280, classN
     return () => observer.disconnect();
   }, []);
 
-  const ready = size.width >= minWidth && size.height >= minHeight;
+  // Relax checking to simply ensure we have non-zero dimensions to render Recharts ResponsiveContainer
+  const ready = size.width > 0 && size.height > 0;
 
   return (
-    <div ref={containerRef} className={className || 'h-full w-full'} style={{ minHeight, minWidth: 0 }}>
+    <div 
+      ref={containerRef} 
+      className={`${className} w-full`} 
+      style={{ 
+        width: '100%', 
+        height: `${minHeight}px`, 
+        minHeight: `${minHeight}px`, 
+        minWidth: '0px', 
+        position: 'relative' 
+      }}
+    >
       {ready ? children : (
-        <div className="flex h-full min-h-[220px] items-center justify-center text-xs text-gray-500">
+        <div className="flex w-full items-center justify-center text-xs text-gray-500" style={{ height: `${minHeight}px` }}>
           Preparing chart...
         </div>
       )}

@@ -30,7 +30,17 @@ export const useInterviewRuntimeStore = create((set, get) => ({
   setAutosaveStatus: (autosaveStatus) => set((state) => (state.autosaveStatus === autosaveStatus ? state : { autosaveStatus })),
   setLastSavedAt: (lastSavedAt) => set((state) => (state.lastSavedAt === lastSavedAt ? state : { lastSavedAt })),
 
-  enqueueAudio: (item) => set((state) => ({ audioQueue: [...state.audioQueue, item] })),
+  enqueueAudio: (item) => set((state) => {
+    // Prevent duplicate entries in audio queue by matching requestId or audioUrl
+    const exists = state.audioQueue.some((x) => 
+      (x.requestId && x.requestId === item.requestId) || 
+      (x.audioUrl && x.audioUrl === item.audioUrl)
+    );
+    if (exists) {
+      return state;
+    }
+    return { audioQueue: [...state.audioQueue, item] };
+  }),
   dequeueAudio: () => {
     const queue = [...get().audioQueue];
     const next = queue.shift() || null;
@@ -41,6 +51,20 @@ export const useInterviewRuntimeStore = create((set, get) => ({
   setAudioPlaying: (isAudioPlaying) => set({ isAudioPlaying }),
 
   hydrateFromSession: (session) => {
+    if (!session) return;
+    const current = get().session;
+
+    // Prevent duplicate rehydration and sudden re-trigger loops
+    if (
+      current &&
+      current._id === session._id &&
+      current.transcriptVersion === session.transcriptVersion &&
+      current.activePhase === session.activePhase &&
+      current.aiState === session.aiState
+    ) {
+      return;
+    }
+
     const transcriptMessages = (session?.transcript || []).flatMap((entry, index) => {
       const items = [
         {

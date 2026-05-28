@@ -541,6 +541,7 @@ const RoomPage = () => {
     socket.on('connect', handleSocketConnect);
     socket.on('connect_error', handleSocketConnectError);
 
+    socket.off('interview_state');
     socket.on('interview_state', ({ room: nextRoom }) => {
       setRoom(nextRoom);
       setRoomRole(nextRoom.role || user?.role || 'candidate');
@@ -563,14 +564,18 @@ const RoomPage = () => {
       setStatus('Joined');
     });
 
+    socket.off('interview_peers');
     socket.on('interview_peers', ({ peers }) => {
       if (peers?.length && mainPeerRef.current && mainPeerRef.current.signalingState === 'stable') {
         void mainPeerRef.current.setLocalDescription(mainPeerRef.current.createOffer()).then(() => emitDescription('main', mainPeerRef.current.localDescription));
       }
     });
 
+    socket.off('webrtc_offer');
     socket.on('webrtc_offer', async ({ offer, channel = 'main' }) => applyRemoteDescription(channel, offer).catch((error) => console.warn('[NEGOTIATION]', channel, 'offer handling failed', error)));
+    socket.off('webrtc_answer');
     socket.on('webrtc_answer', async ({ answer, channel = 'main' }) => applyRemoteDescription(channel, answer).catch((error) => console.warn('[NEGOTIATION]', channel, 'answer handling failed', error)));
+    socket.off('webrtc_ice_candidate');
     socket.on('webrtc_ice_candidate', async ({ candidate, channel = 'main' }) => addIceCandidate(channel, candidate).catch((error) => console.warn('[ICE]', channel, 'candidate handling failed', error)));
 
     const handleCodeUpdate = ({ code: nextCode, language: nextLanguage, version }) => {
@@ -648,23 +653,41 @@ const RoomPage = () => {
 
     const handleInterviewError = ({ message }) => setError(message);
 
+    socket.off('code_update');
     socket.on('code_update', handleCodeUpdate);
+    socket.off('cursor_update');
     socket.on('cursor_update', handleCursorUpdate);
+    socket.off('typing_state');
     socket.on('typing_state', handleTypingState);
+    socket.off('language_update');
     socket.on('language_update', handleLanguageUpdate);
+    socket.off('execution_status');
     socket.on('execution_status', handleExecutionStatus);
+    socket.off('execution_result');
     socket.on('execution_result', handleExecutionResult);
+    socket.off('screen_share_started');
     socket.on('screen_share_started', handleScreenShareStarted);
+    socket.off('screen_share_stopped');
     socket.on('screen_share_stopped', handleScreenShareStopped);
+    socket.off('webrtc_peer_disconnected');
     socket.on('webrtc_peer_disconnected', handlePeerDisconnected);
+    socket.off('screen_share_requested');
     socket.on('screen_share_requested', handleScreenShareRequested);
+    socket.off('audio_toggled');
     socket.on('audio_toggled', handleAudioToggled);
+    socket.off('video_toggled');
     socket.on('video_toggled', handleVideoToggled);
+    socket.off('participant_media_state');
     socket.on('participant_media_state', handleParticipantMediaState);
+    socket.off('editor_lock_changed');
     socket.on('editor_lock_changed', handleEditorLockChanged);
+    socket.off('interview_paused');
     socket.on('interview_paused', handleInterviewPaused);
+    socket.off('prompt_received');
     socket.on('prompt_received', handlePromptReceived);
+    socket.off('interview_ended');
     socket.on('interview_ended', handleInterviewEnded);
+    socket.off('interview_error');
     socket.on('interview_error', handleInterviewError);
 
     const diagnosticsInterval = setInterval(async () => {

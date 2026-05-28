@@ -1,71 +1,52 @@
+import mongoose from 'mongoose';
 import ApiError from '../utils/api-error.js';
 import logger from '../config/logger.js';
 
-const errorConverter = (err, req, res, next) => {
+/**
+ * Converts any non-ApiError instances into a normalized ApiError
+ */
+export const errorConverter = (err, req, res, next) => {
   let error = err;
-  if (error instanceof ApiError) {
-    return next(error);
+  if (!(error instanceof ApiError)) {
+    const statusCode =
+      error.statusCode || (error instanceof mongoose.Error ? 400 : 500);
+    const message = error.message || 'Internal Server Error';
+    error = new ApiError(statusCode, message, false, err.stack);
   }
-
-  const isCorsError = Boolean(error?.message && /CORS origin|Not allowed by CORS/i.test(error.message));
-  const statusCode = error?.statusCode
-    || (error?.name === 'ValidationError' ? 400 : null)
-    || (error?.name === 'CastError' ? 404 : null)
-    || (isCorsError ? 403 : null)
-    || (error instanceof Error ? 500 : 400);
-  const message = error?.message || (statusCode === 403 ? 'Forbidden origin' : 'Internal Server Error');
-
-  error = new ApiError(statusCode, message, statusCode < 500, err.stack);
-  error.details = err.details;
-  error.name = err?.name || error.name;
   next(error);
 };
 
-const errorHandler = (err, req, res, next) => {
+/**
+ * Production-safe global error handler middleware
+ */
+export const errorHandler = (err, req, res, next) => {
   let { statusCode, message } = err;
-  if (!statusCode || Number.isNaN(Number(statusCode))) {
-    statusCode = 500;
-  }
 
-  if (process.env.NODE_ENV === 'production' && !err.isOperational && statusCode >= 500) {
+  // Mask internal server error messages in production
+  if (process.env.NODE_ENV === 'production' && !err.isOperational) {
+    statusCode = 500;
     message = 'Internal Server Error';
   }
 
   res.locals.errorMessage = err.message;
 
   const response = {
-    code: statusCode,
+    success: false,
     message,
-    ...(err.details && { details: err.details }),
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+    ...(process.env.NODE_ENV === 'development' ? { stack: err.stack } : {}),
   };
 
+  // Structured logging
   logger.error({
-    tag: 'HTTP_ERROR',
-    method: req.method,
-    path: req.originalUrl,
+    tag: 'GLOBAL_ERROR_HANDLER',
+    message: err.message || 'Express request pipeline failure',
     statusCode,
-    message,
-    origin: req.get('origin') || req.get('referer') || 'unknown',
-    forwardedProto: req.get('x-forwarded-proto') || req.protocol,
-    userId: req.user?._id || 'anonymous',
-    stack: err.stack || null,
-    details: err.details || null
+    path: req.path,
+    method: req.method,
+    stack: err.stack,
   });
-  if (err.details) {
-    logger.error(`Error details: ${JSON.stringify(err.details)}`);
-  }
-  if (err.stack) {
-    logger.error(err.stack);
-  }
-  if (process.env.NODE_ENV === 'development') {
-    logger.error(err);
-  }
 
-  res.status(statusCode).json(response);
-};
-
-export {
-  errorConverter,
-  errorHandler,
+  if (!res.headersSent) {
+    res.status(statusCode).json(response);
+  }
 };

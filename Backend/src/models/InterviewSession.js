@@ -149,7 +149,7 @@ const interviewSessionSchema = new mongoose.Schema(
     },
     expiresAt: {
       type: Date,
-      required: true,
+      default: () => new Date(Date.now() + 60 * 60 * 1000),
       index: true,
     },
     endedAt: {
@@ -275,6 +275,10 @@ const interviewSessionSchema = new mongoose.Schema(
       type: [transcriptEntrySchema],
       default: [],
     },
+    messages: {
+      type: Array,
+      default: [],
+    },
     reportGeneratedAt: {
       type: Date,
     },
@@ -343,5 +347,36 @@ const interviewSessionSchema = new mongoose.Schema(
 
 interviewSessionSchema.index({ userId: 1, createdAt: -1 });
 interviewSessionSchema.index({ userId: 1, topic: 1, createdAt: -1 });
+
+export const normalizeInterviewSession = (session) => {
+  if (!session) return session;
+
+  if (!session.expiresAt) {
+    session.expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+  }
+  if (!session.transcript) {
+    session.transcript = [];
+  }
+  if (!session.messages) {
+    session.messages = [];
+  }
+  if (!session.status) {
+    session.status = 'active';
+  }
+  if (!session.startedAt) {
+    session.startedAt = new Date();
+  }
+
+  // Critical validation check - do not allow save on completely corrupted document
+  if (!session.userId) {
+    throw new Error('InterviewSession validation failed: userId is required.');
+  }
+
+  return session;
+};
+
+interviewSessionSchema.pre('save', function () {
+  normalizeInterviewSession(this);
+});
 
 export default mongoose.models.InterviewSession || mongoose.model('InterviewSession', interviewSessionSchema);

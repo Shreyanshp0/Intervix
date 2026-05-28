@@ -9,6 +9,7 @@ import { SessionExpiredError } from '../utils/interview-errors.js';
 import { VoicePipelineError } from '../utils/voice-errors.js';
 import { safeRemoveFile } from '../utils/file-cleanup.js';
 import { logVoiceStage, logVoiceError, logVoiceWarning } from '../utils/voice-pipeline-logger.js';
+import { acquireLock, releaseLock } from '../utils/processing-lock.js';
 
 const buildVoiceErrorResponse = (stage, error) => ({
   success: false,
@@ -46,6 +47,14 @@ const transcribeAudio = async (req, res, next) => {
     res.status(200).json({ success: true, transcript });
   } catch (error) {
     logVoiceError(currentStage, error);
+    if (currentStage === 'transcription_started' || currentStage === 'transcription_completed') {
+      return res.status(200).json({
+        success: false,
+        fallback: 'browser-stt',
+        recoverable: true,
+        message: error.message || 'Speech transcription service unavailable'
+      });
+    }
     return res.status(error.statusCode || 500).json(buildVoiceErrorResponse(currentStage, error));
   } finally {
     await safeRemoveFile(req.file?.path, { stage: 'transcription' });
@@ -120,6 +129,10 @@ const processVoiceResponse = async (req, res, next) => {
     sessionId = req.body.sessionId;
     if (!sessionId) {
       throw new VoicePipelineError(currentStage, 'Session ID is required', {}, 400);
+    }
+
+    if (!acquireLock(sessionId, 'voice-respond')) {
+      throw new VoicePipelineError(currentStage, 'AI voice response generation is already in progress.', {}, 409);
     }
 
     const ownedSession = await interviewSessionService.getOwnedSession(sessionId, req.user._id);
@@ -242,12 +255,40 @@ const processVoiceResponse = async (req, res, next) => {
     }
 
     logVoiceError(currentStage, error, { sessionId });
+
+    if (currentStage === 'transcription_started' || currentStage === 'transcription_completed') {
+      if (sessionId) {
+        try {
+          await interviewSessionService.updateRuntimeState(sessionId, {
+            aiState: 'idle',
+            activePhase: 'active',
+          });
+          realtimeService.emitToSession(sessionId, 'interview:phase', {
+            sessionId,
+            aiState: 'idle',
+            activePhase: 'active',
+          });
+        } catch (stateErr) {
+          logVoiceWarning('state_reset_failed', { sessionId, message: stateErr.message });
+        }
+      }
+
+      return res.status(200).json({
+        success: false,
+        fallback: 'browser-stt',
+        recoverable: true,
+        message: error.message || 'Speech transcription service unavailable'
+      });
+    }
+
     return res.status(error.statusCode || 500).json(buildVoiceErrorResponse(currentStage, error));
   } finally {
+    if (sessionId) {
+      releaseLock(sessionId);
+    }
     await safeRemoveFile(req.file?.path, { stage: 'respond', sessionId });
   }
 };
-
 
 export {
   transcribeAudio,

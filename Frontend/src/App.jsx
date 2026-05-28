@@ -22,6 +22,7 @@ function App() {
         useNotificationStore.getState().addNotification(item);
       };
 
+      socket.off('notification', handleNotification);
       socket.on('notification', handleNotification);
 
       return () => {

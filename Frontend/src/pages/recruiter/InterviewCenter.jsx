@@ -67,11 +67,13 @@ const InterviewCenter = () => {
       userName: 'Recruiter'
     });
 
+    socket.off('live:user_joined');
     socket.on('live:user_joined', ({ role, userName }) => {
       setUserJoined(true);
       console.log(`${userName} (${role}) joined live assessment room`);
     });
 
+    socket.off('live:notepad_updated');
     socket.on('live:notepad_updated', ({ content }) => {
       setNotepadContent(content);
     });

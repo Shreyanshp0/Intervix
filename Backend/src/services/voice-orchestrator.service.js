@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import kokoroService from '../ai/kokoro.service.js';
+import openaiTtsService from '../ai/openai-tts.service.js';
 import realtimeService from './realtime.service.js';
 import interviewSessionService from './interview-session.service.js';
 import logger from '../config/logger.js';
@@ -38,18 +39,44 @@ class VoiceOrchestratorService {
 
   async generateAndEmitAudio({ sessionId, requestId, text }) {
     try {
-      const speechResult = await kokoroService.generateSpeech(text, requestId);
-      // If TTS is disabled, kokoroService returns null. Treat as graceful fallback.
+      let speechResult = null;
+      let usedFallback = false;
+
+      // 1. Try Kokoro primary TTS
+      try {
+        speechResult = await kokoroService.generateSpeech(text, requestId);
+      } catch (kokoroError) {
+        logger.warn(`[VoiceOrchestrator] Kokoro TTS failed: ${kokoroError.message}. Attempting OpenAI fallback...`);
+      }
+
+      // 2. Try OpenAI fallback if Kokoro is unavailable and API key is set
+      if (!speechResult && process.env.OPENAI_API_KEY) {
+        try {
+          speechResult = await openaiTtsService.generateSpeech(text, requestId);
+          usedFallback = true;
+        } catch (openaiError) {
+          logger.error(`[VoiceOrchestrator] OpenAI TTS fallback failed: ${openaiError.message}`);
+        }
+      }
+
+      // 3. Fallback to browser client SpeechSynthesis
       if (!speechResult) {
-        logger.info(`[VoiceOrchestrator] TTS disabled; skipping audio for request ${requestId}`);
+        logger.warn(`[VoiceOrchestrator] All backend TTS options failed/offline. Emitting audio_failed to trigger client SpeechSynthesis fallback.`);
         realtimeService.emitToSession(sessionId, 'interview:audio_failed', {
           sessionId: String(sessionId),
           requestId,
           text,
-          reason: 'tts_disabled'
+          reason: 'backend_tts_depleted'
+        });
+
+        // Set to speaking status anyway so client transitions and reads/speaks the question text
+        await interviewSessionService.updateRuntimeState(sessionId, {
+          aiState: 'speaking',
+          activePhase: 'speaking',
         });
         return;
       }
+
       const session = await interviewSessionService.getSessionById(sessionId);
 
       if (!session || session.meta?.lastAudioRequestId !== requestId) {
@@ -68,6 +95,7 @@ class VoiceOrchestratorService {
         sessionId: String(sessionId),
         requestId,
         provider: speechResult.provider,
+        fallback: usedFallback,
       });
 
       realtimeService.emitToSession(sessionId, 'interview:audio_ready', {
@@ -79,7 +107,7 @@ class VoiceOrchestratorService {
         provider: speechResult.provider,
       });
     } catch (error) {
-      logger.error(`[VoiceOrchestrator] Audio generation failed for session ${sessionId}: ${error.message}`);
+      logger.error(`[VoiceOrchestrator] Audio generation critical failure for session ${sessionId}: ${error.message}`);
       logVoiceWarning('tts_failed', {
         sessionId: String(sessionId),
         requestId,
@@ -89,6 +117,7 @@ class VoiceOrchestratorService {
         sessionId: String(sessionId),
         requestId,
         text,
+        reason: 'critical_orchestrator_failure'
       });
     }
   }
